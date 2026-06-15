@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
 import InstallPrompt from '@/components/InstallPrompt';
 
@@ -25,8 +25,7 @@ export default function Home() {
     if (typeof window === 'undefined') return;
     const onResize = () => {
       const visualHeight = window.visualViewport?.height ?? window.innerHeight;
-      const windowHeight = window.screen.height;
-      const diff = windowHeight - visualHeight;
+      const diff = window.screen.height - visualHeight;
       setKeyboardHeight(diff > 100 ? Math.min(diff * 0.5, 180) : 0);
     };
     window.visualViewport?.addEventListener('resize', onResize);
@@ -69,7 +68,7 @@ export default function Home() {
         }} />
       </div>
 
-      {/* Botões AppBar fixos */}
+      {/* Botões AppBar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 pt-4 pb-2 pointer-events-none">
         <button className="w-11 h-11 rounded-full bg-white/80 flex items-center justify-center shadow-sm pointer-events-auto">
           <img src="/assets/icons/svg/menu.svg" alt="Menu" width={22} height={22} />
@@ -80,16 +79,31 @@ export default function Home() {
       </div>
 
       {/* Centro */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ paddingTop: 80, paddingBottom: 160 }}>
+      <div
+        className="flex-1 flex flex-col items-center justify-center px-6"
+        style={{ paddingTop: 80, paddingBottom: 160 }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="flex flex-col items-center gap-4"
         >
-          <img src="/assets/icons/png/logo.png" alt="Nexa logo" width={72} height={72} style={{ borderRadius: 18 }} />
-          <h1 className="text-[2.6rem] font-bold text-black leading-tight text-center" style={{ fontFamily: 'Georgia, serif' }}>
-            {mounted ? getGreeting() : 'Olá'}
+          <motion.img
+            src="/assets/icons/png/logo.png"
+            alt="Nexa logo"
+            width={72}
+            height={72}
+            style={{ borderRadius: 18 }}
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+          />
+          <h1
+            className="text-[2.6rem] font-bold text-black leading-tight text-center"
+            style={{ fontFamily: 'Georgia, serif' }}
+          >
+            {mounted ? getGreeting() : '\u00A0'}
           </h1>
           <p className="text-gray-400 text-base text-center">Em que estás a pensar?</p>
         </motion.div>
@@ -99,7 +113,7 @@ export default function Home() {
       <motion.div
         className="fixed left-0 right-0 px-3 pb-6 pt-2"
         animate={{ bottom: keyboardHeight }}
-        transition={{ type: 'spring', stiffness: 120, damping: 28, mass: 0.8 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.7 }}
       >
         <div className="bg-white rounded-3xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-3">
           <textarea
@@ -116,31 +130,83 @@ export default function Home() {
             <button className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
               <img src="/assets/icons/svg/add.svg" alt="Adicionar" width={18} height={18} />
             </button>
+
             <div className="flex items-center gap-2">
-              {!hasText && (
-                <button className="flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-2">
-                  <img src="/assets/icons/svg/preview.svg" alt="Preview" width={18} height={18} />
-                  <span className="text-sm font-medium text-gray-700">Preview</span>
-                </button>
-              )}
-              {hasText ? (
-                <motion.button
-                  key="send"
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={handleSend}
-                  className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center shadow-md"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </motion.button>
-              ) : (
-                <button className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center shadow-md">
-                  <img src="/assets/icons/svg/record.svg" alt="Gravar" width={20} height={20} style={{ filter: 'brightness(0) invert(1)' }} />
-                </button>
-              )}
+              {/* Preview — sempre visível, nunca desaparece */}
+              <motion.button
+                className="flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-2 overflow-hidden"
+                animate={{
+                  opacity: hasText ? 0.35 : 1,
+                  scale: hasText ? 0.92 : 1,
+                }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                style={{ pointerEvents: hasText ? 'none' : 'auto' }}
+              >
+                <img src="/assets/icons/svg/preview.svg" alt="Preview" width={18} height={18} />
+                <span className="text-sm font-medium text-gray-700">Preview</span>
+              </motion.button>
+
+              {/* Record → Send com pulse suave no record */}
+              <div style={{ position: 'relative', width: 44, height: 44 }}>
+                <AnimatePresence mode="wait">
+                  {!hasText ? (
+                    <motion.button
+                      key="record"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                      style={{
+                        position: 'absolute', inset: 0,
+                        borderRadius: '50%',
+                        background: '#3B82F6',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 12px rgba(59,130,246,0.35)',
+                        border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      {/* Pulse ring */}
+                      <motion.span
+                        style={{
+                          position: 'absolute', inset: 0,
+                          borderRadius: '50%',
+                          background: 'rgba(59,130,246,0.3)',
+                        }}
+                        animate={{ scale: [1, 1.55, 1], opacity: [0.6, 0, 0.6] }}
+                        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                      />
+                      <img
+                        src="/assets/icons/svg/record.svg"
+                        alt="Gravar"
+                        width={20}
+                        height={20}
+                        style={{ filter: 'brightness(0) invert(1)', position: 'relative', zIndex: 1 }}
+                      />
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      key="send"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                      onClick={handleSend}
+                      style={{
+                        position: 'absolute', inset: 0,
+                        borderRadius: '50%',
+                        background: '#3B82F6',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 12px rgba(59,130,246,0.35)',
+                        border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>

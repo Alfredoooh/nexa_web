@@ -13,7 +13,25 @@ function getGreeting(): string {
 
 export default function Home() {
   const [inputValue, setInputValue] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const textareaRef = useRef < HTMLTextAreaElement > (null);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      const visualHeight = window.visualViewport?.height ?? window.innerHeight;
+      const windowHeight = window.screen.height;
+      const diff = windowHeight - visualHeight;
+      setKeyboardHeight(diff > 100 ? Math.min(diff * 0.5, 180) : 0);
+    };
+    window.visualViewport?.addEventListener('resize', onResize);
+    return () => window.visualViewport?.removeEventListener('resize', onResize);
+  }, []);
   
   useEffect(() => {
     const ta = textareaRef.current;
@@ -39,45 +57,50 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col bg-[#F0F0FF]">
 
-      {/* AppBar */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <button className="w-11 h-11 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+      {/* Progressive blur AppBar */}
+      <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none" style={{ height: 90 }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
+          background: 'linear-gradient(to bottom, rgba(240,240,255,0.95) 0%, rgba(240,240,255,0.7) 70%, rgba(240,240,255,0) 100%)',
+        }} />
+      </div>
+
+      {/* Botões AppBar fixos */}
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 pt-4 pb-2 pointer-events-none">
+        <button className="w-11 h-11 rounded-full bg-white/80 flex items-center justify-center shadow-sm pointer-events-auto">
           <img src="/assets/icons/svg/menu.svg" alt="Menu" width={22} height={22} />
         </button>
-        <button className="w-11 h-11 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+        <button className="w-11 h-11 rounded-full bg-white/80 flex items-center justify-center shadow-sm pointer-events-auto">
           <img src="/assets/icons/svg/new_chat.svg" alt="Novo chat" width={22} height={22} />
         </button>
       </div>
 
       {/* Centro */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-44">
+      <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ paddingTop: 80, paddingBottom: 160 }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
           className="flex flex-col items-center gap-4"
         >
-          <img
-            src="/assets/icons/png/logo.png"
-            alt="Nexa logo"
-            width={72}
-            height={72}
-            style={{ borderRadius: 18 }}
-          />
-          <h1
-            className="text-[2.6rem] font-bold text-black leading-tight text-center"
-            style={{ fontFamily: 'Georgia, serif' }}
-          >
-            {getGreeting()}
+          <img src="/assets/icons/png/logo.png" alt="Nexa logo" width={72} height={72} style={{ borderRadius: 18 }} />
+          <h1 className="text-[2.6rem] font-bold text-black leading-tight text-center" style={{ fontFamily: 'Georgia, serif' }}>
+            {mounted ? getGreeting() : 'Olá'}
           </h1>
-          <p className="text-gray-400 text-base text-center">
-            Em que estás a pensar?
-          </p>
+          <p className="text-gray-400 text-base text-center">Em que estás a pensar?</p>
         </motion.div>
       </div>
 
-      {/* Input fixo no fundo */}
-      <div className="fixed bottom-0 left-0 right-0 px-3 pb-6 pt-2">
+      {/* Input */}
+      <motion.div
+        className="fixed left-0 right-0 px-3 pb-6 pt-2"
+        animate={{ bottom: keyboardHeight }}
+        transition={{ type: 'spring', stiffness: 120, damping: 28, mass: 0.8 }}
+      >
         <div className="bg-white rounded-3xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-3">
           <textarea
             ref={textareaRef}
@@ -105,6 +128,7 @@ export default function Home() {
                   key="send"
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.15 }}
                   onClick={handleSend}
                   className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center shadow-md"
                 >
@@ -114,19 +138,13 @@ export default function Home() {
                 </motion.button>
               ) : (
                 <button className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center shadow-md">
-                  <img
-                    src="/assets/icons/svg/record.svg"
-                    alt="Gravar"
-                    width={20}
-                    height={20}
-                    style={{ filter: 'brightness(0) invert(1)' }}
-                  />
+                  <img src="/assets/icons/svg/record.svg" alt="Gravar" width={20} height={20} style={{ filter: 'brightness(0) invert(1)' }} />
                 </button>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <InstallPrompt />
     </main>

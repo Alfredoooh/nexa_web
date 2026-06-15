@@ -2,7 +2,11 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
-import InstallPrompt from '@/components/InstallPrompt';
+import dynamic from 'next/dynamic';
+
+const InstallPrompt = dynamic(() => import('@/components/InstallPrompt'), {
+  ssr: false,
+});
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -52,6 +56,10 @@ export default function Home() {
   };
   
   const hasText = inputValue.trim().length > 0;
+  
+  if (!mounted) {
+    return <main className="min-h-screen flex flex-col bg-[#F0F0FF]" />;
+  }
   
   return (
     <main className="min-h-screen flex flex-col bg-[#F0F0FF]">
@@ -103,7 +111,7 @@ export default function Home() {
             className="text-[2.6rem] font-bold text-black leading-tight text-center"
             style={{ fontFamily: 'Georgia, serif' }}
           >
-            {mounted ? getGreeting() : '\u00A0'}
+            {getGreeting()}
           </h1>
           <p className="text-gray-400 text-base text-center">Em que estás a pensar?</p>
         </motion.div>
@@ -132,11 +140,11 @@ export default function Home() {
             </button>
 
             <div className="flex items-center gap-2">
-              {/* Preview — sempre visível, nunca desaparece */}
+              {/* Preview — sempre visível, só esmaece com texto */}
               <motion.button
-                className="flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-2 overflow-hidden"
+                className="flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-2"
                 animate={{
-                  opacity: hasText ? 0.35 : 1,
+                  opacity: hasText ? 0.3 : 1,
                   scale: hasText ? 0.92 : 1,
                 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
@@ -146,7 +154,7 @@ export default function Home() {
                 <span className="text-sm font-medium text-gray-700">Preview</span>
               </motion.button>
 
-              {/* Record → Send com pulse suave no record */}
+              {/* Record → Send */}
               <div style={{ position: 'relative', width: 44, height: 44 }}>
                 <AnimatePresence mode="wait">
                   {!hasText ? (

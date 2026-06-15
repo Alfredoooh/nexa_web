@@ -24,7 +24,6 @@ export default function Home() {
   
   const handleSend = () => {
     if (!inputValue.trim()) return;
-    console.log('Send:', inputValue);
     setInputValue('');
   };
   
@@ -80,8 +79,6 @@ export default function Home() {
       {/* Input fixo no fundo */}
       <div className="fixed bottom-0 left-0 right-0 px-3 pb-6 pt-2">
         <div className="bg-white rounded-3xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-3">
-
-          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={inputValue}
@@ -92,16 +89,10 @@ export default function Home() {
             className="w-full resize-none bg-transparent text-gray-800 placeholder-gray-400 text-base outline-none leading-relaxed"
             style={{ maxHeight: 140 }}
           />
-
-          {/* Botões */}
           <div className="flex items-center justify-between">
-
-            {/* Esquerda: + */}
             <button className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
               <img src="/assets/icons/svg/add.svg" alt="Adicionar" width={18} height={18} />
             </button>
-
-            {/* Direita */}
             <div className="flex items-center gap-2">
               {!hasText && (
                 <button className="flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-2">
@@ -109,7 +100,6 @@ export default function Home() {
                   <span className="text-sm font-medium text-gray-700">Preview</span>
                 </button>
               )}
-
               {hasText ? (
                 <motion.button
                   key="send"
@@ -123,10 +113,7 @@ export default function Home() {
                   </svg>
                 </motion.button>
               ) : (
-                <button
-                  key="record"
-                  className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center shadow-md"
-                >
+                <button className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center shadow-md">
                   <img
                     src="/assets/icons/svg/record.svg"
                     alt="Gravar"

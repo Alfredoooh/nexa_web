@@ -11,44 +11,50 @@ function getGreeting(): string {
 
 export default function App() {
   const [inputValue, setInputValue] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
+  const [bottomOffset, setBottomOffset] = useState(0);
+  const textareaRef = useRef < HTMLTextAreaElement > (null);
+  
   useEffect(() => {
-    const onResize = () => {
-      const visualHeight = window.visualViewport?.height ?? window.innerHeight;
-      const diff = window.screen.height - visualHeight;
-      setKeyboardHeight(diff > 100 ? Math.min(diff * 0.5, 180) : 0);
+    const update = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const offset = window.innerHeight - vv.height - vv.offsetTop;
+      setBottomOffset(Math.max(0, offset));
     };
-    window.visualViewport?.addEventListener('resize', onResize);
-    return () => window.visualViewport?.removeEventListener('resize', onResize);
+    
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+    };
   }, []);
-
+  
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
     ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
   }, [inputValue]);
-
+  
   const handleSend = () => {
     if (!inputValue.trim()) return;
     setInputValue('');
   };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  
+  const handleKeyDown = (e: React.KeyboardEvent < HTMLTextAreaElement > ) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
-
+  
   const hasText = inputValue.trim().length > 0;
-
+  
   return (
     <main className="min-h-screen flex flex-col bg-[#F0F0FF]">
 
-      {/* Progressive blur AppBar */}
+      {/* AppBar blur */}
       <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none" style={{ height: 90 }}>
         <div style={{
           position: 'absolute', inset: 0,
@@ -98,11 +104,16 @@ export default function App() {
         </motion.div>
       </div>
 
-      {/* Input */}
-      <motion.div
-        className="fixed left-0 right-0 px-3 pb-6 pt-2"
-        animate={{ bottom: keyboardHeight }}
-        transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.7 }}
+      {/* Input fixo na parte de baixo */}
+      <div
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: bottomOffset,
+          padding: '8px 12px 24px',
+          transition: 'bottom 0.2s ease',
+        }}
       >
         <div className="bg-white rounded-3xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-3">
           <textarea
@@ -196,7 +207,7 @@ export default function App() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       <InstallPrompt />
     </main>

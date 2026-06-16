@@ -49,7 +49,7 @@ export default function Drawer({
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.25)' }}
+            style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.18)' }}
           />
           <motion.div
             key="drawer"
@@ -58,11 +58,11 @@ export default function Drawer({
             style={{
               position: 'fixed', top: 0, left: 0, bottom: 0,
               width: '78%', maxWidth: 320, zIndex: 101,
-              background: '#EBEBF5',
+              background: '#ffffff',
               display: 'flex', flexDirection: 'column',
             }}
           >
-            {/* Título — padding-top reduzido para subir o nome */}
+            {/* Título */}
             <div style={{ padding: '18px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 28, fontWeight: 700, fontFamily: 'Georgia, serif', color: '#000' }}>
                 {APP_NAME}
@@ -71,7 +71,7 @@ export default function Drawer({
                 onClick={() => { onNewChat(); onClose(); }}
                 style={{
                   width: 34, height: 34, borderRadius: '50%',
-                  background: 'rgba(0,0,0,0.07)', border: 'none',
+                  background: 'rgba(0,0,0,0.06)', border: 'none',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
@@ -79,7 +79,7 @@ export default function Drawer({
               </button>
             </div>
 
-            <div style={{ height: 1, background: 'rgba(0,0,0,0.08)', marginBottom: 8 }} />
+            <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginBottom: 8 }} />
 
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, color: '#8E8E93', padding: '8px 24px 4px' }}>
               CONVERSAS
@@ -110,8 +110,8 @@ export default function Drawer({
                         style={{
                           width: 'calc(100% - 16px)',
                           textAlign: 'left',
-                          padding: '11px 24px 11px 20px',
-                          background: isActive ? 'rgba(59,130,246,0.1)' : 'none',
+                          padding: '11px 16px 11px 16px',
+                          background: isActive ? 'rgba(59,130,246,0.08)' : 'none',
                           border: 'none', cursor: 'pointer',
                           fontSize: 14.5,
                           color: isActive ? '#3B82F6' : '#000',
@@ -133,7 +133,7 @@ export default function Drawer({
             </div>
 
             {/* Rodapé */}
-            <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+            <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }}>
               <button style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '14px 20px', gap: 12, background: 'none', border: 'none', cursor: 'pointer' }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{initial}</span>
@@ -141,7 +141,7 @@ export default function Drawer({
                 <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#000', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {userName}
                 </span>
-                <img src="/assets/icons/svg/chevron_right.svg" width={13} height={13} alt="" style={{ opacity: 0.4 }} />
+                <img src="/assets/icons/svg/chevron_right.svg" width={13} height={13} alt="" style={{ opacity: 0.35 }} />
               </button>
             </div>
           </motion.div>

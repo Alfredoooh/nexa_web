@@ -185,16 +185,19 @@ ${data.title ? `<div class="title">${data.title}</div>` : ''}
 </body></html>`;
 }
 
+// ─── Table widget — estilo exato claro/escuro ────────────────────────────────
 function tableHtml(jsonStr: string, isDark: boolean): string {
   const data = JSON.parse(jsonStr);
   const headers = (data.headers || []) as string[];
   const rows = (data.rows || []) as string[][];
   const aligns = (data.align || []) as string[];
-  const bg = isDark ? '#1b1b1b' : '#ffffff';
-  const headerBg = isDark ? '#252525' : '#f2f2f2';
-  const border = isDark ? '#4a4a4a' : '#bdbdbd';
-  const text = isDark ? '#f4f4f4' : '#222222';
-  const bodybg = isDark ? '#121212' : '#f3f3f3';
+
+  const bodybg  = isDark ? '#121212' : '#f3f3f3';
+  const wrapBg  = isDark ? '#1b1b1b' : '#ffffff';
+  const headerBg= isDark ? '#252525' : '#f2f2f2';
+  const border  = isDark ? '#4a4a4a' : '#bdbdbd';
+  const text    = isDark ? '#f4f4f4' : '#222222';
+
   const headersHtml = headers.map((h, i) => {
     const a = aligns[i] || 'left';
     return `<th style="text-align:${a}">${h}</th>`;
@@ -202,13 +205,14 @@ function tableHtml(jsonStr: string, isDark: boolean): string {
   const rowsHtml = rows.map(row =>
     `<tr>${row.map((c, i) => `<td style="text-align:${aligns[i] || 'left'}">${c}</td>`).join('')}</tr>`
   ).join('');
+
   return `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
 *{box-sizing:border-box;}
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bodybg};padding:16px;font-family:Georgia,serif;}
-.wrap{width:min(100%,560px);border:1.2px solid ${border};background:${bg};overflow-x:auto;-webkit-overflow-scrolling:touch;}
-table{width:100%;min-width:300px;border-collapse:collapse;background:${bg};}
-th,td{border:1.2px solid ${border};padding:10px 12px;font-size:15px;line-height:1.3;color:${text};background:${bg};}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bodybg};padding:16px;font-family:Georgia,"Times New Roman",serif;color:${text};}
+.wrap{width:min(100%,560px);border:1.2px solid ${border};background:${wrapBg};overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
+table{width:100%;min-width:300px;border-collapse:collapse;table-layout:auto;background:${wrapBg};}
+th,td{border:1.2px solid ${border};padding:10px 12px;text-align:left;font-size:16px;line-height:1.2;color:${text};background:${wrapBg};white-space:nowrap;}
 th{background:${headerBg};font-weight:700;}
 </style></head><body>
 <div class="wrap"><table>
@@ -228,9 +232,6 @@ function codeHtml(jsonStr: string, isDark: boolean): string {
   const text = isDark ? '#e8e8e8' : '#222222';
   const lineNum = isDark ? '#7d7d7d' : '#8a8a8a';
   const titleColor = isDark ? '#f2f2f2' : '#2a2a2a';
-  const kwColor = isDark ? '#ff7b72' : '#b00020';
-  const strColor = isDark ? '#a5d6ff' : '#005cc5';
-  const commentColor = isDark ? '#8b949e' : '#6a737d';
   const lines = code.split('\n');
   const linesHtml = lines.map((line, idx) => {
     const safe = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -305,7 +306,7 @@ function toggle(){
 }
 function reset(){running=false;cancelAnimationFrame(raf);elapsed=${countdown && ms > 0 ? ms : 0};startMs=elapsed;document.getElementById('d').textContent=fmt(elapsed);}
 ${data.autoStart !== false ? 'toggle();' : ''}
-</script>
+<\/script>
 </body></html>`;
 }
 
@@ -346,20 +347,16 @@ else{
   const yr=(yMax-yMin)||1,xr=xMax-xMin;
   const mx=x=>pad.l+(x-xMin)/xr*pw;
   const my=y=>pad.t+ph-(y-yMin)/yr*ph;
-  // grid
   ctx.strokeStyle='${gridColor}';ctx.lineWidth=1;
   for(let i=0;i<=4;i++){
     ctx.beginPath();ctx.moveTo(pad.l,pad.t+ph*i/4);ctx.lineTo(pad.l+pw,pad.t+ph*i/4);ctx.stroke();
     ctx.beginPath();ctx.moveTo(pad.l+pw*i/4,pad.t);ctx.lineTo(pad.l+pw*i/4,pad.t+ph);ctx.stroke();
   }
-  // axes
   ctx.strokeStyle='${axisColor}';ctx.lineWidth=1.5;
   if(yMin<=0&&yMax>=0){ctx.beginPath();ctx.moveTo(pad.l,my(0));ctx.lineTo(pad.l+pw,my(0));ctx.stroke();}
   if(xMin<=0&&xMax>=0){ctx.beginPath();ctx.moveTo(mx(0),pad.t);ctx.lineTo(mx(0),pad.t+ph);ctx.stroke();}
-  // labels
   ctx.fillStyle='${cls==='dark'?'#888':'#999'}';ctx.font='10px Arial';ctx.textAlign='center';
   ctx.fillText(${JSON.stringify(expr)},pad.l+pw/2,pad.t-8);
-  // curve
   ctx.strokeStyle='${curveColor}';ctx.lineWidth=2.5;ctx.lineJoin='round';
   ctx.beginPath();pts.forEach(([x,y],i)=>i===0?ctx.moveTo(mx(x),my(y)):ctx.lineTo(mx(x),my(y)));ctx.stroke();
 }
@@ -369,7 +366,6 @@ else{
 
 function mindmapHtml(jsonStr: string, cls: string): string {
   const data = JSON.parse(jsonStr);
-  // Usa o mental_map.html real com os dados injectados
   const bg = cls === 'dark' ? '#1b1b1b' : '#fff';
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
@@ -392,7 +388,6 @@ if(!col[n.id]&&n.children){let cy=y;n.children.forEach(c=>{const ch=gh(c,col);Ob
 function render(){
   g.innerHTML='';
   const pos=layout(data,40,20,{});
-  // links
   function drawLinks(n){if(!n.children)return;n.children.forEach(c=>{const f=pos[n.id],t=pos[c.id];if(f&&t){
     const p=document.createElementNS('http://www.w3.org/2000/svg','path');
     const dx=t.x-f.x;p.setAttribute('d',\`M\${f.x},\${f.y} C\${f.x+dx*.5},\${f.y} \${t.x-dx*.5},\${t.y} \${t.x},\${t.y}\`);
@@ -407,7 +402,6 @@ function render(){
     ng.setAttribute('transform',\`translate(\${x},\${y})\`);g.appendChild(ng);
     if(n.children)n.children.forEach(drawNodes);}
   drawLinks(data);drawNodes(data);
-  // fit viewBox
   const all=Object.values(pos);
   const xs=all.map(p=>p.x),ys=all.map(p=>p.y);
   const vx=Math.min(...xs)-80,vy=Math.min(...ys)-30,vw=Math.max(...xs)-vx+120,vh=Math.max(...ys)-vy+60;
@@ -623,7 +617,6 @@ function MessageContent({ content, isDark }: { content: string; isDark: boolean 
   const parts: React.ReactNode[] = [];
   let key = 0;
 
-  // strip <think> tags
   const text = content.replace(/<think>[\s\S]*?<\/think>/gm, '').trim();
 
   let last = 0;
@@ -677,15 +670,11 @@ function getWidgetHeight(type: string): number {
 // ─── Text block: renders markdown-ish text ─────────────────────────────────
 function TextBlock({ text, isDark }: { text: string; isDark: boolean }) {
   const textColor = isDark ? '#eee' : '#1a1a1a';
-  const codeBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-  const tableHeaderBg = isDark ? '#2C2C2E' : '#ECEAFF';
-  const tableBorder = isDark ? '#2A2A2A' : '#DDDDDD';
   const lines = text.split('\n');
 
-  // Check if block has a markdown table
+  // ── Markdown table inline ─────────────────────────────────────────────────
   const tableStart = lines.findIndex(l => l.trim().startsWith('|') && l.trim().endsWith('|'));
   if (tableStart !== -1) {
-    // Split into before-table, table, after-table
     const tableLines: string[] = [];
     let i = tableStart;
     while (i < lines.length && (lines[i].trim().startsWith('|') || lines[i].trim().match(/^\|[-:| ]+\|$/))) {
@@ -698,15 +687,21 @@ function TextBlock({ text, isDark }: { text: string; isDark: boolean }) {
     const cells = (line: string) =>
       line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
 
+    // Cores exatas do estilo de referência
+    const wrapBg   = isDark ? '#1b1b1b' : '#ffffff';
+    const headerBg = isDark ? '#252525' : '#f2f2f2';
+    const border   = isDark ? '#4a4a4a' : '#bdbdbd';
+    const cellText = isDark ? '#f4f4f4' : '#222222';
+
     return (
       <>
         {before && <TextBlock text={before} isDark={isDark} />}
-        <div style={{ overflowX: 'auto', marginTop: 8, marginBottom: 8 }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%', fontFamily: 'Georgia, serif', fontSize: 14 }}>
+        <div style={{ overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', marginTop: 8, marginBottom: 8, border: `1.2px solid ${border}`, background: wrapBg }}>
+          <table style={{ width: '100%', minWidth: 300, borderCollapse: 'collapse', tableLayout: 'auto', background: wrapBg, fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 16 }}>
             <thead>
               <tr>
                 {cells(dataLines[0] || '').map((h, ci) => (
-                  <th key={ci} style={{ padding: '8px 12px', background: tableHeaderBg, color: textColor, fontWeight: 700, borderBottom: `1px solid ${tableBorder}`, borderRight: `1px solid ${tableBorder}`, whiteSpace: 'nowrap' }}>{parseInline(h)}</th>
+                  <th key={ci} style={{ border: `1.2px solid ${border}`, padding: '10px 12px', background: headerBg, color: cellText, fontWeight: 700, textAlign: 'left', lineHeight: 1.2, whiteSpace: 'nowrap' }}>{parseInline(h)}</th>
                 ))}
               </tr>
             </thead>
@@ -714,7 +709,7 @@ function TextBlock({ text, isDark }: { text: string; isDark: boolean }) {
               {dataLines.slice(1).map((row, ri) => (
                 <tr key={ri}>
                   {cells(row).map((c, ci) => (
-                    <td key={ci} style={{ padding: '7px 12px', color: textColor, borderBottom: `1px solid ${tableBorder}`, borderRight: `1px solid ${tableBorder}`, whiteSpace: 'nowrap' }}>{parseInline(c)}</td>
+                    <td key={ci} style={{ border: `1.2px solid ${border}`, padding: '10px 12px', color: cellText, background: wrapBg, textAlign: 'left', lineHeight: 1.2, whiteSpace: 'nowrap' }}>{parseInline(c)}</td>
                   ))}
                 </tr>
               ))}
@@ -726,7 +721,7 @@ function TextBlock({ text, isDark }: { text: string; isDark: boolean }) {
     );
   }
 
-  // Check for fenced code block
+  // ── Fenced code block ─────────────────────────────────────────────────────
   const codeStart = lines.findIndex(l => l.trim().startsWith('```'));
   if (codeStart !== -1) {
     const lang = lines[codeStart].trim().slice(3).trim().toUpperCase() || 'CODE';
@@ -735,11 +730,11 @@ function TextBlock({ text, isDark }: { text: string; isDark: boolean }) {
     const codeLines = lines.slice(codeStart + 1, codeEnd);
     const before = lines.slice(0, codeStart).join('\n').trim();
     const after = lines.slice(codeEnd + 1).join('\n').trim();
-    const cbBg = isDark ? '#1b1b1b' : '#ffffff';
+    const cbBg     = isDark ? '#1b1b1b' : '#ffffff';
     const cbBorder = isDark ? '#2f2f2f' : '#d7d7d7';
     const cbHeader = isDark ? '#2a2a2a' : '#f0f0f0';
-    const cbText = isDark ? '#e8e8e8' : '#222';
-    const cbTitle = isDark ? '#f2f2f2' : '#2a2a2a';
+    const cbText   = isDark ? '#e8e8e8' : '#222';
+    const cbTitle  = isDark ? '#f2f2f2' : '#2a2a2a';
     const lineNumColor = isDark ? '#7d7d7d' : '#8a8a8a';
     return (
       <>
@@ -768,7 +763,7 @@ function TextBlock({ text, isDark }: { text: string; isDark: boolean }) {
     );
   }
 
-  // Normal text: render line by line
+  // ── Normal text ───────────────────────────────────────────────────────────
   const rendered = lines.map((line, li) => {
     const t = line.trimStart();
     if (!t) return <div key={li} style={{ height: 8 }} />;
@@ -822,7 +817,6 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // keyboard
   useEffect(() => {
     const update = () => {
       const vv = window.visualViewport;
@@ -891,7 +885,6 @@ export default function ChatPage() {
   const inputBg = isDark ? '#1C1C1E' : '#fff';
   const textColor = isDark ? '#eee' : '#1a1a1a';
 
-  // options
   const handlePin = async (conv: Conversation) => { await apiPinConversation(token, conv.id, !conv.pinned); setOptionsConv(null); loadConversations(); };
   const handleArchive = async (conv: Conversation) => { await apiArchiveConversation(token, conv.id, true); setOptionsConv(null); if (activeConv?.id === conv.id) newChat(); loadConversations(); };
   const handleDelete = async (conv: Conversation) => { await apiDeleteConversation(token, conv.id); setOptionsConv(null); if (activeConv?.id === conv.id) newChat(); loadConversations(); };
@@ -984,9 +977,18 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Input */}
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomOffset, padding: '8px 12px 24px', transition: 'bottom 0.2s ease' }}>
-          <div style={{ background: inputBg, borderRadius: 24, boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, border: isDark ? '1px solid #2A2A2C' : 'none' }}>
+        {/* Input — rocho apenas em baixo */}
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomOffset, padding: '0 12px 24px', transition: 'bottom 0.2s ease' }}>
+          <div style={{
+            background: inputBg,
+            borderRadius: '16px 16px 24px 24px',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.12)',
+            padding: '12px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            border: isDark ? '1px solid #2A2A2C' : 'none',
+          }}>
             <textarea ref={textareaRef} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="Pergunta algo..." rows={1}
               style={{ width: '100%', resize: 'none', background: 'transparent', border: 'none', outline: 'none', fontSize: 15, color: textColor, lineHeight: 1.5, maxHeight: 140, fontFamily: 'inherit', boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

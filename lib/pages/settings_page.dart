@@ -13,11 +13,20 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
     final themeState = context.watch<ThemeState>();
+    final theme = Theme.of(context);
+
+    final bg = theme.scaffoldBackgroundColor;
+    final surface = theme.colorScheme.surface;
+    final textPrimary = theme.colorScheme.onSurface;
+    final textSecondary = theme.hintColor;
+    final iconColor = theme.iconTheme.color ?? textPrimary;
+    final dividerColor = theme.dividerColor;
+    final dangerColor = Colors.red.shade600;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bg,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -28,21 +37,22 @@ class SettingsPage extends StatelessWidget {
           padding: const EdgeInsets.only(left: 8),
           child: PulseTap(
             onTap: () => Navigator.pop(context),
-            child: const Center(
-              child: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 20,
-                color: Colors.black,
+            child: Center(
+              child: SvgPicture.asset(
+                'assets/icons/svg/back_arrow.svg',
+                width: 18,
+                height: 18,
+                colorFilter: ColorFilter.mode(textPrimary, BlendMode.srcIn),
               ),
             ),
           ),
         ),
-        title: const Text(
+        title: Text(
           'Definições',
           style: TextStyle(
             fontFamily: 'TimesNewRoman',
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: textPrimary,
           ),
         ),
         actions: [
@@ -50,11 +60,11 @@ class SettingsPage extends StatelessWidget {
             padding: const EdgeInsets.only(right: 8),
             child: PulseTap(
               onTap: () => _logout(context, auth),
-              child: const Center(
+              child: Center(
                 child: Icon(
                   Icons.logout_rounded,
                   size: 22,
-                  color: Colors.red,
+                  color: dangerColor,
                 ),
               ),
             ),
@@ -64,58 +74,62 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(top: 8, bottom: 24),
         children: [
-          _sectionTitle('Conta'),
+          _sectionTitle('Conta', textSecondary),
           _tile(
             context: context,
             label: 'Personalização',
             icon: 'assets/icons/svg/customise.svg',
-            trailing: null,
+            iconColor: iconColor,
+            textColor: textPrimary,
             onTap: () {},
           ),
-          _divider(),
           _tile(
             context: context,
             label: 'Controlo de Dados',
             icon: 'assets/icons/svg/database.svg',
-            trailing: null,
+            iconColor: iconColor,
+            textColor: textPrimary,
             onTap: () {},
           ),
-          _divider(),
           _tile(
             context: context,
             label: 'Segurança',
             icon: 'assets/icons/svg/security.svg',
-            trailing: null,
+            iconColor: iconColor,
+            textColor: textPrimary,
             onTap: () {},
           ),
           const SizedBox(height: 18),
-          _sectionTitle('Aparência'),
+          _sectionTitle('Aparência', textSecondary),
           _tile(
             context: context,
             label: 'Tema',
             icon: 'assets/icons/svg/appearance.svg',
+            iconColor: iconColor,
+            textColor: textPrimary,
             trailing: Text(
               themeState.mode == ThemeMode.dark
                   ? 'Escuro'
                   : themeState.mode == ThemeMode.light
                       ? 'Claro'
                       : 'Sistema',
-              style: const TextStyle(
-                color: Color(0xFF7A7A7A),
+              style: TextStyle(
+                color: textSecondary,
                 fontSize: 14,
               ),
             ),
-            onTap: () => _showThemeSheet(context, themeState),
+            onTap: () => _showThemeSheet(context, themeState, surface),
           ),
-          _divider(),
           _tile(
             context: context,
             label: 'Idioma',
             icon: 'assets/icons/svg/language.svg',
-            trailing: const Text(
+            iconColor: iconColor,
+            textColor: textPrimary,
+            trailing: Text(
               'Português',
               style: TextStyle(
-                color: Color(0xFF7A7A7A),
+                color: textSecondary,
                 fontSize: 14,
               ),
             ),
@@ -126,37 +140,18 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
-      child: Text(
-        '',
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
+  Widget _sectionTitle(String title, Color color) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           letterSpacing: 0.8,
-          color: Color(0xFF9A9A9A),
+          color: color,
           fontWeight: FontWeight.w600,
         ),
       ),
-    );
-  }
-
-  Widget _divider() {
-    return const Divider(
-      height: 1,
-      thickness: 0.6,
-      indent: 20,
-      endIndent: 20,
-      color: Color(0xFFEDEDED),
     );
   }
 
@@ -164,60 +159,50 @@ class SettingsPage extends StatelessWidget {
     required BuildContext context,
     required String label,
     required String icon,
+    required Color iconColor,
+    required Color textColor,
     required VoidCallback onTap,
     Widget? trailing,
   }) {
-    return Column(
-      children: [
-        PulseTap(
-          onTap: onTap,
-          child: Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            child: Row(
-              children: [
-                SvgPicture.asset(
-                  icon,
-                  width: 20,
-                  height: 20,
-                  colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                if (trailing != null)
-                  trailing
-                else
-                  const Icon(
-                    Icons.chevron_right,
-                    size: 18,
-                    color: Color(0xFFB0B0B0),
-                  ),
-              ],
+    return PulseTap(
+      onTap: onTap,
+      child: Container(
+        color: Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            SvgPicture.asset(
+              icon,
+              width: 20,
+              height: 20,
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
             ),
-          ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (trailing != null)
+              trailing
+            else
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: textColor.withOpacity(0.35),
+              ),
+          ],
         ),
-        const Padding(
-          padding: EdgeInsets.only(left: 54),
-          child: Divider(
-            height: 1,
-            thickness: 0.6,
-            color: Color(0xFFEDEDED),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  void _showThemeSheet(BuildContext context, ThemeState themeState) {
+  void _showThemeSheet(BuildContext context, ThemeState themeState, Color surface) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -229,7 +214,7 @@ class SettingsPage extends StatelessWidget {
             top: false,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: surface,
                 borderRadius: BorderRadius.circular(16),
               ),
               clipBehavior: Clip.antiAlias,
@@ -237,6 +222,7 @@ class SettingsPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _modalOption(
+                    context: sheetContext,
                     label: 'Claro',
                     active: themeState.mode == ThemeMode.light,
                     onTap: () {
@@ -244,8 +230,8 @@ class SettingsPage extends StatelessWidget {
                       Navigator.pop(sheetContext);
                     },
                   ),
-                  _modalDivider(),
                   _modalOption(
+                    context: sheetContext,
                     label: 'Escuro',
                     active: themeState.mode == ThemeMode.dark,
                     onTap: () {
@@ -253,8 +239,8 @@ class SettingsPage extends StatelessWidget {
                       Navigator.pop(sheetContext);
                     },
                   ),
-                  _modalDivider(),
                   _modalOption(
+                    context: sheetContext,
                     label: 'Sistema',
                     active: themeState.mode == ThemeMode.system,
                     onTap: () {
@@ -271,24 +257,20 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _modalDivider() {
-    return const Divider(
-      height: 1,
-      thickness: 0.6,
-      indent: 62,
-      color: Color(0xFFEDEDED),
-    );
-  }
-
   Widget _modalOption({
+    required BuildContext context,
     required String label,
     required bool active,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface;
+    final accent = theme.colorScheme.primary;
+
     return PulseTap(
       onTap: onTap,
       child: Container(
-        color: Colors.white,
+        color: Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
@@ -297,9 +279,9 @@ class SettingsPage extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
-                  color: Colors.black,
+                  color: textColor,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -310,8 +292,8 @@ class SettingsPage extends StatelessWidget {
               child: Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.black,
+                decoration: BoxDecoration(
+                  color: accent,
                   shape: BoxShape.circle,
                 ),
               ),

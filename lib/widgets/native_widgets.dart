@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';               // ← Clipboard
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:table_calendar/table_calendar.dart';   // ← movido para o topo
 import '../utils/helpers.dart';
 
 // ─── Container comum para widgets ───
@@ -47,7 +49,7 @@ class WidgetContainer extends StatelessWidget {
   }
 }
 
-// ─── Widget: Bar Chart (widget_bar) ───
+// ─── Widget: Bar Chart ───────────────────────────────────────────────────────
 class NativeBarChart extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeBarChart({super.key, required this.json});
@@ -142,7 +144,7 @@ class _BarItem {
   _BarItem({required this.label, required this.value, required this.color});
 }
 
-// ─── Widget: Pie Chart (widget_pie) ───
+// ─── Widget: Pie Chart ───────────────────────────────────────────────────────
 class NativePieChart extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativePieChart({super.key, required this.json});
@@ -239,7 +241,7 @@ class _SliceItem {
   _SliceItem({required this.label, required this.value, required this.color});
 }
 
-// ─── Widget: Table (widget_table) ───
+// ─── Widget: Table ───────────────────────────────────────────────────────────
 class NativeTable extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeTable({super.key, required this.json});
@@ -338,10 +340,7 @@ class _TableRow extends StatelessWidget {
   }
 }
 
-// ─── Widget: Calendar (widget_calendar) ───
-// Implementação simplificada usando TableCalendar
-import 'package:table_calendar/table_calendar.dart';
-
+// ─── Widget: Calendar ────────────────────────────────────────────────────────
 class NativeCalendar extends StatefulWidget {
   final Map<String, dynamic> json;
   const NativeCalendar({super.key, required this.json});
@@ -402,7 +401,6 @@ class _NativeCalendarState extends State<NativeCalendar> {
             ),
           ),
           const Divider(),
-          // Eventos do dia selecionado
           _buildEventsList(),
         ],
       ),
@@ -437,7 +435,8 @@ class _NativeCalendarState extends State<NativeCalendar> {
                   child: Row(
                     children: [
                       Container(
-                        width: 10, height: 10,
+                        width: 10,
+                        height: 10,
                         decoration: BoxDecoration(
                           color: parseColor(ev['color'] ?? '#6F5AF6'),
                           shape: BoxShape.circle,
@@ -464,7 +463,7 @@ class _NativeCalendarState extends State<NativeCalendar> {
   }
 }
 
-// ─── Widget: Code Block (widget_code) ───
+// ─── Widget: Code Block ──────────────────────────────────────────────────────
 class NativeCodeBlock extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeCodeBlock({super.key, required this.json});
@@ -536,7 +535,7 @@ class NativeCodeBlock extends StatelessWidget {
   }
 }
 
-// ─── Widget: Timer (widget_timer) ───
+// ─── Widget: Timer ───────────────────────────────────────────────────────────
 class NativeTimer extends StatefulWidget {
   final Map<String, dynamic> json;
   const NativeTimer({super.key, required this.json});
@@ -667,7 +666,7 @@ class _NativeTimerState extends State<NativeTimer> with SingleTickerProviderStat
   }
 }
 
-// ─── Widget: Math Graph (widget_graph) ───
+// ─── Widget: Math Graph ──────────────────────────────────────────────────────
 class NativeMathGraph extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMathGraph({super.key, required this.json});
@@ -733,7 +732,6 @@ class _MathGraphPainter extends CustomPainter {
       }
     }
 
-    // Grid
     for (int i = 0; i <= 4; i++) {
       final y = size.height * i / 4;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
@@ -746,7 +744,7 @@ class _MathGraphPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// ─── Widget: Mind Map (widget_mindmap) ───
+// ─── Widget: Mind Map ────────────────────────────────────────────────────────
 class NativeMindMap extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMindMap({super.key, required this.json});
@@ -791,7 +789,6 @@ class _MindMapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Simplificado: apenas desenha o nó raiz
     final paint = Paint()..color = root.color;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -806,7 +803,7 @@ class _MindMapPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// ─── Widget: Market (widget_market) ───
+// ─── Widget: Market ──────────────────────────────────────────────────────────
 class NativeMarket extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMarket({super.key, required this.json});
@@ -881,7 +878,6 @@ class NativeMarket extends StatelessWidget {
               ],
             ),
           ),
-          // Linha de tempo simplificada
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -896,7 +892,7 @@ class NativeMarket extends StatelessWidget {
   }
 }
 
-// ─── Widget: Map Placeholder (widget_map) ───
+// ─── Widget: Map Placeholder ─────────────────────────────────────────────────
 class NativeMapPlaceholder extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMapPlaceholder({super.key, required this.json});
@@ -943,7 +939,7 @@ class NativeMapPlaceholder extends StatelessWidget {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {/* abrir mapa */},
+                  onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6F5AF6),
                     foregroundColor: Colors.white,
@@ -961,7 +957,7 @@ class NativeMapPlaceholder extends StatelessWidget {
   }
 }
 
-// ─── Dispatcher principal que escolhe o widget com base no tipo ───
+// ─── Dispatcher principal ────────────────────────────────────────────────────
 Widget buildNativeWidget(String widgetType, String jsonData) {
   try {
     final json = jsonDecode(jsonData) as Map<String, dynamic>;

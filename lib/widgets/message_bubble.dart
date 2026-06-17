@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/chat_message.dart';
 import '../widgets/thinking_skeleton.dart';
@@ -26,14 +27,14 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Flexible(
-            child: isUser ? _buildUserBubble() : _buildAssistantBubble(context),
+            child: isUser ? _buildUserBubble(context) : _buildAssistantBubble(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildUserBubble() {
+  Widget _buildUserBubble(BuildContext context) {
     return Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
       margin: const EdgeInsets.only(left: 64),
@@ -53,7 +54,6 @@ class MessageBubble extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Botão "Ver pensamento"
         if (message.thinkingContent.isNotEmpty || message.isThinking)
           GestureDetector(
             onTap: onThinkTap,
@@ -83,7 +83,6 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-        // Conteúdo
         if (message.isStreaming && message.isThinking)
           const ThinkingSkeleton(),
         if (!message.isStreaming || message.content.isNotEmpty)
@@ -96,7 +95,6 @@ class MessageBubble extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           ),
-        // Linha de ações
         if (!message.isStreaming && message.content.isNotEmpty)
           _buildActionRow(),
       ],
@@ -104,7 +102,6 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildMessageContent(BuildContext context) {
-    // Processamento de markdown e widgets nativos
     return NativeContentRenderer(content: message.content);
   }
 
@@ -142,7 +139,6 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
-// ─── Renderizador de conteúdo nativo (deteta widgets e markdown) ───
 class NativeContentRenderer extends StatelessWidget {
   final String content;
   const NativeContentRenderer({super.key, required this.content});
@@ -158,13 +154,11 @@ class NativeContentRenderer extends StatelessWidget {
     int lastEnd = 0;
 
     for (final match in widgetRegExp.allMatches(content)) {
-      // Texto antes do widget
       if (match.start > lastEnd) {
         final textBefore = content.substring(lastEnd, match.start);
         widgets.add(_buildMarkdownText(textBefore));
       }
 
-      // Widget nativo
       final widgetType = match.group(1)!;
       final jsonData = match.group(2)!;
       widgets.add(buildNativeWidget(widgetType, jsonData));
@@ -172,7 +166,6 @@ class NativeContentRenderer extends StatelessWidget {
       lastEnd = match.end;
     }
 
-    // Texto restante
     if (lastEnd < content.length) {
       widgets.add(_buildMarkdownText(content.substring(lastEnd)));
     }
@@ -184,7 +177,6 @@ class NativeContentRenderer extends StatelessWidget {
   }
 
   Widget _buildMarkdownText(String text) {
-    // Processamento simplificado de markdown
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text.rich(
@@ -195,14 +187,12 @@ class NativeContentRenderer extends StatelessWidget {
   }
 
   TextSpan _parseMarkdown(String text) {
-    // Implementação básica de bold e italic
     final boldRegExp = RegExp(r'\*\*(.+?)\*\*');
     final italicRegExp = RegExp(r'\*(.+?)\*');
 
     final spans = <TextSpan>[];
     int lastEnd = 0;
 
-    // Bold
     for (final match in boldRegExp.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
@@ -215,7 +205,6 @@ class NativeContentRenderer extends StatelessWidget {
     }
     if (lastEnd < text.length) {
       final remaining = text.substring(lastEnd);
-      // Italic
       for (final match in italicRegExp.allMatches(remaining)) {
         if (match.start > 0) {
           spans.add(TextSpan(text: remaining.substring(0, match.start)));

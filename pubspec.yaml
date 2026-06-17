@@ -28,5 +28,14 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
-    - assets/fonts/
+    - assets/fonts/pattern/
     - assets/lottie/
+
+  fonts:
+    - family: TimesNewRoman
+      fonts:
+        - asset: assets/fonts/pattern/times_new_roman.ttf
+          weight: 400
+        - asset: assets/fonts/pattern/times_new_roman.ttf
+          weight: 700
+          style: normal   # se tiver bold separado, aponte para o bold.ttf

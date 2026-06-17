@@ -1,15 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/chat_message.dart';
 import '../widgets/message_bubble.dart';
-import '../widgets/native_widgets.dart';
-import '../widgets/thinking_skeleton.dart';
-import '../utils/helpers.dart';
 
 class ChatState extends ChangeNotifier {
   String currentConversationId = '';
@@ -88,7 +83,6 @@ class _ChatPageState extends State<ChatPage>
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _sendBtnVisible = false;
-  double _inputRowHeight = 56;
 
   @override
   void dispose() {
@@ -128,11 +122,11 @@ class _ChatPageState extends State<ChatPage>
           text.trim().split(RegExp(r'\s+')).take(4).join(' ').substring(0, 40);
     }
 
-    // ─── Simulação de stream (substituir pelo GeminiApiService real) ───
+    // Simulação de stream (substituir pela API real do Gemini)
     state.isStreaming = true;
     final buffer = StringBuffer();
     const fullResponse =
-        'Esta é uma resposta **completa** que inclui formatação Markdown.\n\n'
+        'Esta é uma resposta **completa** com formatação Markdown.\n\n'
         '| Coluna A | Coluna B |\n'
         '|----------|----------|\n'
         '| Dado 1   | Dado 2   |\n'
@@ -179,7 +173,6 @@ class _ChatPageState extends State<ChatPage>
                   _buildInputRow(chatState, bottomPadding),
                 ],
               ),
-              // Scrim para drawer overlay (se necessário)
             ],
           ),
         );
@@ -203,7 +196,8 @@ class _ChatPageState extends State<ChatPage>
       ),
       title: Text(
         'IPC',
-        style: GoogleFonts.timesNewRoman(
+        style: TextStyle(
+          fontFamily: 'TimesNewRoman',
           fontWeight: FontWeight.bold,
           fontSize: 20,
           color: Colors.black,
@@ -271,7 +265,8 @@ class _ChatPageState extends State<ChatPage>
             const SizedBox(height: 16),
             Text(
               greeting,
-              style: GoogleFonts.timesNewRoman(
+              style: TextStyle(
+                fontFamily: 'TimesNewRoman',
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
@@ -320,12 +315,10 @@ class _ChatPageState extends State<ChatPage>
         );
         break;
       case 'Regenerar':
-        // Reenviar última mensagem do user
         final state = context.read<ChatState>();
         final lastUser = state.chatHistory.lastWhere((m) => m.role == 'user');
         _sendMessage(lastUser.content);
         break;
-      // Outros casos (like, dislike, share)
     }
   }
 
@@ -351,7 +344,6 @@ class _ChatPageState extends State<ChatPage>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Botão +
                 IconButton(
                   icon: SvgPicture.asset(
                     'assets/icons/add.svg',
@@ -361,7 +353,6 @@ class _ChatPageState extends State<ChatPage>
                   ),
                   onPressed: () {},
                 ),
-                // Campo de texto
                 Expanded(
                   child: TextField(
                     controller: _inputController,
@@ -381,7 +372,6 @@ class _ChatPageState extends State<ChatPage>
                     },
                   ),
                 ),
-                // Botão Gravar / Enviar
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: _sendBtnVisible
@@ -408,19 +398,17 @@ class _ChatPageState extends State<ChatPage>
                             height: 18,
                             colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
                           ),
-                          onPressed: () {/* voice recording */},
+                          onPressed: () {},
                         ),
                 ),
               ],
             ),
           ),
-          // Bottom nav row (tabs)
           Container(
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                // Preview tab
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
@@ -443,7 +431,6 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
-  // ─── Extras Sheet (Flash, Think More, Sheets) ───
   void _showExtrasSheet(ChatState state) {
     showModalBottomSheet(
       context: context,
@@ -457,7 +444,6 @@ class _ChatPageState extends State<ChatPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle
             Container(
               width: 36,
               height: 4,
@@ -551,7 +537,6 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
-  // ─── Think Modal ───
   void _showThinkModal(String thinkingContent) {
     showModalBottomSheet(
       context: context,
@@ -569,7 +554,6 @@ class _ChatPageState extends State<ChatPage>
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             children: [
-              // Handle
               Container(
                 width: 36,
                 height: 4,
@@ -611,7 +595,6 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
-  // ─── Drawer ───
   Drawer _buildDrawer(ChatState state) {
     return Drawer(
       child: SafeArea(
@@ -622,14 +605,14 @@ class _ChatPageState extends State<ChatPage>
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 12),
               child: Text(
                 'IPC',
-                style: GoogleFonts.timesNewRoman(
+                style: TextStyle(
+                  fontFamily: 'TimesNewRoman',
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
             const Divider(),
-            // Lista de conversas (mock)
             Expanded(
               child: ListView(
                 children: [

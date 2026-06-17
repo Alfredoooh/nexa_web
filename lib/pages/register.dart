@@ -4,10 +4,9 @@ import 'package:provider/provider.dart';
 import '../main.dart';
 import '../services/auth_api_service.dart';
 import 'chat_page.dart';
-import 'register_page.dart';
 
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+class RegisterPage extends StatelessWidget {
+  const RegisterPage({super.key});
 
   Map<String, Color> _colors(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -16,12 +15,26 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
     final colors = _colors(context);
 
     return Scaffold(
       backgroundColor: colors['background'],
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: SvgPicture.asset(
+            'assets/icons/svg/back_arrow.svg',
+            width: 24,
+            height: 24,
+            colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -29,7 +42,6 @@ class LoginPage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo com sombra suave
                 Container(
                   decoration: BoxDecoration(
                     boxShadow: [
@@ -43,7 +55,6 @@ class LoginPage extends StatelessWidget {
                   child: Image.asset('assets/icons/png/logo.png', width: 80, height: 80),
                 ),
                 const SizedBox(height: 24),
-                // Nome da app
                 Text(
                   'IPC',
                   style: TextStyle(
@@ -55,14 +66,21 @@ class LoginPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Iniciar sessão',
+                  'Criar conta',
                   style: TextStyle(
                     fontSize: 16,
                     color: colors['textSecondary'],
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Campo Email
+                _buildTextField(
+                  controller: nameCtrl,
+                  hint: 'Nome',
+                  icon: 'assets/icons/svg/user.svg',
+                  colors: colors,
+                  obscure: false,
+                ),
+                const SizedBox(height: 16),
                 _buildTextField(
                   controller: emailCtrl,
                   hint: 'Email',
@@ -71,7 +89,6 @@ class LoginPage extends StatelessWidget {
                   obscure: false,
                 ),
                 const SizedBox(height: 16),
-                // Campo Password
                 _buildTextField(
                   controller: passCtrl,
                   hint: 'Password',
@@ -80,19 +97,19 @@ class LoginPage extends StatelessWidget {
                   obscure: true,
                 ),
                 const SizedBox(height: 24),
-                // Botão Entrar
                 ElevatedButton(
                   onPressed: () async {
-                    final user = await AuthApiService.login(emailCtrl.text, passCtrl.text);
+                    final user = await AuthApiService.register(nameCtrl.text, emailCtrl.text, passCtrl.text);
                     if (user != null) {
                       context.read<AuthState>().setUser(user);
-                      Navigator.pushReplacement(
+                      Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const ChatPage()),
+                        (route) => false,
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Erro ao iniciar sessão')),
+                        const SnackBar(content: Text('Erro ao criar conta')),
                       );
                     }
                   },
@@ -103,26 +120,20 @@ class LoginPage extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
-                  child: const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text('Criar conta', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 24),
-                // Link para registro
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Não tem conta? ',
+                      'Já tem conta? ',
                       style: TextStyle(color: colors['textSecondary']),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const RegisterPage()),
-                        );
-                      },
+                      onTap: () => Navigator.pop(context),
                       child: Text(
-                        'Criar uma',
+                        'Iniciar sessão',
                         style: TextStyle(
                           color: IPCApp.primary,
                           fontWeight: FontWeight.bold,

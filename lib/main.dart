@@ -47,28 +47,18 @@ class ThemeState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final theme = prefs.getString('theme') ?? 'system';
     switch (theme) {
-      case 'light':
-        _mode = ThemeMode.light;
-        break;
-      case 'dark':
-        _mode = ThemeMode.dark;
-        break;
-      default:
-        _mode = ThemeMode.system;
+      case 'light': _mode = ThemeMode.light; break;
+      case 'dark': _mode = ThemeMode.dark; break;
+      default: _mode = ThemeMode.system;
     }
     notifyListeners();
   }
 
   void setTheme(String theme) async {
     switch (theme) {
-      case 'light':
-        _mode = ThemeMode.light;
-        break;
-      case 'dark':
-        _mode = ThemeMode.dark;
-        break;
-      default:
-        _mode = ThemeMode.system;
+      case 'light': _mode = ThemeMode.light; break;
+      case 'dark': _mode = ThemeMode.dark; break;
+      default: _mode = ThemeMode.system;
     }
     final prefs = await SharedPreferences.getInstance();
     prefs.setString('theme', theme);
@@ -102,6 +92,11 @@ class IPCApp extends StatelessWidget {
     'extrasCardActive': Color(0xFFEEF2FF),
     'extrasCardActiveText': Color(0xFF2F7BF6),
     'settings_section_label': Color(0xFF888888),
+    'authInputFill': Color(0xFFF2F2F7),
+    'authInputText': Color(0xFF000000),
+    'authInputHint': Color(0xFFAAAAAA),
+    'authBtnBg': Color(0xFF2F7BF6),
+    'authBtnText': Color(0xFFFFFFFF),
   };
 
   static const Map<String, Color> darkColors = {
@@ -125,6 +120,11 @@ class IPCApp extends StatelessWidget {
     'extrasCardActive': Color(0xFF1E2D4F),
     'extrasCardActiveText': Color(0xFFA8C8FA),
     'settings_section_label': Color(0xFF939393),
+    'authInputFill': Color(0xFF1F1F1F),
+    'authInputText': Color(0xFFF2F2F2),
+    'authInputHint': Color(0xFF6E6E6E),
+    'authBtnBg': Color(0xFF2F7BF6),
+    'authBtnText': Color(0xFFFFFFFF),
   };
 
   static ThemeData _buildTheme(Brightness brightness, Map<String, Color> colors) {
@@ -149,6 +149,19 @@ class IPCApp extends StatelessWidget {
           fontFamily: 'TimesNewRoman',
           fontSize: 20,
           fontWeight: FontWeight.bold,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colors['authInputFill'],
+        hintStyle: TextStyle(color: colors['authInputHint']),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primary, width: 1.5),
         ),
       ),
     );
@@ -186,6 +199,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authState),
         ChangeNotifierProvider.value(value: themeState),
+        ChangeNotifierProvider(create: (_) => ChatState()), // <-- CORRIGIDO
       ],
       child: const IPCApp(),
     ),

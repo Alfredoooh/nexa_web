@@ -1,6 +1,5 @@
 // lib/pages/chat_page.dart
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -84,30 +83,18 @@ class _ChatPageState extends State<ChatPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _sendBtnVisible = false;
   List<Conversation> _conversations = [];
-  double _appBarBlurProgress = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_handleScroll);
     _loadConversations();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_handleScroll);
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _handleScroll() {
-    if (!mounted) return;
-    final offset = _scrollController.hasClients ? _scrollController.offset : 0.0;
-    final progress = (offset / 120.0).clamp(0.0, 1.0);
-    if (progress != _appBarBlurProgress) {
-      setState(() => _appBarBlurProgress = progress);
-    }
   }
 
   Future<void> _loadConversations() async {
@@ -165,8 +152,7 @@ class _ChatPageState extends State<ChatPage> {
     final state = context.watch<ChatState>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final appBarSurface = isDark ? const Color(0xFF101010) : Colors.white;
-    final appBarBlur = 18.0 * _appBarBlurProgress;
+    final appBarBase = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
 
     final inputFill = isDark ? (colors['bottomBarSolid'] ?? const Color(0xFF1C1C1E)) : Colors.white;
     final inputTextColor = isDark ? Colors.white : Colors.black87;
@@ -175,100 +161,102 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: colors['background'],
+      extendBodyBehindAppBar: true,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: ClipRect(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: appBarBlur,
-                    sigmaY: appBarBlur,
-                  ),
-                  child: Container(
-                    color: appBarSurface.withOpacity(0.02 + (0.16 * _appBarBlurProgress)),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          appBarSurface.withOpacity(isDark ? 0.24 * _appBarBlurProgress : 0.30 * _appBarBlurProgress),
-                          appBarSurface.withOpacity(isDark ? 0.10 * _appBarBlurProgress : 0.14 * _appBarBlurProgress),
-                          Colors.transparent,
-                        ],
-                        stops: const [0.0, 0.45, 1.0],
-                      ),
+        preferredSize: const Size.fromHeight(60),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        appBarBase.withOpacity(1.0),
+                        appBarBase.withOpacity(0.92),
+                        appBarBase.withOpacity(0.0),
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
                 ),
               ),
-              AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                scrolledUnderElevation: 0,
-                surfaceTintColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                titleSpacing: 8,
-                leadingWidth: 56,
-                leading: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: PulseTap(
-                    onTap: () {
-                      _loadConversations();
-                      _scaffoldKey.currentState?.openDrawer();
-                    },
+            ),
+            AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              toolbarHeight: 60,
+              titleSpacing: 8,
+              leadingWidth: 56,
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: PulseTap(
+                  onTap: () {
+                    _loadConversations();
+                    _scaffoldKey.currentState?.openDrawer();
+                  },
+                  circular: true,
+                  child: Center(
+                    child: SvgPicture.asset(
+                      'assets/icons/svg/menu.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                    ),
+                  ),
+                ),
+              ),
+              title: state.displayMessages.isEmpty
+                  ? null
+                  : Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Text(
+                        'Minha História',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colors['textPrimary'],
+                        ),
+                      ),
+                    ),
+              actions: [
+                if (state.displayMessages.isNotEmpty)
+                  PulseTap(
+                    onTap: () => state.resetConversation(),
                     circular: true,
-                    child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: SvgPicture.asset(
-                        'assets/icons/svg/menu.svg',
+                        'assets/icons/svg/new_chat.svg',
+                        width: 17,
+                        height: 17,
+                        colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                      ),
+                    ),
+                  ),
+                if (state.displayMessages.isNotEmpty)
+                  PulseTap(
+                    onTap: () => _showAddPopup(context, colors),
+                    circular: true,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: SvgPicture.asset(
+                        'assets/icons/svg/more_vertical.svg',
                         width: 16,
                         height: 16,
                         colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
                       ),
                     ),
                   ),
-                ),
-                actions: [
-                  if (state.displayMessages.isNotEmpty)
-                    PulseTap(
-                      onTap: () => state.resetConversation(),
-                      circular: true,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: SvgPicture.asset(
-                          'assets/icons/svg/new_chat.svg',
-                          width: 17,
-                          height: 17,
-                          colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
-                        ),
-                      ),
-                    ),
-                  if (state.displayMessages.isNotEmpty)
-                    PulseTap(
-                      onTap: () => _showAddPopup(context, colors),
-                      circular: true,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: SvgPicture.asset(
-                          'assets/icons/svg/more_vertical.svg',
-                          width: 16,
-                          height: 16,
-                          colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                ],
-              ),
-            ],
-          ),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ],
         ),
       ),
       drawer: Drawer(
@@ -408,7 +396,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildChatList(ChatState state, Map<String, Color> colors) {
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.only(top: 8, bottom: 160),
+      padding: const EdgeInsets.only(top: 68, bottom: 160),
       itemCount: state.displayMessages.length,
       itemBuilder: (context, index) {
         final msg = state.displayMessages[index];

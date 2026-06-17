@@ -1,3 +1,4 @@
+// chat_page.dart
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -146,34 +147,12 @@ class _ChatPageState extends State<ChatPage> {
     }
     _scrollToBottom();
 
-    state.addAssistantPlaceholder();
-    final aiIndex = state.displayMessages.length - 1;
-    _scrollToBottom();
-
     if (!state.titleGenerated) {
       state.titleGenerated = true;
       final parts = text.trim().split(RegExp(r'\s+')).take(4).join(' ');
       state.currentConversationTitle = parts.length > 40 ? parts.substring(0, 40) : parts;
     }
 
-    state.isStreaming = true;
-    final buffer = StringBuffer();
-    const fullResponse = 'Resposta de exemplo com **markdown**.';
-
-    for (int i = 0; i < fullResponse.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 20));
-      buffer.write(fullResponse[i]);
-      final updated = DisplayMessage(
-        role: 'assistant',
-        content: buffer.toString(),
-        isStreaming: true,
-        isThinking: false,
-      );
-      state.updateAssistantMessage(aiIndex, updated);
-      _scrollToBottom();
-    }
-
-    state.finishAssistantMessage(aiIndex, buffer.toString(), '');
     state.isStreaming = false;
   }
 
@@ -189,31 +168,53 @@ class _ChatPageState extends State<ChatPage> {
     final auth = context.watch<AuthState>();
     final state = context.watch<ChatState>();
 
+    final appBarBlur = 18.0 * _appBarBlurProgress;
+    final appBarOverlayOpacity = 0.22 * _appBarBlurProgress;
+    final appBarBottomFade = 1.0 - _appBarBlurProgress;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: colors['background'],
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 18 * _appBarBlurProgress,
-              sigmaY: 18 * _appBarBlurProgress,
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: colors['appbarSolid']!.withOpacity(0.10 + (0.25 * _appBarBlurProgress)),
-                border: Border(
-                  bottom: BorderSide(
-                    color: Colors.black.withOpacity(0.03 + (0.07 * _appBarBlurProgress)),
-                    width: 0.7,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: appBarBlur,
+                    sigmaY: appBarBlur,
+                  ),
+                  child: Container(
+                    color: Colors.white.withOpacity(appBarOverlayOpacity),
                   ),
                 ),
               ),
-              child: AppBar(
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withOpacity(0.34 * _appBarBlurProgress),
+                          Colors.white.withOpacity(0.14 * _appBarBlurProgress),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              AppBar(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 scrolledUnderElevation: 0,
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Colors.transparent,
                 titleSpacing: 8,
                 title: null,
                 leading: Padding(
@@ -223,6 +224,7 @@ class _ChatPageState extends State<ChatPage> {
                       _loadConversations();
                       _scaffoldKey.currentState?.openDrawer();
                     },
+                    circular: true,
                     child: Center(
                       child: SvgPicture.asset(
                         'assets/icons/svg/menu.svg',
@@ -237,6 +239,7 @@ class _ChatPageState extends State<ChatPage> {
                   if (state.displayMessages.isNotEmpty)
                     PulseTap(
                       onTap: () => state.resetConversation(),
+                      circular: true,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: SvgPicture.asset(
@@ -250,6 +253,7 @@ class _ChatPageState extends State<ChatPage> {
                   if (state.displayMessages.isNotEmpty)
                     PulseTap(
                       onTap: () => _showAddPopup(context, colors),
+                      circular: true,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: SvgPicture.asset(
@@ -263,7 +267,7 @@ class _ChatPageState extends State<ChatPage> {
                   const SizedBox(width: 8),
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -347,9 +351,7 @@ class _ChatPageState extends State<ChatPage> {
       body: Column(
         children: [
           Expanded(
-            child: state.displayMessages.isEmpty
-                ? _buildEmptyState(colors)
-                : _buildChatList(state, colors),
+            child: state.displayMessages.isEmpty ? _buildEmptyState(colors) : _buildChatList(state, colors),
           ),
           _buildBottomBar(state, bottomPadding, colors),
         ],
@@ -423,6 +425,11 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildBottomBar(ChatState state, double bottomPadding, Map<String, Color> colors) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? (colors['bottomBarSolid'] ?? Colors.grey.shade900) : Colors.white;
+    final inputTextColor = isDark ? Colors.white : Colors.black87;
+    final hintColor = isDark ? const Color(0xFFB6B6B6) : const Color(0xFF9A9A9A);
+
     return Container(
       margin: EdgeInsets.fromLTRB(16, 0, 16, 20 + bottomPadding),
       decoration: BoxDecoration(
@@ -445,20 +452,20 @@ class _ChatPageState extends State<ChatPage> {
               controller: _inputController,
               maxLines: 5,
               minLines: 1,
-              cursorColor: Colors.black87,
-              style: const TextStyle(fontSize: 15, color: Colors.black87),
-              decoration: const InputDecoration(
+              cursorColor: inputTextColor,
+              style: TextStyle(fontSize: 15, color: inputTextColor),
+              decoration: InputDecoration(
                 hintText: 'Escreve aqui...',
-                hintStyle: TextStyle(color: Color(0xFF9A9A9A)),
+                hintStyle: TextStyle(color: hintColor),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: inputFill,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 disabledBorder: InputBorder.none,
                 errorBorder: InputBorder.none,
                 focusedErrorBorder: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 isDense: true,
               ),
               onChanged: (text) {
@@ -511,10 +518,7 @@ class _ChatPageState extends State<ChatPage> {
                           'assets/icons/svg/preview_filled.svg',
                           width: 20,
                           height: 20,
-                          colorFilter: ColorFilter.mode(
-                            colors['textPrimary']!,
-                            BlendMode.srcIn,
-                          ),
+                          colorFilter: ColorFilter.mode(colors['textPrimary']!, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -549,10 +553,7 @@ class _ChatPageState extends State<ChatPage> {
                                 'assets/icons/svg/ic_send_arrow.svg',
                                 width: 15,
                                 height: 15,
-                                colorFilter: ColorFilter.mode(
-                                  colors['sendIconColor']!,
-                                  BlendMode.srcIn,
-                                ),
+                                colorFilter: ColorFilter.mode(colors['sendIconColor']!, BlendMode.srcIn),
                               ),
                             ),
                           ),
@@ -573,10 +574,7 @@ class _ChatPageState extends State<ChatPage> {
                                 'assets/icons/svg/record.svg',
                                 width: 18,
                                 height: 18,
-                                colorFilter: ColorFilter.mode(
-                                  colors['sendIconColor']!,
-                                  BlendMode.srcIn,
-                                ),
+                                colorFilter: ColorFilter.mode(colors['sendIconColor']!, BlendMode.srcIn),
                               ),
                             ),
                           ),
@@ -664,7 +662,6 @@ class _ChatPageState extends State<ChatPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _popupItem(
-                      context: sheetContext,
                       icon: 'assets/icons/svg/camera.svg',
                       label: 'Câmara',
                       colors: colors,
@@ -672,7 +669,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _popupItem(
-                      context: sheetContext,
                       icon: 'assets/icons/svg/download.svg',
                       label: 'Importar Ficheiro',
                       colors: colors,
@@ -680,7 +676,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _popupItem(
-                      context: sheetContext,
                       icon: 'assets/icons/svg/external.svg',
                       label: 'URL / Link',
                       colors: colors,
@@ -689,7 +684,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _popupItem(
-                      context: sheetContext,
                       icon: 'assets/icons/svg/extras.svg',
                       label: 'Extras',
                       colors: colors,
@@ -712,7 +706,6 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _popupItem({
-    required BuildContext context,
     required String icon,
     required String label,
     required Map<String, Color> colors,
@@ -774,7 +767,6 @@ class _ChatPageState extends State<ChatPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _extraMenuItem(
-                      context: sheetContext,
                       title: 'Flash',
                       iconOff: 'assets/icons/svg/flash.svg',
                       iconOn: 'assets/icons/svg/flash_filled.svg',
@@ -787,7 +779,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _extraMenuItem(
-                      context: sheetContext,
                       title: 'Think More',
                       iconOff: 'assets/icons/svg/brain.svg',
                       iconOn: 'assets/icons/svg/brain_filled.svg',
@@ -800,7 +791,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _extraMenuItem(
-                      context: sheetContext,
                       title: 'Sheets',
                       iconOff: 'assets/icons/svg/sheets.svg',
                       iconOn: 'assets/icons/svg/sheets_filled.svg',
@@ -822,7 +812,6 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _extraMenuItem({
-    required BuildContext context,
     required String title,
     required String iconOff,
     required String iconOn,
@@ -949,16 +938,12 @@ class PulseTap extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
   final bool circular;
-  final BorderRadius? borderRadius;
-  final EdgeInsetsGeometry padding;
 
   const PulseTap({
     super.key,
     required this.child,
     required this.onTap,
     this.circular = false,
-    this.borderRadius,
-    this.padding = EdgeInsets.zero,
   });
 
   @override
@@ -975,10 +960,6 @@ class _PulseTapState extends State<PulseTap> {
 
   @override
   Widget build(BuildContext context) {
-    final radius = widget.circular
-        ? BorderRadius.circular(999)
-        : widget.borderRadius ?? BorderRadius.zero;
-
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTapDown: widget.onTap == null ? null : (_) => _setPressed(true),
@@ -994,19 +975,15 @@ class _PulseTapState extends State<PulseTap> {
               widget.onTap?.call();
             },
       child: AnimatedScale(
-        scale: _pressed ? 0.94 : 1.0,
-        duration: const Duration(milliseconds: 120),
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 110),
         curve: Curves.easeOut,
         child: AnimatedOpacity(
-          opacity: _pressed ? 0.88 : 1.0,
-          duration: const Duration(milliseconds: 120),
-          child: Padding(
-            padding: widget.padding,
-            child: ClipRRect(
-              borderRadius: radius,
-              child: widget.child,
-            ),
-          ),
+          opacity: _pressed ? 0.86 : 1.0,
+          duration: const Duration(milliseconds: 110),
+          child: widget.circular
+              ? ClipOval(child: widget.child)
+              : widget.child,
         ),
       ),
     );

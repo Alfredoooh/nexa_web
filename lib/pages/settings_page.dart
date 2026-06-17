@@ -1,3 +1,4 @@
+// settings_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -21,9 +22,9 @@ class SettingsPage extends StatelessWidget {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
-        title: Text(
+        title: const Text(
           'Definições',
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'TimesNewRoman',
             fontWeight: FontWeight.bold,
             color: Colors.black,
@@ -47,39 +48,39 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(top: 8, bottom: 24),
         children: [
-          _plainActionTile(
+          _simpleAction(
             context: context,
             title: 'Sair',
-            titleColor: Colors.red,
             icon: Icons.logout,
             iconColor: Colors.red,
+            titleColor: Colors.red,
             onTap: () => _logout(context, auth),
           ),
-          const SizedBox(height: 16),
-          _sectionLabel('Conta'),
-          _plainTile(
+          const SizedBox(height: 12),
+          _sectionTitle('Conta'),
+          _settingTile(
             context: context,
             label: 'Personalização',
             icon: 'assets/icons/svg/customise.svg',
             onTap: () {},
           ),
-          _plainDivider(),
-          _plainTile(
+          _divider(),
+          _settingTile(
             context: context,
             label: 'Controlo de Dados',
             icon: 'assets/icons/svg/database.svg',
             onTap: () {},
           ),
-          _plainDivider(),
-          _plainTile(
+          _divider(),
+          _settingTile(
             context: context,
             label: 'Segurança',
             icon: 'assets/icons/svg/security.svg',
             onTap: () {},
           ),
           const SizedBox(height: 18),
-          _sectionLabel('Aparência'),
-          _plainTile(
+          _sectionTitle('Aparência'),
+          _settingTile(
             context: context,
             label: 'Tema',
             icon: 'assets/icons/svg/appearance.svg',
@@ -96,8 +97,8 @@ class SettingsPage extends StatelessWidget {
             ),
             onTap: () => _showThemeSheet(context, themeState),
           ),
-          _plainDivider(),
-          _plainTile(
+          _divider(),
+          _settingTile(
             context: context,
             label: 'Idioma',
             icon: 'assets/icons/svg/language.svg',
@@ -115,9 +116,9 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _sectionLabel(String title) {
+  Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
       child: Text(
         title.toUpperCase(),
         style: const TextStyle(
@@ -130,18 +131,18 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _plainDivider() {
+  Widget _divider() {
     return const Divider(
       height: 1,
       thickness: 0.6,
-      indent: 24,
-      endIndent: 24,
+      indent: 20,
+      endIndent: 20,
       color: Color(0xFFEDEDED),
     );
   }
 
-  Widget _plainTile(
-    BuildContext context, {
+  Widget _settingTile({
+    required BuildContext context,
     required String label,
     required String icon,
     required VoidCallback onTap,
@@ -171,25 +172,19 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
             ),
-            if (trailing != null) trailing,
-            if (trailing == null)
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: Color(0xFFB0B0B0),
-              ),
+            if (trailing != null) trailing else const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB0B0B0)),
           ],
         ),
       ),
     );
   }
 
-  Widget _plainActionTile({
+  Widget _simpleAction({
     required BuildContext context,
     required String title,
-    required Color titleColor,
     required IconData icon,
     required Color iconColor,
+    required Color titleColor,
     required VoidCallback onTap,
   }) {
     return PulseTap(
@@ -235,7 +230,6 @@ class SettingsPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _modalOption(
-                    context: sheetContext,
                     label: 'Claro',
                     onTap: () {
                       themeState.setTheme('light');
@@ -244,7 +238,6 @@ class SettingsPage extends StatelessWidget {
                   ),
                   _modalDivider(),
                   _modalOption(
-                    context: sheetContext,
                     label: 'Escuro',
                     onTap: () {
                       themeState.setTheme('dark');
@@ -253,7 +246,6 @@ class SettingsPage extends StatelessWidget {
                   ),
                   _modalDivider(),
                   _modalOption(
-                    context: sheetContext,
                     label: 'Sistema',
                     onTap: () {
                       themeState.setTheme('system');
@@ -279,10 +271,8 @@ class SettingsPage extends StatelessWidget {
   }
 
   Widget _modalOption({
-    required BuildContext context,
     required String label,
     required VoidCallback onTap,
-    String? iconAsset,
   }) {
     return PulseTap(
       onTap: onTap,
@@ -291,15 +281,7 @@ class SettingsPage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            if (iconAsset != null)
-              SvgPicture.asset(
-                iconAsset,
-                width: 20,
-                height: 20,
-                colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
-              )
-            else
-              const SizedBox(width: 20, height: 20),
+            const SizedBox(width: 20, height: 20),
             const SizedBox(width: 14),
             Expanded(
               child: Text(

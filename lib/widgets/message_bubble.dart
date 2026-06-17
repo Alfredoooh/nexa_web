@@ -154,8 +154,18 @@ class NativeContentRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // O backend (Gemini, via system prompt em gemini_api_service.dart)
+    // devolve os widgets como cercas de código markdown com a tag como
+    // "linguagem", por exemplo:
+    // ```widget_table
+    // {"headers":[...],"rows":[...]}
+    // ```
+    // Nunca chegam como tags XML <widget_x>...</widget_x>, por isso o
+    // regex tem de casar com as cercas reais. As três cercas (abertura,
+    // newline, JSON, newline opcional, fecho) são todas tornadas
+    // tolerantes a espaços porque o modelo às vezes varia o whitespace.
     final widgetRegExp = RegExp(
-      r'<(widget_\w+)>(.*?)</\1>',
+      r'```\s*(widget_\w+)\s*\n(.*?)\n?```',
       dotAll: true,
     );
 
@@ -165,18 +175,29 @@ class NativeContentRenderer extends StatelessWidget {
     for (final match in widgetRegExp.allMatches(content)) {
       if (match.start > lastEnd) {
         final textBefore = content.substring(lastEnd, match.start);
-        widgets.add(_buildMarkdownText(context, textBefore));
+        if (textBefore.trim().isNotEmpty) {
+          widgets.add(_buildMarkdownText(context, textBefore));
+        }
       }
 
       final widgetType = match.group(1)!;
-      final jsonData = match.group(2)!;
+      final jsonData = match.group(2)!.trim();
       widgets.add(buildNativeWidget(widgetType, jsonData));
 
       lastEnd = match.end;
     }
 
     if (lastEnd < content.length) {
-      widgets.add(_buildMarkdownText(context, content.substring(lastEnd)));
+      final remaining = content.substring(lastEnd);
+      if (remaining.trim().isNotEmpty) {
+        widgets.add(_buildMarkdownText(context, remaining));
+      }
+    }
+
+    if (widgets.isEmpty) {
+      // Conteúdo sem nenhum bloco de widget: mantém o comportamento
+      // original de mostrar tudo como markdown.
+      widgets.add(_buildMarkdownText(context, content));
     }
 
     return Column(

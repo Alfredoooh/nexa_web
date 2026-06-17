@@ -8,11 +8,16 @@ import 'login_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
+  Map<String, Color> _colors(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? IPCApp.darkColors : IPCApp.lightColors;
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colors = isDark ? IPCApp.darkColors : IPCApp.lightColors;
+    final themeState = context.watch<ThemeState>();
+    final colors = _colors(context);
 
     return Scaffold(
       backgroundColor: colors['background'],
@@ -20,11 +25,7 @@ class SettingsPage extends StatelessWidget {
         backgroundColor: colors['appbarSolid'],
         title: Text('Definições', style: TextStyle(fontFamily: 'TimesNewRoman', color: colors['textPrimary'])),
         leading: IconButton(
-          icon: SvgPicture.asset(
-            'assets/icons/svg/back_arrow.svg',
-            width: 12, height: 12,
-            colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
-          ),
+          icon: SvgPicture.asset('assets/icons/svg/back_arrow.svg', width: 12, height: 12, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -38,15 +39,13 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 32),
           _section('Aparência', colors, children: [
             ListTile(
-              leading: SvgPicture.asset('assets/icons/svg/appearance.svg', width: 10, height: 10,
-                  colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
+              leading: SvgPicture.asset('assets/icons/svg/appearance.svg', width: 10, height: 10, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
               title: Text('Tema', style: TextStyle(color: colors['textPrimary'])),
-              trailing: Text('Claro', style: TextStyle(color: colors['textSecondary'])),
-              onTap: () => _showThemeSheet(context, colors),
+              trailing: Text(themeState.mode == ThemeMode.dark ? 'Escuro' : 'Claro', style: TextStyle(color: colors['textSecondary'])),
+              onTap: () => _showThemeSheet(context, colors, themeState),
             ),
             ListTile(
-              leading: SvgPicture.asset('assets/icons/svg/language.svg', width: 10, height: 10,
-                  colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
+              leading: SvgPicture.asset('assets/icons/svg/language.svg', width: 10, height: 10, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
               title: Text('Idioma', style: TextStyle(color: colors['textPrimary'])),
               trailing: Text('Português', style: TextStyle(color: colors['textSecondary'])),
               onTap: () {},
@@ -63,18 +62,16 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  void _showThemeSheet(BuildContext context, Map<String, Color> colors) {
+  void _showThemeSheet(BuildContext context, Map<String, Color> colors, ThemeState themeState) {
     showModalBottomSheet(
       context: context,
       backgroundColor: colors['dialogBackground'],
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ['Claro', 'Escuro'].map((theme) => ListTile(
-            title: Text(theme, style: TextStyle(color: colors['textPrimary'])),
-            onTap: () => Navigator.pop(context),
-          )).toList(),
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(title: Text('Claro', style: TextStyle(color: colors['textPrimary'])), onTap: () { themeState.setTheme('light'); Navigator.pop(context); }),
+          ListTile(title: Text('Escuro', style: TextStyle(color: colors['textPrimary'])), onTap: () { themeState.setTheme('dark'); Navigator.pop(context); }),
+          ListTile(title: Text('Sistema', style: TextStyle(color: colors['textPrimary'])), onTap: () { themeState.setTheme('system'); Navigator.pop(context); }),
+        ]),
       ),
     );
   }
@@ -83,40 +80,24 @@ class SettingsPage extends StatelessWidget {
     final token = auth.user?.token ?? '';
     await AuthApiService.logout(token);
     auth.clear();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (route) => false,
-    );
+    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (route) => false);
   }
 
   Widget _section(String title, Map<String, Color> colors, {required List<Widget> children}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-          child: Text(title, style: TextStyle(fontSize: 12, color: colors['settings_section_label'])),
-        ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: colors['cardBackground'],
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(children: children),
-        ),
+        Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 6), child: Text(title, style: TextStyle(fontSize: 12, color: colors['settings_section_label']))),
+        Container(margin: const EdgeInsets.symmetric(horizontal: 16), decoration: BoxDecoration(color: colors['cardBackground'], borderRadius: BorderRadius.circular(22)), child: Column(children: children)),
       ],
     );
   }
 
   Widget _tile(String label, String icon, Map<String, Color> colors, VoidCallback onTap) {
     return ListTile(
-      leading: SvgPicture.asset(icon, width: 10, height: 10,
-          colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
+      leading: SvgPicture.asset(icon, width: 10, height: 10, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
       title: Text(label, style: TextStyle(color: colors['textPrimary'])),
-      trailing: SvgPicture.asset('assets/icons/svg/chevron_right.svg', width: 15, height: 15,
-          colorFilter: ColorFilter.mode(colors['iconTintSecondary']!, BlendMode.srcIn)),
+      trailing: SvgPicture.asset('assets/icons/svg/chevron_right.svg', width: 15, height: 15, colorFilter: ColorFilter.mode(colors['iconTintSecondary']!, BlendMode.srcIn)),
       onTap: onTap,
     );
   }

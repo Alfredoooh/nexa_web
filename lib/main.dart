@@ -39,6 +39,43 @@ class AuthState extends ChangeNotifier {
   }
 }
 
+class ThemeState extends ChangeNotifier {
+  ThemeMode _mode = ThemeMode.system;
+  ThemeMode get mode => _mode;
+
+  Future<void> loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final theme = prefs.getString('theme') ?? 'system';
+    switch (theme) {
+      case 'light':
+        _mode = ThemeMode.light;
+        break;
+      case 'dark':
+        _mode = ThemeMode.dark;
+        break;
+      default:
+        _mode = ThemeMode.system;
+    }
+    notifyListeners();
+  }
+
+  void setTheme(String theme) async {
+    switch (theme) {
+      case 'light':
+        _mode = ThemeMode.light;
+        break;
+      case 'dark':
+        _mode = ThemeMode.dark;
+        break;
+      default:
+        _mode = ThemeMode.system;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('theme', theme);
+    notifyListeners();
+  }
+}
+
 class IPCApp extends StatelessWidget {
   const IPCApp({super.key});
 
@@ -90,36 +127,50 @@ class IPCApp extends StatelessWidget {
     'settings_section_label': Color(0xFF939393),
   };
 
+  static ThemeData _buildTheme(Brightness brightness, Map<String, Color> colors) {
+    return ThemeData(
+      brightness: brightness,
+      primaryColor: primary,
+      scaffoldBackgroundColor: colors['background'],
+      fontFamily: 'TimesNewRoman',
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primary,
+        brightness: brightness,
+        surface: colors['cardBackground']!,
+        onSurface: colors['textPrimary']!,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: colors['iconTint']),
+        titleTextStyle: TextStyle(
+          color: colors['textPrimary'],
+          fontFamily: 'TimesNewRoman',
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'IPC',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primaryColor: primary,
-        scaffoldBackgroundColor: lightColors['background'],
-        fontFamily: 'TimesNewRoman',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primary,
-          brightness: Brightness.light,
-          surface: lightColors['cardBackground'],
-          onSurface: lightColors['textPrimary'],
-        ),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primaryColor: primary,
-        scaffoldBackgroundColor: darkColors['background'],
-        fontFamily: 'TimesNewRoman',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primary,
-          brightness: Brightness.dark,
-          surface: darkColors['cardBackground'],
-          onSurface: darkColors['textPrimary'],
-        ),
-      ),
-      home: const ChatPage(),
+    return Consumer<ThemeState>(
+      builder: (context, themeState, _) {
+        return MaterialApp(
+          title: 'IPC',
+          debugShowCheckedModeBanner: false,
+          theme: _buildTheme(Brightness.light, lightColors),
+          darkTheme: _buildTheme(Brightness.dark, darkColors),
+          themeMode: themeState.mode,
+          home: Consumer<AuthState>(
+            builder: (context, authState, _) {
+              return authState.user != null ? const ChatPage() : const LoginPage();
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -127,10 +178,15 @@ class IPCApp extends StatelessWidget {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final authState = AuthState();
+  final themeState = ThemeState();
   await authState.loadUser();
+  await themeState.loadTheme();
   runApp(
-    ChangeNotifierProvider.value(
-      value: authState,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authState),
+        ChangeNotifierProvider.value(value: themeState),
+      ],
       child: const IPCApp(),
     ),
   );

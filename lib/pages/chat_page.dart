@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -43,7 +44,7 @@ class ChatState extends ChangeNotifier {
     msg.content = content;
     msg.isStreaming = false;
     msg.isThinking = false;
-    msg.thinkingContent = thinking;
+    msg.thinkingContent = '';
     chatHistory.add(ChatMessage(role: 'assistant', content: content));
     notifyListeners();
   }
@@ -88,18 +89,30 @@ class _ChatPageState extends State<ChatPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _sendBtnVisible = false;
   List<Conversation> _conversations = [];
+  double _appBarBlurProgress = 0.0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     _loadConversations();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!mounted) return;
+    final offset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final progress = (offset / 120.0).clamp(0.0, 1.0);
+    if (progress != _appBarBlurProgress) {
+      setState(() => _appBarBlurProgress = progress);
+    }
   }
 
   Future<void> _loadConversations() async {
@@ -160,7 +173,7 @@ class _ChatPageState extends State<ChatPage> {
       _scrollToBottom();
     }
 
-    state.finishAssistantMessage(aiIndex, buffer.toString(), 'Pensamento simulado...');
+    state.finishAssistantMessage(aiIndex, buffer.toString(), '');
     state.isStreaming = false;
   }
 
@@ -181,83 +194,76 @@ class _ChatPageState extends State<ChatPage> {
       backgroundColor: colors['background'],
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                colors['appbarSolid']!,
-                colors['appbarSolid']!.withOpacity(0.0),
-              ],
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 18 * _appBarBlurProgress,
+              sigmaY: 18 * _appBarBlurProgress,
             ),
-          ),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            titleSpacing: 8,
-            title: null,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: IconButton(
-                icon: SvgPicture.asset(
-                  'assets/icons/svg/menu.svg',
-                  width: 16,
-                  height: 16,
-                  colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+            child: Container(
+              decoration: BoxDecoration(
+                color: colors['appbarSolid']!.withOpacity(0.10 + (0.25 * _appBarBlurProgress)),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.black.withOpacity(0.03 + (0.07 * _appBarBlurProgress)),
+                    width: 0.7,
+                  ),
                 ),
-                onPressed: () {
-                  _loadConversations();
-                  _scaffoldKey.currentState?.openDrawer();
-                },
               ),
-            ),
-            actions: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(
-                  begin: state.displayMessages.isEmpty ? 0.8 : 0.0,
-                  end: state.displayMessages.isEmpty ? 0.8 : 0.0,
-                ),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.decelerate,
-                builder: (context, value, child) {
-                  return Transform.translate(
-                    offset: Offset(value * 42, 0),
-                    child: Opacity(
-                      opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.35,
-                      child: child,
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                titleSpacing: 8,
+                title: null,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: PulseTap(
+                    onTap: () {
+                      _loadConversations();
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
+                    child: Center(
+                      child: SvgPicture.asset(
+                        'assets/icons/svg/menu.svg',
+                        width: 16,
+                        height: 16,
+                        colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                      ),
                     ),
-                  );
-                },
-                child: IconButton(
-                  icon: SvgPicture.asset(
-                    'assets/icons/svg/new_chat.svg',
-                    width: 17,
-                    height: 17,
-                    colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
                   ),
-                  onPressed: state.displayMessages.isEmpty ? null : () => state.resetConversation(),
                 ),
+                actions: [
+                  if (state.displayMessages.isNotEmpty)
+                    PulseTap(
+                      onTap: () => state.resetConversation(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: SvgPicture.asset(
+                          'assets/icons/svg/new_chat.svg',
+                          width: 17,
+                          height: 17,
+                          colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                        ),
+                      ),
+                    ),
+                  if (state.displayMessages.isNotEmpty)
+                    PulseTap(
+                      onTap: () => _showAddPopup(context, colors),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: SvgPicture.asset(
+                          'assets/icons/svg/more_vertical.svg',
+                          width: 16,
+                          height: 16,
+                          colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                ],
               ),
-              const SizedBox(width: 6),
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.0,
-                child: IconButton(
-                  icon: SvgPicture.asset(
-                    'assets/icons/svg/more_vertical.svg',
-                    width: 16,
-                    height: 16,
-                    colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
-                  ),
-                  onPressed: state.displayMessages.isNotEmpty
-                      ? () => _showAddPopup(context, colors)
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
+            ),
           ),
         ),
       ),
@@ -393,9 +399,7 @@ class _ChatPageState extends State<ChatPage> {
         final msg = state.displayMessages[index];
         return MessageBubble(
           message: msg,
-          onThinkTap: msg.thinkingContent.isNotEmpty
-              ? () => _showThinkModal(msg.thinkingContent, colors)
-              : null,
+          onThinkTap: null,
           onAction: (action) => _handleAction(action, msg.content),
         );
       },
@@ -478,15 +482,17 @@ class _ChatPageState extends State<ChatPage> {
                     color: colors['addCircleBg'],
                     shape: BoxShape.circle,
                   ),
-                  child: IconButton(
-                    icon: SvgPicture.asset(
-                      'assets/icons/svg/add.svg',
-                      width: 18,
-                      height: 18,
-                      colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                  child: PulseTap(
+                    onTap: () => _showAddPopup(context, colors),
+                    circular: true,
+                    child: Center(
+                      child: SvgPicture.asset(
+                        'assets/icons/svg/add.svg',
+                        width: 18,
+                        height: 18,
+                        colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                      ),
                     ),
-                    onPressed: () => _showAddPopup(context, colors),
-                    padding: EdgeInsets.zero,
                   ),
                 ),
                 const Spacer(),
@@ -535,18 +541,20 @@ class _ChatPageState extends State<ChatPage> {
                             color: colors['sendBtnColor'],
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: IconButton(
-                            icon: SvgPicture.asset(
-                              'assets/icons/svg/ic_send_arrow.svg',
-                              width: 15,
-                              height: 15,
-                              colorFilter: ColorFilter.mode(
-                                colors['sendIconColor']!,
-                                BlendMode.srcIn,
+                          child: PulseTap(
+                            onTap: () => _sendMessage(_inputController.text),
+                            circular: true,
+                            child: Center(
+                              child: SvgPicture.asset(
+                                'assets/icons/svg/ic_send_arrow.svg',
+                                width: 15,
+                                height: 15,
+                                colorFilter: ColorFilter.mode(
+                                  colors['sendIconColor']!,
+                                  BlendMode.srcIn,
+                                ),
                               ),
                             ),
-                            onPressed: () => _sendMessage(_inputController.text),
-                            padding: EdgeInsets.zero,
                           ),
                         )
                       : Container(
@@ -557,18 +565,20 @@ class _ChatPageState extends State<ChatPage> {
                             color: colors['sendBtnColor'],
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: IconButton(
-                            icon: SvgPicture.asset(
-                              'assets/icons/svg/record.svg',
-                              width: 18,
-                              height: 18,
-                              colorFilter: ColorFilter.mode(
-                                colors['sendIconColor']!,
-                                BlendMode.srcIn,
+                          child: PulseTap(
+                            onTap: () => _showVoiceModal(colors),
+                            circular: true,
+                            child: Center(
+                              child: SvgPicture.asset(
+                                'assets/icons/svg/record.svg',
+                                width: 18,
+                                height: 18,
+                                colorFilter: ColorFilter.mode(
+                                  colors['sendIconColor']!,
+                                  BlendMode.srcIn,
+                                ),
                               ),
                             ),
-                            onPressed: () => _showVoiceModal(colors),
-                            padding: EdgeInsets.zero,
                           ),
                         ),
                 ),
@@ -654,32 +664,36 @@ class _ChatPageState extends State<ChatPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _popupItem(
-                      'assets/icons/svg/camera.svg',
-                      'Câmara',
-                      colors,
-                      () => Navigator.pop(sheetContext),
+                      context: sheetContext,
+                      icon: 'assets/icons/svg/camera.svg',
+                      label: 'Câmara',
+                      colors: colors,
+                      onTap: () => Navigator.pop(sheetContext),
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _popupItem(
-                      'assets/icons/svg/download.svg',
-                      'Importar Ficheiro',
-                      colors,
-                      () => Navigator.pop(sheetContext),
+                      context: sheetContext,
+                      icon: 'assets/icons/svg/download.svg',
+                      label: 'Importar Ficheiro',
+                      colors: colors,
+                      onTap: () => Navigator.pop(sheetContext),
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _popupItem(
-                      'assets/icons/svg/external.svg',
-                      'URL / Link',
-                      colors,
-                      () => Navigator.pop(sheetContext),
+                      context: sheetContext,
+                      icon: 'assets/icons/svg/external.svg',
+                      label: 'URL / Link',
+                      colors: colors,
+                      onTap: null,
                       dimmed: true,
                     ),
                     Divider(height: 1, indent: 62, color: colors['divider']),
                     _popupItem(
-                      'assets/icons/svg/extras.svg',
-                      'Extras',
-                      colors,
-                      () {
+                      context: sheetContext,
+                      icon: 'assets/icons/svg/extras.svg',
+                      label: 'Extras',
+                      colors: colors,
+                      onTap: () {
                         Navigator.pop(sheetContext);
                         Future.delayed(const Duration(milliseconds: 180), () {
                           if (!mounted) return;
@@ -697,32 +711,43 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _popupItem(
-    String icon,
-    String label,
-    Map<String, Color> colors,
-    VoidCallback onTap, {
+  Widget _popupItem({
+    required BuildContext context,
+    required String icon,
+    required String label,
+    required Map<String, Color> colors,
+    required VoidCallback? onTap,
     bool dimmed = false,
   }) {
-    return ListTile(
-      leading: SvgPicture.asset(
-        icon,
-        width: 20,
-        height: 20,
-        colorFilter: ColorFilter.mode(
-          dimmed ? colors['textHint']! : colors['iconTint']!,
-          BlendMode.srcIn,
-        ),
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontSize: 15,
-          color: dimmed ? colors['textHint'] : colors['textPrimary'],
-        ),
-      ),
-      enabled: !dimmed,
+    return PulseTap(
       onTap: dimmed ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            SvgPicture.asset(
+              icon,
+              width: 20,
+              height: 20,
+              colorFilter: ColorFilter.mode(
+                dimmed ? colors['textHint']! : colors['iconTint']!,
+                BlendMode.srcIn,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: dimmed ? colors['textHint'] : colors['textPrimary'],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -730,91 +755,87 @@ class _ChatPageState extends State<ChatPage> {
     final state = context.read<ChatState>();
     showModalBottomSheet(
       context: pageContext,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: BoxDecoration(
-          color: colors['dialogBackground'],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: colors['divider'],
-                  borderRadius: BorderRadius.circular(3),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              decoration: BoxDecoration(
+                color: colors['dialogBackground'],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _extraMenuItem(
+                      context: sheetContext,
+                      title: 'Flash',
+                      iconOff: 'assets/icons/svg/flash.svg',
+                      iconOn: 'assets/icons/svg/flash_filled.svg',
+                      active: state.flashMode,
+                      colors: colors,
+                      onTap: () {
+                        state.toggleFlashMode();
+                        Navigator.pop(sheetContext);
+                      },
+                    ),
+                    Divider(height: 1, indent: 62, color: colors['divider']),
+                    _extraMenuItem(
+                      context: sheetContext,
+                      title: 'Think More',
+                      iconOff: 'assets/icons/svg/brain.svg',
+                      iconOn: 'assets/icons/svg/brain_filled.svg',
+                      active: state.thinkMoreMode,
+                      colors: colors,
+                      onTap: () {
+                        state.toggleThinkMoreMode();
+                        Navigator.pop(sheetContext);
+                      },
+                    ),
+                    Divider(height: 1, indent: 62, color: colors['divider']),
+                    _extraMenuItem(
+                      context: sheetContext,
+                      title: 'Sheets',
+                      iconOff: 'assets/icons/svg/sheets.svg',
+                      iconOn: 'assets/icons/svg/sheets_filled.svg',
+                      active: state.sheetsEnabled,
+                      colors: colors,
+                      onTap: () {
+                        state.toggleSheets();
+                        Navigator.pop(sheetContext);
+                      },
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                'Extras',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: colors['textPrimary'],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _extraCard(
-                    'Flash',
-                    'assets/icons/svg/flash.svg',
-                    'assets/icons/svg/flash_filled.svg',
-                    state.flashMode,
-                    colors,
-                    () => state.toggleFlashMode(),
-                  ),
-                  _extraCard(
-                    'Think More',
-                    'assets/icons/svg/brain.svg',
-                    'assets/icons/svg/brain_filled.svg',
-                    state.thinkMoreMode,
-                    colors,
-                    () => state.toggleThinkMoreMode(),
-                  ),
-                  _extraCard(
-                    'Sheets',
-                    'assets/icons/svg/sheets.svg',
-                    'assets/icons/svg/sheets_filled.svg',
-                    state.sheetsEnabled,
-                    colors,
-                    () => state.toggleSheets(),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _extraCard(
-    String title,
-    String iconOff,
-    String iconOn,
-    bool active,
-    Map<String, Color> colors,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
+  Widget _extraMenuItem({
+    required BuildContext context,
+    required String title,
+    required String iconOff,
+    required String iconOn,
+    required bool active,
+    required Map<String, Color> colors,
+    required VoidCallback onTap,
+  }) {
+    return PulseTap(
       onTap: onTap,
       child: Container(
-        width: 90,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: active ? colors['extrasCardActive'] : colors['cardBackground'],
-          borderRadius: BorderRadius.circular(16),
-          border: !active ? Border.all(color: colors['divider']!) : null,
-        ),
-        child: Column(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        color: active ? colors['extrasCardActive']?.withOpacity(0.08) : Colors.transparent,
+        child: Row(
           children: [
             SvgPicture.asset(
               active ? iconOn : iconOff,
@@ -825,15 +846,26 @@ class _ChatPageState extends State<ChatPage> {
                 BlendMode.srcIn,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: active ? colors['extrasCardActiveText'] : colors['textSecondary'],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: active ? colors['extrasCardActiveText'] : colors['textPrimary'],
+                ),
               ),
             ),
+            if (active)
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: colors['extrasCardActiveText'],
+                  shape: BoxShape.circle,
+                ),
+              ),
           ],
         ),
       ),
@@ -910,5 +942,73 @@ class _ChatPageState extends State<ChatPage> {
       return 'Hoje';
     }
     return '${dt.day}/${dt.month}/${dt.year}';
+  }
+}
+
+class PulseTap extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final bool circular;
+  final BorderRadius? borderRadius;
+  final EdgeInsetsGeometry padding;
+
+  const PulseTap({
+    super.key,
+    required this.child,
+    required this.onTap,
+    this.circular = false,
+    this.borderRadius,
+    this.padding = EdgeInsets.zero,
+  });
+
+  @override
+  State<PulseTap> createState() => _PulseTapState();
+}
+
+class _PulseTapState extends State<PulseTap> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = widget.circular
+        ? BorderRadius.circular(999)
+        : widget.borderRadius ?? BorderRadius.zero;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTapDown: widget.onTap == null ? null : (_) => _setPressed(true),
+      onTapCancel: widget.onTap == null ? null : () => _setPressed(false),
+      onTapUp: widget.onTap == null
+          ? null
+          : (_) {
+              _setPressed(false);
+            },
+      onTap: widget.onTap == null
+          ? null
+          : () {
+              widget.onTap?.call();
+            },
+      child: AnimatedScale(
+        scale: _pressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: AnimatedOpacity(
+          opacity: _pressed ? 0.88 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: Padding(
+            padding: widget.padding,
+            child: ClipRRect(
+              borderRadius: radius,
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

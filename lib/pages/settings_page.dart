@@ -8,89 +8,311 @@ import 'login_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  Map<String, Color> _colors(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? IPCApp.darkColors : IPCApp.lightColors;
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
     final themeState = context.watch<ThemeState>();
-    final colors = _colors(context);
 
     return Scaffold(
-      backgroundColor: colors['background'],
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: colors['appbarSolid'],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
         title: Text(
           'Definições',
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'TimesNewRoman',
             fontWeight: FontWeight.bold,
-            color: colors['textPrimary'],
+            color: Colors.black,
           ),
         ),
         leading: Padding(
           padding: const EdgeInsets.only(left: 8),
-          child: Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: colors['appbarBtnBg'], shape: BoxShape.circle),
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              icon: SvgPicture.asset(
+          child: PulseTap(
+            onTap: () => Navigator.pop(context),
+            child: Center(
+              child: SvgPicture.asset(
                 'assets/icons/svg/back_arrow.svg',
-                width: 18, height: 18,
-                colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                width: 18,
+                height: 18,
+                colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
               ),
-              onPressed: () => Navigator.pop(context),
             ),
           ),
         ),
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 24),
         children: [
-          _section('Conta', colors, children: [
-            _tile('Personalização', 'assets/icons/svg/customise.svg', colors, () {}),
-            _tile('Controlo de Dados', 'assets/icons/svg/database.svg', colors, () {}),
-            _tile('Segurança', 'assets/icons/svg/security.svg', colors, () {}),
-          ]),
-          const SizedBox(height: 32),
-          _section('Aparência', colors, children: [
-            ListTile(
-              leading: SvgPicture.asset('assets/icons/svg/appearance.svg', width: 20, height: 20, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
-              title: Text('Tema', style: TextStyle(color: colors['textPrimary'])),
-              trailing: Text(themeState.mode == ThemeMode.dark ? 'Escuro' : 'Claro', style: TextStyle(color: colors['textSecondary'])),
-              onTap: () => _showThemeSheet(context, colors, themeState),
-            ),
-            ListTile(
-              leading: SvgPicture.asset('assets/icons/svg/language.svg', width: 20, height: 20, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
-              title: Text('Idioma', style: TextStyle(color: colors['textPrimary'])),
-              trailing: Text('Português', style: TextStyle(color: colors['textSecondary'])),
-              onTap: () {},
-            ),
-          ]),
-          const SizedBox(height: 32),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red, size: 20),
-            title: const Text('Sair', style: TextStyle(color: Colors.red)),
+          _plainActionTile(
+            context: context,
+            title: 'Sair',
+            titleColor: Colors.red,
+            icon: Icons.logout,
+            iconColor: Colors.red,
             onTap: () => _logout(context, auth),
+          ),
+          const SizedBox(height: 16),
+          _sectionLabel('Conta'),
+          _plainTile(
+            context: context,
+            label: 'Personalização',
+            icon: 'assets/icons/svg/customise.svg',
+            onTap: () {},
+          ),
+          _plainDivider(),
+          _plainTile(
+            context: context,
+            label: 'Controlo de Dados',
+            icon: 'assets/icons/svg/database.svg',
+            onTap: () {},
+          ),
+          _plainDivider(),
+          _plainTile(
+            context: context,
+            label: 'Segurança',
+            icon: 'assets/icons/svg/security.svg',
+            onTap: () {},
+          ),
+          const SizedBox(height: 18),
+          _sectionLabel('Aparência'),
+          _plainTile(
+            context: context,
+            label: 'Tema',
+            icon: 'assets/icons/svg/appearance.svg',
+            trailing: Text(
+              themeState.mode == ThemeMode.dark
+                  ? 'Escuro'
+                  : themeState.mode == ThemeMode.light
+                      ? 'Claro'
+                      : 'Sistema',
+              style: const TextStyle(
+                color: Color(0xFF7A7A7A),
+                fontSize: 14,
+              ),
+            ),
+            onTap: () => _showThemeSheet(context, themeState),
+          ),
+          _plainDivider(),
+          _plainTile(
+            context: context,
+            label: 'Idioma',
+            icon: 'assets/icons/svg/language.svg',
+            trailing: const Text(
+              'Português',
+              style: TextStyle(
+                color: Color(0xFF7A7A7A),
+                fontSize: 14,
+              ),
+            ),
+            onTap: () {},
           ),
         ],
       ),
     );
   }
 
-  void _showThemeSheet(BuildContext context, Map<String, Color> colors, ThemeState themeState) {
+  Widget _sectionLabel(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          letterSpacing: 0.8,
+          color: Color(0xFF9A9A9A),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _plainDivider() {
+    return const Divider(
+      height: 1,
+      thickness: 0.6,
+      indent: 24,
+      endIndent: 24,
+      color: Color(0xFFEDEDED),
+    );
+  }
+
+  Widget _plainTile(
+    BuildContext context, {
+    required String label,
+    required String icon,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
+    return PulseTap(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            SvgPicture.asset(
+              icon,
+              width: 20,
+              height: 20,
+              colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (trailing != null) trailing,
+            if (trailing == null)
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Color(0xFFB0B0B0),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _plainActionTile({
+    required BuildContext context,
+    required String title,
+    required Color titleColor,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return PulseTap(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 14),
+            Text(
+              title,
+              style: TextStyle(
+                color: titleColor,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showThemeSheet(BuildContext context, ThemeState themeState) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: colors['dialogBackground'],
-      builder: (_) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(title: Text('Claro', style: TextStyle(color: colors['textPrimary'])), onTap: () { themeState.setTheme('light'); Navigator.pop(context); }),
-          ListTile(title: Text('Escuro', style: TextStyle(color: colors['textPrimary'])), onTap: () { themeState.setTheme('dark'); Navigator.pop(context); }),
-          ListTile(title: Text('Sistema', style: TextStyle(color: colors['textPrimary'])), onTap: () { themeState.setTheme('system'); Navigator.pop(context); }),
-        ]),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _modalOption(
+                    context: sheetContext,
+                    label: 'Claro',
+                    onTap: () {
+                      themeState.setTheme('light');
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                  _modalDivider(),
+                  _modalOption(
+                    context: sheetContext,
+                    label: 'Escuro',
+                    onTap: () {
+                      themeState.setTheme('dark');
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                  _modalDivider(),
+                  _modalOption(
+                    context: sheetContext,
+                    label: 'Sistema',
+                    onTap: () {
+                      themeState.setTheme('system');
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _modalDivider() {
+    return const Divider(
+      height: 1,
+      thickness: 0.6,
+      indent: 62,
+      color: Color(0xFFEDEDED),
+    );
+  }
+
+  Widget _modalOption({
+    required BuildContext context,
+    required String label,
+    required VoidCallback onTap,
+    String? iconAsset,
+  }) {
+    return PulseTap(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            if (iconAsset != null)
+              SvgPicture.asset(
+                iconAsset,
+                width: 20,
+                height: 20,
+                colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+              )
+            else
+              const SizedBox(width: 20, height: 20),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -99,25 +321,62 @@ class SettingsPage extends StatelessWidget {
     final token = auth.user?.token ?? '';
     await AuthApiService.logout(token);
     auth.clear();
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (route) => false);
-  }
-
-  Widget _section(String title, Map<String, Color> colors, {required List<Widget> children}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 6), child: Text(title, style: TextStyle(fontSize: 12, color: colors['settings_section_label']))),
-        Container(margin: const EdgeInsets.symmetric(horizontal: 16), decoration: BoxDecoration(color: colors['cardBackground'], borderRadius: BorderRadius.circular(22)), child: Column(children: children)),
-      ],
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
     );
   }
+}
 
-  Widget _tile(String label, String icon, Map<String, Color> colors, VoidCallback onTap) {
-    return ListTile(
-      leading: SvgPicture.asset(icon, width: 20, height: 20, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
-      title: Text(label, style: TextStyle(color: colors['textPrimary'])),
-      trailing: SvgPicture.asset('assets/icons/svg/chevron_right.svg', width: 16, height: 16, colorFilter: ColorFilter.mode(colors['iconTintSecondary']!, BlendMode.srcIn)),
-      onTap: onTap,
+class PulseTap extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const PulseTap({
+    super.key,
+    required this.child,
+    required this.onTap,
+  });
+
+  @override
+  State<PulseTap> createState() => _PulseTapState();
+}
+
+class _PulseTapState extends State<PulseTap> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTapDown: widget.onTap == null ? null : (_) => _setPressed(true),
+      onTapCancel: widget.onTap == null ? null : () => _setPressed(false),
+      onTapUp: widget.onTap == null
+          ? null
+          : (_) {
+              _setPressed(false);
+            },
+      onTap: widget.onTap == null
+          ? null
+          : () {
+              widget.onTap?.call();
+            },
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: AnimatedOpacity(
+          opacity: _pressed ? 0.86 : 1.0,
+          duration: const Duration(milliseconds: 110),
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

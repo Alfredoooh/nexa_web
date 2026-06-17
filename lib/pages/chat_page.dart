@@ -187,7 +187,7 @@ class _ChatPageState extends State<ChatPage>
       scrolledUnderElevation: 0,
       leading: IconButton(
         icon: SvgPicture.asset(
-          'assets/icons/menu.svg',
+          'assets/icons/svg/menu.svg',
           width: 17,
           height: 17,
           colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
@@ -223,7 +223,7 @@ class _ChatPageState extends State<ChatPage>
           },
           child: IconButton(
             icon: SvgPicture.asset(
-              'assets/icons/new_chat.svg',
+              'assets/icons/svg/new_chat.svg',
               width: 17,
               height: 17,
               colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
@@ -239,7 +239,7 @@ class _ChatPageState extends State<ChatPage>
           opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.0,
           child: IconButton(
             icon: SvgPicture.asset(
-              'assets/icons/more.svg',
+              'assets/icons/svg/more.svg',
               width: 17,
               height: 17,
               colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
@@ -261,7 +261,7 @@ class _ChatPageState extends State<ChatPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/icons/logo.png', width: 72, height: 72),
+            Image.asset('assets/icons/svg/logo.png', width: 72, height: 72),
             const SizedBox(height: 16),
             Text(
               greeting,
@@ -346,7 +346,7 @@ class _ChatPageState extends State<ChatPage>
               children: [
                 IconButton(
                   icon: SvgPicture.asset(
-                    'assets/icons/add.svg',
+                    'assets/icons/svg/add.svg',
                     width: 18,
                     height: 18,
                     colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
@@ -393,7 +393,7 @@ class _ChatPageState extends State<ChatPage>
                       : IconButton(
                           key: const ValueKey('mic'),
                           icon: SvgPicture.asset(
-                            'assets/icons/mic.svg',
+                            'assets/icons/svg/mic.svg',
                             width: 18,
                             height: 18,
                             colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
@@ -417,7 +417,7 @@ class _ChatPageState extends State<ChatPage>
                   ),
                   child: Row(
                     children: [
-                      SvgPicture.asset('assets/icons/preview.svg', width: 14, height: 14),
+                      SvgPicture.asset('assets/icons/svg/preview.svg', width: 14, height: 14),
                       const SizedBox(width: 6),
                       const Text('Preview', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     ],
@@ -463,22 +463,22 @@ class _ChatPageState extends State<ChatPage>
               children: [
                 _buildExtraCard(
                   title: 'Flash',
-                  iconOff: 'assets/icons/flash.svg',
-                  iconOn: 'assets/icons/flash_filled.svg',
+                  iconOff: 'assets/icons/svg/flash.svg',
+                  iconOn: 'assets/icons/svg/flash_filled.svg',
                   active: state.flashMode,
                   onTap: () => state.toggleFlashMode(),
                 ),
                 _buildExtraCard(
                   title: 'Think More',
-                  iconOff: 'assets/icons/brain.svg',
-                  iconOn: 'assets/icons/brain_filled.svg',
+                  iconOff: 'assets/icons/svg/brain.svg',
+                  iconOn: 'assets/icons/svg/brain_filled.svg',
                   active: state.thinkMoreMode,
                   onTap: () => state.toggleThinkMoreMode(),
                 ),
                 _buildExtraCard(
                   title: 'Sheets',
-                  iconOff: 'assets/icons/sheets.svg',
-                  iconOn: 'assets/icons/sheets_filled.svg',
+                  iconOff: 'assets/icons/svg/sheets.svg',
+                  iconOn: 'assets/icons/svg/sheets_filled.svg',
                   active: state.sheetsEnabled,
                   onTap: () => state.toggleSheets(),
                 ),
@@ -566,7 +566,7 @@ class _ChatPageState extends State<ChatPage>
               Row(
                 children: [
                   SvgPicture.asset(
-                    'assets/icons/brain_filled.svg',
+                    'assets/icons/svg/brain_filled.svg',
                     width: 18,
                     height: 18,
                     colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),

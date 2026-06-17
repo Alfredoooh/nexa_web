@@ -95,9 +95,17 @@ class _ChatPageState extends State<ChatPage> {
     _loadConversations();
   }
 
+  @override
+  void dispose() {
+    _inputController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadConversations() async {
     final token = context.read<AuthState>().user?.token ?? '';
     final list = await AuthApiService.listConversations(token);
+    if (!mounted) return;
     setState(() => _conversations = list);
   }
 
@@ -120,6 +128,9 @@ class _ChatPageState extends State<ChatPage> {
 
     state.addUserMessage(text);
     _inputController.clear();
+    if (mounted) {
+      setState(() => _sendBtnVisible = false);
+    }
     _scrollToBottom();
 
     state.addAssistantPlaceholder();
@@ -128,8 +139,8 @@ class _ChatPageState extends State<ChatPage> {
 
     if (!state.titleGenerated) {
       state.titleGenerated = true;
-      state.currentConversationTitle =
-          text.trim().split(RegExp(r'\s+')).take(4).join(' ').substring(0, 40);
+      final parts = text.trim().split(RegExp(r'\s+')).take(4).join(' ');
+      state.currentConversationTitle = parts.length > 40 ? parts.substring(0, 40) : parts;
     }
 
     state.isStreaming = true;
@@ -226,9 +237,7 @@ class _ChatPageState extends State<ChatPage> {
                     height: 17,
                     colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
                   ),
-                  onPressed: state.displayMessages.isEmpty
-                      ? null
-                      : () => state.resetConversation(),
+                  onPressed: state.displayMessages.isEmpty ? null : () => state.resetConversation(),
                 ),
               ),
               const SizedBox(width: 6),
@@ -242,7 +251,9 @@ class _ChatPageState extends State<ChatPage> {
                     height: 16,
                     colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
                   ),
-                  onPressed: () {},
+                  onPressed: state.displayMessages.isNotEmpty
+                      ? () => _showAddPopup(context, colors)
+                      : null,
                 ),
               ),
               const SizedBox(width: 8),
@@ -277,10 +288,14 @@ class _ChatPageState extends State<ChatPage> {
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                title: Text(auth.user?.name ?? 'Utilizador',
-                    style: TextStyle(color: colors['drawerText'])),
-                subtitle: Text(auth.user?.email ?? '',
-                    style: TextStyle(color: colors['textSecondary'])),
+                title: Text(
+                  auth.user?.name ?? 'Utilizador',
+                  style: TextStyle(color: colors['drawerText']),
+                ),
+                subtitle: Text(
+                  auth.user?.email ?? '',
+                  style: TextStyle(color: colors['textSecondary']),
+                ),
                 trailing: SvgPicture.asset(
                   'assets/icons/svg/chevron_right.svg',
                   width: 15,
@@ -290,15 +305,18 @@ class _ChatPageState extends State<ChatPage> {
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
-                      context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
                 },
               ),
               Divider(color: colors['divider']),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
-                child: Text('CONVERSAS',
-                    style:
-                        TextStyle(fontSize: 11, color: colors['settings_section_label'])),
+                child: Text(
+                  'CONVERSAS',
+                  style: TextStyle(fontSize: 11, color: colors['settings_section_label']),
+                ),
               ),
               Expanded(
                 child: ListView.builder(
@@ -306,12 +324,10 @@ class _ChatPageState extends State<ChatPage> {
                   itemBuilder: (_, i) {
                     final conv = _conversations[i];
                     return ListTile(
-                      title: Text(conv.title,
-                          style: TextStyle(color: colors['drawerText'])),
+                      title: Text(conv.title, style: TextStyle(color: colors['drawerText'])),
                       subtitle: Text(
                         _formatTimestamp(conv.updatedAt),
-                        style:
-                            TextStyle(color: colors['textSecondary'], fontSize: 12),
+                        style: TextStyle(color: colors['textSecondary'], fontSize: 12),
                       ),
                       onTap: () => Navigator.pop(context),
                     );
@@ -425,14 +441,28 @@ class _ChatPageState extends State<ChatPage> {
               controller: _inputController,
               maxLines: 5,
               minLines: 1,
-              style: TextStyle(fontSize: 15, color: colors['textPrimary']),
+              cursorColor: Colors.black87,
+              style: const TextStyle(fontSize: 15, color: Colors.black87),
               decoration: const InputDecoration(
                 hintText: 'Escreve aqui...',
-                hintStyle: TextStyle(color: Colors.grey), // placeholder color will be overridden by theme? Better to use colors. We'll keep simple: hintStyle can be set but InputDecoration requires a color; we'll set hintStyle in code.
+                hintStyle: TextStyle(color: Color(0xFF9A9A9A)),
+                filled: true,
+                fillColor: Colors.white,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(vertical: 12),
+                isDense: true,
               ),
-              onChanged: (text) => setState(() => _sendBtnVisible = text.trim().isNotEmpty),
+              onChanged: (text) {
+                final visible = text.trim().isNotEmpty;
+                if (_sendBtnVisible != visible) {
+                  setState(() => _sendBtnVisible = visible);
+                }
+              },
             ),
           ),
           Container(
@@ -455,7 +485,7 @@ class _ChatPageState extends State<ChatPage> {
                       height: 18,
                       colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
                     ),
-                    onPressed: () => _showAddPopup(colors),
+                    onPressed: () => _showAddPopup(context, colors),
                     padding: EdgeInsets.zero,
                   ),
                 ),
@@ -476,7 +506,9 @@ class _ChatPageState extends State<ChatPage> {
                           width: 20,
                           height: 20,
                           colorFilter: ColorFilter.mode(
-                              colors['textPrimary']!, BlendMode.srcIn),
+                            colors['textPrimary']!,
+                            BlendMode.srcIn,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -491,7 +523,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8), // preview pill agora mais perto do botão de envio
+                const SizedBox(width: 8),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: _sendBtnVisible
@@ -509,7 +541,9 @@ class _ChatPageState extends State<ChatPage> {
                               width: 15,
                               height: 15,
                               colorFilter: ColorFilter.mode(
-                                  colors['sendIconColor']!, BlendMode.srcIn),
+                                colors['sendIconColor']!,
+                                BlendMode.srcIn,
+                              ),
                             ),
                             onPressed: () => _sendMessage(_inputController.text),
                             padding: EdgeInsets.zero,
@@ -529,7 +563,9 @@ class _ChatPageState extends State<ChatPage> {
                               width: 18,
                               height: 18,
                               colorFilter: ColorFilter.mode(
-                                  colors['sendIconColor']!, BlendMode.srcIn),
+                                colors['sendIconColor']!,
+                                BlendMode.srcIn,
+                              ),
                             ),
                             onPressed: () => _showVoiceModal(colors),
                             padding: EdgeInsets.zero,
@@ -560,20 +596,25 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               const SizedBox(height: 12),
               Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: colors['divider'],
-                      borderRadius: BorderRadius.circular(3))),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors['divider'],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
               const SizedBox(height: 40),
               Image.asset('assets/icons/png/preview.png', width: 96, height: 96),
               const SizedBox(height: 20),
-              Text('Resultado da Análise',
-                  style: TextStyle(
-                      fontFamily: 'TimesNewRoman',
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: colors['textPrimary'])),
+              Text(
+                'Resultado da Análise',
+                style: TextStyle(
+                  fontFamily: 'TimesNewRoman',
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: colors['textPrimary'],
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
                 'O output da sua consulta será apresentado aqui.',
@@ -589,36 +630,165 @@ class _ChatPageState extends State<ChatPage> {
 
   void _showVoiceModal(Map<String, Color> colors) {}
 
-  void _showAddPopup(Map<String, Color> colors) {
-    // Popup card inferior não modal (usa persistent bottom sheet)
-    _scaffoldKey.currentState!.showBottomSheet(
-      (context) => Container(
+  void _showAddPopup(BuildContext pageContext, Map<String, Color> colors) {
+    showModalBottomSheet<void>(
+      context: pageContext,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              decoration: BoxDecoration(
+                color: colors['dialogBackground'],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _popupItem(
+                      'assets/icons/svg/camera.svg',
+                      'Câmara',
+                      colors,
+                      () => Navigator.pop(sheetContext),
+                    ),
+                    Divider(height: 1, indent: 62, color: colors['divider']),
+                    _popupItem(
+                      'assets/icons/svg/download.svg',
+                      'Importar Ficheiro',
+                      colors,
+                      () => Navigator.pop(sheetContext),
+                    ),
+                    Divider(height: 1, indent: 62, color: colors['divider']),
+                    _popupItem(
+                      'assets/icons/svg/external.svg',
+                      'URL / Link',
+                      colors,
+                      () => Navigator.pop(sheetContext),
+                      dimmed: true,
+                    ),
+                    Divider(height: 1, indent: 62, color: colors['divider']),
+                    _popupItem(
+                      'assets/icons/svg/extras.svg',
+                      'Extras',
+                      colors,
+                      () {
+                        Navigator.pop(sheetContext);
+                        Future.delayed(const Duration(milliseconds: 180), () {
+                          if (!mounted) return;
+                          _showExtrasSheet(pageContext, colors);
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _popupItem(
+    String icon,
+    String label,
+    Map<String, Color> colors,
+    VoidCallback onTap, {
+    bool dimmed = false,
+  }) {
+    return ListTile(
+      leading: SvgPicture.asset(
+        icon,
+        width: 20,
+        height: 20,
+        colorFilter: ColorFilter.mode(
+          dimmed ? colors['textHint']! : colors['iconTint']!,
+          BlendMode.srcIn,
+        ),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 15,
+          color: dimmed ? colors['textHint'] : colors['textPrimary'],
+        ),
+      ),
+      enabled: !dimmed,
+      onTap: dimmed ? null : onTap,
+    );
+  }
+
+  void _showExtrasSheet(BuildContext pageContext, Map<String, Color> colors) {
+    final state = context.read<ChatState>();
+    showModalBottomSheet(
+      context: pageContext,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
         decoration: BoxDecoration(
           color: colors['dialogBackground'],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _popupItem('assets/icons/svg/camera.svg', 'Câmara', colors, () {
-                Navigator.pop(context); // fecha a sheet não modal
-              }),
-              Divider(height: 1, indent: 62, color: colors['divider']),
-              _popupItem('assets/icons/svg/download.svg', 'Importar Ficheiro', colors,
-                  () {
-                Navigator.pop(context);
-              }),
-              Divider(height: 1, indent: 62, color: colors['divider']),
-              _popupItem('assets/icons/svg/external.svg', 'URL / Link', colors, () {
-                Navigator.pop(context);
-              }, dimmed: true),
-              Divider(height: 1, indent: 62, color: colors['divider']),
-              _popupItem('assets/icons/svg/extras.svg', 'Extras', colors, () {
-                Navigator.pop(context); // fecha a sheet não modal
-                _showExtrasSheet(colors); // abre o modal das três opções
-              }),
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: colors['divider'],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              Text(
+                'Extras',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: colors['textPrimary'],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _extraCard(
+                    'Flash',
+                    'assets/icons/svg/flash.svg',
+                    'assets/icons/svg/flash_filled.svg',
+                    state.flashMode,
+                    colors,
+                    () => state.toggleFlashMode(),
+                  ),
+                  _extraCard(
+                    'Think More',
+                    'assets/icons/svg/brain.svg',
+                    'assets/icons/svg/brain_filled.svg',
+                    state.thinkMoreMode,
+                    colors,
+                    () => state.toggleThinkMoreMode(),
+                  ),
+                  _extraCard(
+                    'Sheets',
+                    'assets/icons/svg/sheets.svg',
+                    'assets/icons/svg/sheets_filled.svg',
+                    state.sheetsEnabled,
+                    colors,
+                    () => state.toggleSheets(),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -626,84 +796,14 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _popupItem(String icon, String label, Map<String, Color> colors, VoidCallback onTap,
-      {bool dimmed = false}) {
-    return ListTile(
-      leading: SvgPicture.asset(
-        icon,
-        width: 20,
-        height: 20,
-        colorFilter: ColorFilter.mode(
-            dimmed ? colors['textHint']! : colors['iconTint']!, BlendMode.srcIn),
-      ),
-      title: Text(label,
-          style: TextStyle(
-              fontSize: 15,
-              color: dimmed ? colors['textHint'] : colors['textPrimary'])),
-      enabled: !dimmed,
-      onTap: dimmed ? null : onTap,
-    );
-  }
-
-  void _showExtrasSheet(Map<String, Color> colors) {
-    final state = context.read<ChatState>();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors['dialogBackground'],
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                    color: colors['divider'],
-                    borderRadius: BorderRadius.circular(3))),
-            Text('Extras',
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: colors['textPrimary'])),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _extraCard(
-                    'Flash',
-                    'assets/icons/svg/flash.svg',
-                    'assets/icons/svg/flash_filled.svg',
-                    state.flashMode,
-                    colors,
-                    () => state.toggleFlashMode()),
-                _extraCard(
-                    'Think More',
-                    'assets/icons/svg/brain.svg',
-                    'assets/icons/svg/brain_filled.svg',
-                    state.thinkMoreMode,
-                    colors,
-                    () => state.toggleThinkMoreMode()),
-                _extraCard(
-                    'Sheets',
-                    'assets/icons/svg/sheets.svg',
-                    'assets/icons/svg/sheets_filled.svg',
-                    state.sheetsEnabled,
-                    colors,
-                    () => state.toggleSheets()),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _extraCard(String title, String iconOff, String iconOn, bool active,
-      Map<String, Color> colors, VoidCallback onTap) {
+  Widget _extraCard(
+    String title,
+    String iconOff,
+    String iconOn,
+    bool active,
+    Map<String, Color> colors,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -721,19 +821,19 @@ class _ChatPageState extends State<ChatPage> {
               width: 20,
               height: 20,
               colorFilter: ColorFilter.mode(
-                  active
-                      ? colors['extrasCardActiveText']!
-                      : colors['iconTintSecondary']!,
-                  BlendMode.srcIn),
+                active ? colors['extrasCardActiveText']! : colors['iconTintSecondary']!,
+                BlendMode.srcIn,
+              ),
             ),
             const SizedBox(height: 8),
-            Text(title,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: active
-                        ? colors['extrasCardActiveText']
-                        : colors['textSecondary'])),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: active ? colors['extrasCardActiveText'] : colors['textSecondary'],
+              ),
+            ),
           ],
         ),
       ),
@@ -746,7 +846,8 @@ class _ChatPageState extends State<ChatPage> {
       isScrollControlled: true,
       backgroundColor: colors['dialogBackground'],
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         builder: (_, scrollController) => Padding(
@@ -754,11 +855,13 @@ class _ChatPageState extends State<ChatPage> {
           child: Column(
             children: [
               Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: colors['divider'],
-                      borderRadius: BorderRadius.circular(3))),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors['divider'],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -766,26 +869,31 @@ class _ChatPageState extends State<ChatPage> {
                     'assets/icons/svg/brain_filled.svg',
                     width: 18,
                     height: 18,
-                    colorFilter:
-                        ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
+                    colorFilter: ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
                   ),
                   const SizedBox(width: 10),
-                  Text('Processo de raciocínio',
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: colors['textPrimary'])),
+                  Text(
+                    'Processo de raciocínio',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: colors['textPrimary'],
+                    ),
+                  ),
                 ],
               ),
               Divider(height: 20, color: colors['divider']),
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  child: Text(thinkingContent,
-                      style: TextStyle(
-                          fontSize: 14,
-                          height: 1.6,
-                          color: colors['textSecondary'])),
+                  child: Text(
+                    thinkingContent,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.6,
+                      color: colors['textSecondary'],
+                    ),
+                  ),
                 ),
               ),
             ],

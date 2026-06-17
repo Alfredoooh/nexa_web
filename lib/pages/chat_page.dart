@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import '../main.dart';
+import '../models/user.dart';
 import '../models/chat_message.dart';
+import '../services/auth_api_service.dart';
 import '../widgets/message_bubble.dart';
+import 'settings_page.dart';
 
 class ChatState extends ChangeNotifier {
   String currentConversationId = '';
@@ -16,8 +20,6 @@ class ChatState extends ChangeNotifier {
   bool thinkMoreMode = false;
   bool sheetsEnabled = false;
   bool isStreaming = false;
-  bool drawerOpen = false;
-  bool popupVisible = false;
 
   void addUserMessage(String text) {
     chatHistory.add(ChatMessage(role: 'user', content: text));
@@ -71,11 +73,6 @@ class ChatState extends ChangeNotifier {
     sheetsEnabled = !sheetsEnabled;
     notifyListeners();
   }
-
-  void toggleDrawer() {
-    drawerOpen = !drawerOpen;
-    notifyListeners();
-  }
 }
 
 class ChatPage extends StatefulWidget {
@@ -90,12 +87,18 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final ScrollController _scrollController = ScrollController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _sendBtnVisible = false;
+  List<Conversation> _conversations = [];
 
   @override
-  void dispose() {
-    _inputController.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations() async {
+    final token = context.read<AuthState>().user?.token ?? '';
+    final list = await AuthApiService.listConversations(token);
+    setState(() => _conversations = list);
   }
 
   void _scrollToBottom() {
@@ -131,15 +134,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
     state.isStreaming = true;
     final buffer = StringBuffer();
-    const fullResponse =
-        'Esta é uma resposta **completa** com formatação Markdown.\n\n'
-        '| Coluna A | Coluna B |\n'
-        '|----------|----------|\n'
-        '| Dado 1   | Dado 2   |\n'
-        '| Dado 3   | Dado 4   |\n\n'
-        'E também um widget nativo:\n'
-        '<widget_bar>{"title": "Vendas", "items": [{"label": "Jan", "value": 30, "color": "#6F5AF6"}, {"label": "Fev", "value": 50, "color": "#FF9500"}, {"label": "Mar", "value": 70, "color": "#34C759"}]}</widget_bar>\n\n'
-        'Obrigado por testar!';
+    const fullResponse = 'Resposta de exemplo com **markdown**.';
 
     for (int i = 0; i < fullResponse.length; i++) {
       await Future.delayed(const Duration(milliseconds: 20));
@@ -161,31 +156,180 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = isDark ? IPCApp._darkColors : IPCApp._lightColors;
+    final auth = context.watch<AuthState>();
+
     return Consumer<ChatState>(
-      builder: (context, chatState, _) {
+      builder: (context, state, _) {
         return Scaffold(
           key: _scaffoldKey,
-          backgroundColor: const Color(0xFFF2F2F7),
-          appBar: _buildAppBar(chatState),
-          drawer: _buildDrawer(chatState),
-          body: Stack(
-            children: [
-              Column(
-                children: [
-                  Expanded(
-                    child: chatState.displayMessages.isEmpty
-                        ? _buildEmptyState()
-                        : _buildChatList(chatState),
+          backgroundColor: colors['background'],
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kToolbarHeight),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colors['appbarSolid']!,
+                    colors['appbarSolid']!.withOpacity(0.0),
+                  ],
+                ),
+              ),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                leading: IconButton(
+                  icon: SvgPicture.asset(
+                    'assets/icons/svg/menu.svg',
+                    width: 16,
+                    height: 16,
+                    colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
                   ),
-                  _buildBottomBar(chatState, bottomPadding),
+                  onPressed: () {
+                    _loadConversations();
+                    _scaffoldKey.currentState?.openDrawer();
+                  },
+                ),
+                title: Text(
+                  'IPC',
+                  style: TextStyle(
+                    fontFamily: 'TimesNewRoman',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: colors['textPrimary'],
+                  ),
+                ),
+                actions: [
+                  // Botão Nova conversa (animado)
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(
+                      begin: state.displayMessages.isEmpty ? 0.8 : 0.0,
+                      end: state.displayMessages.isEmpty ? 0.8 : 0.0,
+                    ),
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.decelerate,
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(value * 42, 0),
+                        child: Opacity(
+                          opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.35,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: IconButton(
+                      icon: SvgPicture.asset(
+                        'assets/icons/svg/new_chat.svg',
+                        width: 17,
+                        height: 17,
+                        colorFilter: ColorFilter.mode(IPCApp._primary, BlendMode.srcIn),
+                      ),
+                      onPressed: state.displayMessages.isEmpty ? null : () => state.resetConversation(),
+                    ),
+                  ),
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.0,
+                    child: IconButton(
+                      icon: SvgPicture.asset(
+                        'assets/icons/svg/more_vertical.svg',
+                        width: 16,
+                        height: 16,
+                        colorFilter: ColorFilter.mode(IPCApp._primary, BlendMode.srcIn),
+                      ),
+                      onPressed: () {}, // TODO: popup more
+                    ),
+                  ),
                 ],
               ),
-              // Scrim do drawer
-              if (chatState.drawerOpen)
-                GestureDetector(
-                  onTap: () => chatState.toggleDrawer(),
-                  child: Container(color: Colors.black.withOpacity(0.4)),
-                ),
+            ),
+          ),
+          drawer: Drawer(
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+            backgroundColor: colors['drawerBackground'],
+            width: MediaQuery.of(context).size.width * 0.75,
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 12),
+                    child: Text(
+                      'IPC',
+                      style: TextStyle(
+                        fontFamily: 'TimesNewRoman',
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: colors['drawerText'],
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: IPCApp._primary,
+                      child: Text(
+                        (auth.user?.name ?? 'U').substring(0, 1).toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text(auth.user?.name ?? 'Utilizador',
+                        style: TextStyle(color: colors['drawerText'])),
+                    subtitle: Text(auth.user?.email ?? '',
+                        style: TextStyle(color: colors['textSecondary'])),
+                    trailing: SvgPicture.asset(
+                      'assets/icons/svg/chevron_right.svg',
+                      width: 15,
+                      height: 15,
+                      colorFilter: ColorFilter.mode(colors['iconTintSecondary']!, BlendMode.srcIn),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/settings');
+                    },
+                  ),
+                  const Divider(color: Color(0xFFE5E5EA)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
+                    child: Text('CONVERSAS',
+                        style: TextStyle(fontSize: 11, color: colors['settings_section_label'])),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _conversations.length,
+                      itemBuilder: (_, i) {
+                        final conv = _conversations[i];
+                        return ListTile(
+                          title: Text(conv.title, style: TextStyle(color: colors['drawerText'])),
+                          subtitle: Text(
+                            _formatTimestamp(conv.updatedAt),
+                            style: TextStyle(color: colors['textSecondary'], fontSize: 12),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            // TODO: load conversation
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: state.displayMessages.isEmpty
+                    ? _buildEmptyState(colors)
+                    : _buildChatList(state, colors),
+              ),
+              _buildBottomBar(state, bottomPadding, colors),
             ],
           ),
         );
@@ -193,104 +337,31 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  PreferredSizeWidget _buildAppBar(ChatState state) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      leading: IconButton(
-        icon: SvgPicture.asset(
-          'assets/icons/svg/menu.svg',
-          width: 16,
-          height: 16,
-          colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
-        ),
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-      ),
-      title: const Text(
-        'IPC',
-        style: TextStyle(
-          fontFamily: 'TimesNewRoman',
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-          color: Colors.black,
-        ),
-      ),
-      actions: [
-        TweenAnimationBuilder<double>(
-          tween: Tween(
-            begin: state.displayMessages.isEmpty ? 0.8 : 0.0,
-            end: state.displayMessages.isEmpty ? 0.8 : 0.0,
-          ),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.decelerate,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(value * 42, 0),
-              child: Opacity(
-                opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.35,
-                child: child,
-              ),
-            );
-          },
-          child: IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/svg/new_chat.svg',
-              width: 17,
-              height: 17,
-              colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
-            ),
-            onPressed: state.displayMessages.isEmpty
-                ? null
-                : () => state.resetConversation(),
-          ),
-        ),
-        AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
-          opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.0,
-          child: IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/svg/more_vertical.svg',
-              width: 16,
-              height: 16,
-              colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
-            ),
-            onPressed: () => _showMorePopup(state),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(Map<String, Color> colors) {
     final hour = DateTime.now().hour;
-    final greeting =
-        hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+    final greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.only(top: 80),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/icons/logo.png', width: 72, height: 72),
+            Image.asset('assets/icons/png/logo.png', width: 72, height: 72),
             const SizedBox(height: 16),
             Text(
               greeting,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'TimesNewRoman',
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: colors['textPrimary'],
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               'Em que estás a pensar?',
-              style: TextStyle(
-                fontSize: 16.5,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 16.5, color: colors['textSecondary']),
               textAlign: TextAlign.center,
             ),
           ],
@@ -299,7 +370,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildChatList(ChatState state) {
+  Widget _buildChatList(ChatState state, Map<String, Color> colors) {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.only(top: 8, bottom: 160),
@@ -309,7 +380,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         return MessageBubble(
           message: msg,
           onThinkTap: msg.thinkingContent.isNotEmpty
-              ? () => _showThinkModal(msg.thinkingContent)
+              ? () => _showThinkModal(msg.thinkingContent, colors)
               : null,
           onAction: (action) => _handleAction(action, msg.content),
         );
@@ -333,11 +404,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     }
   }
 
-  Widget _buildBottomBar(ChatState state, double bottomPadding) {
+  Widget _buildBottomBar(ChatState state, double bottomPadding, Map<String, Color> colors) {
     return Container(
       margin: EdgeInsets.fromLTRB(16, 0, 16, 20 + bottomPadding),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors['bottomBarSolid'],
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
@@ -350,88 +421,61 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Linha 1: campo de texto + botão microfone/enviar
+          // Linha 1: campo de texto
           Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _inputController,
-                    maxLines: 5,
-                    minLines: 1,
-                    style: const TextStyle(fontSize: 15),
-                    decoration: const InputDecoration(
-                      hintText: 'Escreve aqui...',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onChanged: (text) {
-                      setState(() {
-                        _sendBtnVisible = text.trim().isNotEmpty;
-                      });
-                    },
-                  ),
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: _sendBtnVisible
-                      ? Container(
-                          key: const ValueKey('send'),
-                          margin: const EdgeInsets.only(right: 4),
-                          child: IconButton(
-                            icon: const Icon(Icons.send_rounded, size: 18),
-                            color: Colors.white,
-                            style: IconButton.styleFrom(
-                              backgroundColor: const Color(0xFF6F5AF6),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            onPressed: () => _sendMessage(_inputController.text),
-                          ),
-                        )
-                      : IconButton(
-                          key: const ValueKey('mic'),
-                          icon: SvgPicture.asset(
-                            'assets/icons/svg/record.svg',
-                            width: 18,
-                            height: 18,
-                            colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
-                          ),
-                          onPressed: () => _showVoiceModal(),
-                        ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+            child: TextField(
+              controller: _inputController,
+              maxLines: 5,
+              minLines: 1,
+              style: TextStyle(fontSize: 15, color: colors['textPrimary']),
+              decoration: InputDecoration(
+                hintText: 'Escreve aqui...',
+                hintStyle: TextStyle(color: colors['textHint']),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onChanged: (text) {
+                setState(() {
+                  _sendBtnVisible = text.trim().isNotEmpty;
+                });
+              },
             ),
           ),
-          // Linha 2: botão + (esquerda), tab Preview (centro), botão record/send (direita)
+          // Linha 2: botão + , Preview, Enviar/Microfone
           Container(
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
-                // Botão +
-                IconButton(
-                  icon: SvgPicture.asset(
-                    'assets/icons/svg/add.svg',
-                    width: 18,
-                    height: 18,
-                    colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
+                // Botão + com container circular
+                Container(
+                  width: 40,
+                  height: 40,
+                  margin: const EdgeInsets.only(left: 4),
+                  decoration: BoxDecoration(
+                    color: colors['addCircleBg'],
+                    shape: BoxShape.circle,
                   ),
-                  onPressed: () => _showAddPopup(),
+                  child: IconButton(
+                    icon: SvgPicture.asset(
+                      'assets/icons/svg/add.svg',
+                      width: 18,
+                      height: 18,
+                      colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+                    ),
+                    onPressed: () => _showAddPopup(colors),
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
                 const Spacer(),
-                // Tab Preview
+                // Preview Pill
                 GestureDetector(
-                  onTap: () => _showPreviewModal(),
+                  onTap: () => _showPreviewModal(colors),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: colors['tabPreviewPillBg'],
                       borderRadius: BorderRadius.circular(19),
                     ),
                     child: Row(
@@ -441,43 +485,63 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           'assets/icons/svg/preview_filled.svg',
                           width: 20,
                           height: 20,
-                          colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+                          colorFilter: ColorFilter.mode(colors['textPrimary']!, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 6),
-                        const Text('Preview', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Preview',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: colors['textPrimary'],
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const Spacer(),
-                // Botão record/send (mesmo da linha de cima? No original, é o mesmo que alterna)
-                // Aqui replicamos o mesmo botão para manter a UI, mas no original ele fica na direita.
+                // Botão Microfone / Enviar
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: _sendBtnVisible
                       ? Container(
-                          key: const ValueKey('send2'),
+                          key: const ValueKey('send'),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: colors['sendBtnColor'],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                           child: IconButton(
-                            icon: const Icon(Icons.send_rounded, size: 18),
-                            color: Colors.white,
-                            style: IconButton.styleFrom(
-                              backgroundColor: const Color(0xFF6F5AF6),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                            icon: SvgPicture.asset(
+                              'assets/icons/svg/ic_send_arrow.svg',
+                              width: 15,
+                              height: 15,
+                              colorFilter: ColorFilter.mode(colors['sendIconColor']!, BlendMode.srcIn),
                             ),
                             onPressed: () => _sendMessage(_inputController.text),
+                            padding: EdgeInsets.zero,
                           ),
                         )
-                      : IconButton(
-                          key: const ValueKey('mic2'),
-                          icon: SvgPicture.asset(
-                            'assets/icons/svg/record.svg',
-                            width: 18,
-                            height: 18,
-                            colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn),
+                      : Container(
+                          key: const ValueKey('mic'),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: colors['sendBtnColor'],
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          onPressed: () => _showVoiceModal(),
+                          child: IconButton(
+                            icon: SvgPicture.asset(
+                              'assets/icons/svg/record.svg',
+                              width: 18,
+                              height: 18,
+                              colorFilter: ColorFilter.mode(colors['sendIconColor']!, BlendMode.srcIn),
+                            ),
+                            onPressed: () => _showVoiceModal(colors),
+                            padding: EdgeInsets.zero,
+                          ),
                         ),
                 ),
               ],
@@ -488,8 +552,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  // ─── Modal Preview ───
-  void _showPreviewModal() {
+  // --- Modal Preview ---
+  void _showPreviewModal(Map<String, Color> colors) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -499,9 +563,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         minChildSize: 0.7,
         maxChildSize: 0.95,
         builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+          decoration: BoxDecoration(
+            color: colors['dialogBackground'],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
           child: Column(
             children: [
@@ -510,25 +574,26 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: colors['divider'],
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
               const SizedBox(height: 40),
-              Image.asset('assets/icons/preview.png', width: 96, height: 96),
+              Image.asset('assets/icons/png/preview.png', width: 96, height: 96),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Resultado da Análise',
                 style: TextStyle(
                   fontFamily: 'TimesNewRoman',
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
+                  color: colors['textPrimary'],
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'O output da sua consulta será apresentado aqui.',
-                style: TextStyle(fontSize: 17, color: Colors.grey),
+                style: TextStyle(fontSize: 17, color: colors['textSecondary']),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -538,46 +603,31 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  // ─── Modal Voice ───
-  void _showVoiceModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-        ),
-        child: const Center(child: Text('Voice recognition UI placeholder')),
-      ),
-    );
+  void _showVoiceModal(Map<String, Color> colors) {
+    // Placeholder
   }
 
-  // ─── Add Popup ───
-  void _showAddPopup() {
+  void _showAddPopup(Map<String, Color> colors) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
+      backgroundColor: colors['dialogBackground'],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
+      builder: (_) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _popupItem('assets/icons/svg/camera.svg', 'Câmara', () {}),
-            const Divider(height: 1, indent: 62),
-            _popupItem('assets/icons/svg/download.svg', 'Importar Ficheiro', () {}),
-            const Divider(height: 1, indent: 62),
-            _popupItem('assets/icons/svg/external.svg', 'URL / Link', () {}, dimmed: true),
-            const Divider(height: 1, indent: 62),
-            _popupItem('assets/icons/svg/extras.svg', 'Extras', () {
+            _popupItem('assets/icons/svg/camera.svg', 'Câmara', colors, () {}),
+            Divider(height: 1, indent: 62, color: colors['divider']),
+            _popupItem('assets/icons/svg/download.svg', 'Importar Ficheiro', colors, () {}),
+            Divider(height: 1, indent: 62, color: colors['divider']),
+            _popupItem('assets/icons/svg/external.svg', 'URL / Link', colors, () {}, dimmed: true),
+            Divider(height: 1, indent: 62, color: colors['divider']),
+            _popupItem('assets/icons/svg/extras.svg', 'Extras', colors, () {
               Navigator.pop(context);
-              _showExtrasSheet(context.read<ChatState>());
+              _showExtrasSheet(colors);
             }),
           ],
         ),
@@ -585,47 +635,59 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _popupItem(String icon, String label, VoidCallback onTap, {bool dimmed = false}) {
+  Widget _popupItem(String icon, String label, Map<String, Color> colors, VoidCallback onTap, {bool dimmed = false}) {
     return ListTile(
-      leading: SvgPicture.asset(icon, width: 20, height: 20),
-      title: Text(label, style: TextStyle(fontSize: 15, color: dimmed ? Colors.grey : Colors.black)),
+      leading: SvgPicture.asset(
+        icon,
+        width: 20,
+        height: 20,
+        colorFilter: ColorFilter.mode(
+          dimmed ? colors['textHint']! : colors['iconTint']!,
+          BlendMode.srcIn,
+        ),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 15,
+          color: dimmed ? colors['textHint'] : colors['textPrimary'],
+        ),
+      ),
       enabled: !dimmed,
       onTap: dimmed ? null : onTap,
     );
   }
 
-  // ─── More Popup ───
-  void _showMorePopup(ChatState state) {
-    // similar ao add popup, com opções de fixar, arquivar, partilhar, eliminar
-  }
-
-  // ─── Extras Sheet ───
-  void _showExtrasSheet(ChatState state) {
+  void _showExtrasSheet(Map<String, Color> colors) {
+    final state = context.read<ChatState>();
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
+      backgroundColor: colors['dialogBackground'],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(3)),
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: colors['divider'],
+                borderRadius: BorderRadius.circular(3),
+              ),
             ),
-            const SizedBox(height: 8),
-            const Text('Extras', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            Text('Extras', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors['textPrimary'])),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _extraCard('Flash', 'assets/icons/svg/flash.svg', 'assets/icons/svg/flash_filled.svg', state.flashMode, () => state.toggleFlashMode()),
-                _extraCard('Think More', 'assets/icons/svg/brain.svg', 'assets/icons/svg/brain_filled.svg', state.thinkMoreMode, () => state.toggleThinkMoreMode()),
-                _extraCard('Sheets', 'assets/icons/svg/sheets.svg', 'assets/icons/svg/sheets_filled.svg', state.sheetsEnabled, () => state.toggleSheets()),
+                _extraCard('Flash', 'assets/icons/svg/flash.svg', 'assets/icons/svg/flash_filled.svg', state.flashMode, colors, () => state.toggleFlashMode()),
+                _extraCard('Think More', 'assets/icons/svg/brain.svg', 'assets/icons/svg/brain_filled.svg', state.thinkMoreMode, colors, () => state.toggleThinkMoreMode()),
+                _extraCard('Sheets', 'assets/icons/svg/sheets.svg', 'assets/icons/svg/sheets_filled.svg', state.sheetsEnabled, colors, () => state.toggleSheets()),
               ],
             ),
           ],
@@ -634,24 +696,25 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _extraCard(String title, String iconOff, String iconOn, bool active, VoidCallback onTap) {
+  Widget _extraCard(String title, String iconOff, String iconOn, bool active, Map<String, Color> colors, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 90,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF6F5AF6).withOpacity(0.1) : Colors.grey[100],
+          color: active ? colors['extrasCardActive'] : colors['cardBackground'],
           borderRadius: BorderRadius.circular(16),
-          border: !active ? Border.all(color: const Color(0xFFE0E0E0)) : null,
+          border: !active ? Border.all(color: colors['divider']!) : null,
         ),
         child: Column(
           children: [
             SvgPicture.asset(
               active ? iconOn : iconOff,
-              width: 20, height: 20,
+              width: 20,
+              height: 20,
               colorFilter: ColorFilter.mode(
-                active ? const Color(0xFF6F5AF6) : Colors.grey,
+                active ? colors['extrasCardActiveText']! : colors['iconTintSecondary']!,
                 BlendMode.srcIn,
               ),
             ),
@@ -661,7 +724,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: active ? const Color(0xFF6F5AF6) : Colors.grey[600],
+                color: active ? colors['extrasCardActiveText'] : colors['textSecondary'],
               ),
             ),
           ],
@@ -670,38 +733,47 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  void _showThinkModal(String thinkingContent) {
+  void _showThinkModal(String thinkingContent, Map<String, Color> colors) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors['dialogBackground'],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.4,
         maxChildSize: 0.9,
-        builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
+        builder: (_, scrollController) => Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             children: [
-              Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(3))),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(color: colors['divider'], borderRadius: BorderRadius.circular(3)),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  SvgPicture.asset('assets/icons/svg/brain_filled.svg', width: 18, height: 18,
-                      colorFilter: const ColorFilter.mode(Color(0xFF6F5AF6), BlendMode.srcIn)),
+                  SvgPicture.asset(
+                    'assets/icons/svg/brain_filled.svg',
+                    width: 18,
+                    height: 18,
+                    colorFilter: ColorFilter.mode(IPCApp._primary, BlendMode.srcIn),
+                  ),
                   const SizedBox(width: 10),
-                  const Text('Processo de raciocínio', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text('Processo de raciocínio',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors['textPrimary'])),
                 ],
               ),
-              const Divider(height: 20),
+              Divider(height: 20, color: colors['divider']),
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  child: Text(thinkingContent, style: const TextStyle(fontSize: 14, height: 1.6, color: Colors.grey)),
+                  child: Text(thinkingContent,
+                      style: TextStyle(fontSize: 14, height: 1.6, color: colors['textSecondary'])),
                 ),
               ),
             ],
@@ -711,63 +783,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  // ─── Drawer ───
-  Drawer _buildDrawer(ChatState state) {
-    return Drawer(
-      width: MediaQuery.of(context).size.width * 0.75,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 12),
-              child: Text(
-                'IPC',
-                style: TextStyle(
-                  fontFamily: 'TimesNewRoman',
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const Divider(),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 12, 24, 6),
-              child: Text('CONVERSAS', style: TextStyle(fontSize: 11, color: Colors.grey)),
-            ),
-            Expanded(
-              child: ListView(
-                children: [
-                  _drawerConversationItem('Conversa 1', 'Hoje', true),
-                  _drawerConversationItem('Conversa 2', 'Ontem', false),
-                ],
-              ),
-            ),
-            const Divider(),
-            ListTile(
-              leading: SvgPicture.asset('assets/icons/svg/menu.svg', width: 20, height: 20),
-              title: const Text('Definições'),
-              onTap: () {},
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _drawerConversationItem(String title, String subtitle, bool isActive) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF6F5AF6).withOpacity(0.1) : null,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontSize: 15)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-        onTap: () {},
-      ),
-    );
+  String _formatTimestamp(int millis) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(millis);
+    final now = DateTime.now();
+    if (dt.year == now.year && dt.month == now.month && dt.day == now.day) return 'Hoje';
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }

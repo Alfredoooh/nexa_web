@@ -8,6 +8,7 @@ import '../main.dart';
 import '../models/user.dart';
 import '../models/chat_message.dart';
 import '../services/auth_api_service.dart';
+import '../services/gemini_api_service.dart';
 import '../widgets/message_bubble.dart';
 import 'settings_page.dart';
 
@@ -28,18 +29,59 @@ class ChatState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cria a bolha de assistente vazia que vai receber o streaming.
+  /// Devolve o índice em displayMessages para ser atualizado depois.
+  int addAssistantPlaceholder({required bool thinking}) {
+    displayMessages.add(DisplayMessage(
+      role: 'assistant',
+      content: '',
+      isStreaming: true,
+      isThinking: thinking,
+    ));
+    notifyListeners();
+    return displayMessages.length - 1;
+  }
+
+  void appendThinkToken(int index, String text) {
+    if (index < 0 || index >= displayMessages.length) return;
+    final msg = displayMessages[index];
+    msg.thinkingContent += text;
+    notifyListeners();
+  }
+
+  void appendToken(int index, String text) {
+    if (index < 0 || index >= displayMessages.length) return;
+    final msg = displayMessages[index];
+    // No primeiro token de conteúdo real, sai do estado "isThinking" para
+    // o MessageBubble deixar de mostrar o ThinkingSkeleton e passar a
+    // renderizar o texto a chegar.
+    msg.isThinking = false;
+    msg.content += text;
+    notifyListeners();
+  }
+
   void updateAssistantMessage(int index, DisplayMessage updated) {
     displayMessages[index] = updated;
     notifyListeners();
   }
 
   void finishAssistantMessage(int index, String content, String thinking) {
+    if (index < 0 || index >= displayMessages.length) return;
     final msg = displayMessages[index];
     msg.content = content;
     msg.isStreaming = false;
     msg.isThinking = false;
-    msg.thinkingContent = '';
+    msg.thinkingContent = thinking;
     chatHistory.add(ChatMessage(role: 'assistant', content: content));
+    notifyListeners();
+  }
+
+  void failAssistantMessage(int index, String errorText) {
+    if (index < 0 || index >= displayMessages.length) return;
+    final msg = displayMessages[index];
+    msg.content = errorText;
+    msg.isStreaming = false;
+    msg.isThinking = false;
     notifyListeners();
   }
 
@@ -49,6 +91,18 @@ class ChatState extends ChangeNotifier {
     titleGenerated = false;
     chatHistory.clear();
     displayMessages.clear();
+    notifyListeners();
+  }
+
+  /// Repõe o estado a partir de uma conversa já existente (vinda da drawer).
+  void loadConversation(Conversation conv) {
+    currentConversationId = conv.id;
+    currentConversationTitle = conv.title;
+    titleGenerated = true;
+    chatHistory = List<ChatMessage>.from(conv.messages);
+    displayMessages = conv.messages
+        .map((m) => DisplayMessage(role: m.role, content: m.content))
+        .toList();
     notifyListeners();
   }
 
@@ -123,20 +177,105 @@ class _ChatPageState extends State<ChatPage> {
     final state = context.read<ChatState>();
     if (state.isStreaming) return;
 
+    final token = context.read<AuthState>().user?.token ?? '';
+    final isFirstMessage = state.chatHistory.isEmpty;
+
     state.addUserMessage(trimmed);
     _inputController.clear();
     if (mounted) {
       setState(() => _sendBtnVisible = false);
     }
     _scrollToBottom();
+    state.isStreaming = true;
 
-    if (!state.titleGenerated) {
-      state.titleGenerated = true;
-      final parts = trimmed.split(RegExp(r'\s+')).take(4).join(' ');
-      state.currentConversationTitle = parts.length > 40 ? parts.substring(0, 40) : parts;
+    final think = state.thinkMoreMode;
+    final assistantIndex = state.addAssistantPlaceholder(thinking: think);
+    _scrollToBottom();
+
+    final systemPrompt = GeminiApiService.buildSystemPrompt('pt', state.sheetsEnabled);
+
+    try {
+      await for (final chunk in GeminiApiService.streamChat(
+        messages: state.chatHistory,
+        systemPrompt: systemPrompt,
+        token: token,
+        think: think,
+      )) {
+        if (!mounted) break;
+        switch (chunk) {
+          case ThinkToken():
+            state.appendThinkToken(assistantIndex, chunk.text);
+            break;
+          case Token():
+            state.appendToken(assistantIndex, chunk.text);
+            _scrollToBottom();
+            break;
+          case Done():
+            state.finishAssistantMessage(
+              assistantIndex,
+              chunk.fullText,
+              state.displayMessages[assistantIndex].thinkingContent,
+            );
+            break;
+          case StreamError():
+            state.failAssistantMessage(assistantIndex, chunk.message);
+            break;
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        state.failAssistantMessage(assistantIndex, 'Erro de rede: $e');
+      }
     }
 
     state.isStreaming = false;
+    state.notifyListeners();
+    _scrollToBottom();
+
+    if (!mounted) return;
+
+    // Gera o título a partir da primeira mensagem do utilizador, depois
+    // persiste a conversa (cria se for nova, atualiza se já existir).
+    if (isFirstMessage && !state.titleGenerated) {
+      state.titleGenerated = true;
+      final title = await GeminiApiService.generateTitle(trimmed, token);
+      if (mounted) {
+        state.currentConversationTitle = title;
+        state.notifyListeners();
+      }
+    }
+
+    if (state.currentConversationId.isEmpty) {
+      final newId = await AuthApiService.createConversation(
+        token,
+        state.currentConversationTitle,
+        state.chatHistory,
+      );
+      if (newId != null && mounted) {
+        state.currentConversationId = newId;
+      }
+    } else {
+      await AuthApiService.updateConversation(
+        token,
+        state.currentConversationId,
+        state.currentConversationTitle,
+        state.chatHistory,
+      );
+    }
+
+    if (mounted) {
+      _loadConversations();
+    }
+  }
+
+  /// Abre uma conversa selecionada na drawer: repõe o histórico e fecha o
+  /// painel. Não dá só pop() — efetivamente troca o conteúdo do ChatState.
+  void _openConversation(Conversation conv) {
+    final state = context.read<ChatState>();
+    if (state.isStreaming) return;
+    state.loadConversation(conv);
+    Navigator.pop(context);
+    _scrollToBottom();
   }
 
   Map<String, Color> _colors() {
@@ -324,13 +463,16 @@ class _ChatPageState extends State<ChatPage> {
                   itemCount: _conversations.length,
                   itemBuilder: (_, i) {
                     final conv = _conversations[i];
+                    final isActive = conv.id == state.currentConversationId;
                     return ListTile(
+                      selected: isActive,
+                      selectedTileColor: colors['extrasCardActive']?.withOpacity(0.5),
                       title: Text(conv.title, style: TextStyle(color: colors['drawerText'])),
                       subtitle: Text(
                         _formatTimestamp(conv.updatedAt),
                         style: TextStyle(color: colors['textSecondary'], fontSize: 12),
                       ),
-                      onTap: () => Navigator.pop(context),
+                      onTap: () => _openConversation(conv),
                     );
                   },
                 ),

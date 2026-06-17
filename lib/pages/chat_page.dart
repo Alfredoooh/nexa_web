@@ -158,6 +158,30 @@ class _ChatPageState extends State<ChatPage> {
     return isDark ? IPCApp.darkColors : IPCApp.lightColors;
   }
 
+  // Botão circular da appbar — equivalente exato ao drawable appbar_btn_bg (oval, 36dp)
+  Widget _appBarCircleBtn({
+    required String iconAsset,
+    required double iconSize,
+    required Map<String, Color> colors,
+    required VoidCallback? onPressed,
+  }) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(color: colors['appbarBtnBg'], shape: BoxShape.circle),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: SvgPicture.asset(
+          iconAsset,
+          width: iconSize,
+          height: iconSize,
+          colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+        ),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
@@ -185,25 +209,19 @@ class _ChatPageState extends State<ChatPage> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
-            leading: IconButton(
-              icon: SvgPicture.asset(
-                'assets/icons/svg/menu.svg',
-                width: 16,
-                height: 16,
-                colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
-              ),
-              onPressed: () {
-                _loadConversations();
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            title: Text(
-              'IPC',
-              style: TextStyle(
-                fontFamily: 'TimesNewRoman',
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: colors['textPrimary'],
+            titleSpacing: 8,
+            // Kotlin não tem título nenhum na appbar do chat — só os 3 botões.
+            title: null,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _appBarCircleBtn(
+                iconAsset: 'assets/icons/svg/menu.svg',
+                iconSize: 16,
+                colors: colors,
+                onPressed: () {
+                  _loadConversations();
+                  _scaffoldKey.currentState?.openDrawer();
+                },
               ),
             ),
             actions: [
@@ -223,36 +241,32 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   );
                 },
-                child: IconButton(
-                  icon: SvgPicture.asset(
-                    'assets/icons/svg/new_chat.svg',
-                    width: 17,
-                    height: 17,
-                    colorFilter: ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
-                  ),
+                child: _appBarCircleBtn(
+                  iconAsset: 'assets/icons/svg/new_chat.svg',
+                  iconSize: 17,
+                  colors: colors,
                   onPressed: state.displayMessages.isEmpty ? null : () => state.resetConversation(),
                 ),
               ),
+              const SizedBox(width: 6),
               AnimatedOpacity(
                 duration: const Duration(milliseconds: 200),
                 opacity: state.displayMessages.isNotEmpty ? 1.0 : 0.0,
-                child: IconButton(
-                  icon: SvgPicture.asset(
-                    'assets/icons/svg/more_vertical.svg',
-                    width: 16,
-                    height: 16,
-                    colorFilter: ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
-                  ),
+                child: _appBarCircleBtn(
+                  iconAsset: 'assets/icons/svg/more_vertical.svg',
+                  iconSize: 16,
+                  colors: colors,
                   onPressed: () {},
                 ),
               ),
+              const SizedBox(width: 8),
             ],
           ),
         ),
       ),
       drawer: Drawer(
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        backgroundColor: colors['drawerBackground'],
+        backgroundColor: colors['drawerBackground'], // agora branco puro no claro
         width: MediaQuery.of(context).size.width * 0.75,
         child: SafeArea(
           child: Column(
@@ -263,7 +277,7 @@ class _ChatPageState extends State<ChatPage> {
                 child: Text(
                   'IPC',
                   style: TextStyle(
-                    fontFamily: 'TimesNewRoman',
+                    // Sem Times New Roman aqui, por pedido — sans-serif simples.
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                     color: colors['drawerText'],
@@ -293,7 +307,7 @@ class _ChatPageState extends State<ChatPage> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
                 },
               ),
-              const Divider(color: Color(0xFFE5E5EA)),
+              Divider(color: colors['divider']),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
                 child: Text('CONVERSAS',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../main.dart';
 import '../models/chat_message.dart';
 import 'thinking_skeleton.dart';
 import 'native_widgets.dart';
@@ -16,6 +17,11 @@ class MessageBubble extends StatelessWidget {
     this.onThinkTap,
     this.onAction,
   });
+
+  Map<String, Color> _colors(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? IPCApp.darkColors : IPCApp.lightColors;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +46,7 @@ class MessageBubble extends StatelessWidget {
       margin: const EdgeInsets.only(left: 64),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFF6F5AF6),
+        color: IPCApp.primary, // Kotlin: R.color.colorPrimary (#2F7BF6), nunca #6F5AF6
         borderRadius: BorderRadius.circular(18),
       ),
       child: Text(
@@ -51,17 +57,19 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildAssistantBubble(BuildContext context) {
+    final colors = _colors(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (message.thinkingContent.isNotEmpty || message.isThinking)
+        // Kotlin: msg.thinkingContent.isNotEmpty() || (msg.isThinking && msg.isStreaming)
+        if (message.thinkingContent.isNotEmpty || (message.isThinking && message.isStreaming))
           GestureDetector(
             onTap: onThinkTap,
             child: Container(
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              padding: const EdgeInsets.fromLTRB(10, 7, 14, 7),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: colors['cardBackground'],
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -70,33 +78,32 @@ class MessageBubble extends StatelessWidget {
                   Container(
                     width: 7, height: 7,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFF3B30),
+                      color: Color(0xFFFF3B30), // Kotlin: hardcoded, não depende do tema
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 7),
                   Text(
                     message.isThinking && message.isStreaming ? 'A pensar…' : 'Ver pensamento',
-                    style: const TextStyle(fontSize: 12.5, color: Colors.grey),
+                    style: TextStyle(fontSize: 12.5, color: colors['textSecondary']),
                   ),
                 ],
               ),
             ),
           ),
+
+        // Replica exata do `when` do ChatFragment.kt (linhas 596-606)
         if (message.isStreaming && message.isThinking)
-          const ThinkingSkeleton(),
-        if (!message.isStreaming || message.content.isNotEmpty)
+          const ThinkingSkeleton()
+        else if (message.isStreaming && message.content.trim().isEmpty)
+          const ChatLoader()
+        else ...[
           _buildMessageContent(context),
-        if (message.isStreaming)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: SizedBox(
-              width: 24, height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        if (!message.isStreaming && message.content.isNotEmpty)
-          _buildActionRow(),
+          if (message.isStreaming)
+            const ChatLoader()
+          else if (message.content.isNotEmpty)
+            _buildActionRow(colors),
+        ],
       ],
     );
   }
@@ -105,33 +112,35 @@ class MessageBubble extends StatelessWidget {
     return NativeContentRenderer(content: message.content);
   }
 
-  Widget _buildActionRow() {
+  Widget _buildActionRow(Map<String, Color> colors) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(2, 6, 4, 4),
       child: Row(
         children: [
-          _actionButton('assets/icons/svg/copy.svg', 'Copiar'),
-          _actionButton('assets/icons/svg/thumbs_up.svg', 'Like'),
-          _actionButton('assets/icons/svg/thumbs_down.svg', 'Dislike'),
-          _actionButton('assets/icons/svg/share.svg', 'Partilhar'),
-          _actionButton('assets/icons/svg/regenerate.svg', 'Regenerar'),
+          _actionButton('assets/icons/svg/copy.svg', 'Copiar', colors),
+          _actionButton('assets/icons/svg/thumbs_up.svg', 'Like', colors),
+          _actionButton('assets/icons/svg/thumbs_down.svg', 'Dislike', colors),
+          _actionButton('assets/icons/svg/share.svg', 'Partilhar', colors),
+          _actionButton('assets/icons/svg/regenerate.svg', 'Regenerar', colors),
         ],
       ),
     );
   }
 
-  Widget _actionButton(String icon, String action) {
+  Widget _actionButton(String icon, String action, Map<String, Color> colors) {
     return Padding(
       padding: const EdgeInsets.only(right: 4),
       child: InkWell(
         onTap: () => onAction?.call(action),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           width: 36, height: 36,
           alignment: Alignment.center,
           child: SvgPicture.asset(
             icon,
             width: 16, height: 16,
-            colorFilter: ColorFilter.mode(Colors.grey[600]!, BlendMode.srcIn),
+            // Kotlin: R.color.icon_tint_secondary (#888888 light / #939393 dark)
+            colorFilter: ColorFilter.mode(colors['iconTintSecondary']!, BlendMode.srcIn),
           ),
         ),
       ),
@@ -156,7 +165,7 @@ class NativeContentRenderer extends StatelessWidget {
     for (final match in widgetRegExp.allMatches(content)) {
       if (match.start > lastEnd) {
         final textBefore = content.substring(lastEnd, match.start);
-        widgets.add(_buildMarkdownText(textBefore));
+        widgets.add(_buildMarkdownText(context, textBefore));
       }
 
       final widgetType = match.group(1)!;
@@ -167,7 +176,7 @@ class NativeContentRenderer extends StatelessWidget {
     }
 
     if (lastEnd < content.length) {
-      widgets.add(_buildMarkdownText(content.substring(lastEnd)));
+      widgets.add(_buildMarkdownText(context, content.substring(lastEnd)));
     }
 
     return Column(
@@ -176,12 +185,14 @@ class NativeContentRenderer extends StatelessWidget {
     );
   }
 
-  Widget _buildMarkdownText(String text) {
+  Widget _buildMarkdownText(BuildContext context, String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? IPCApp.darkColors['textPrimary'] : IPCApp.lightColors['textPrimary'];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text.rich(
         _parseMarkdown(text),
-        style: const TextStyle(fontSize: 16, height: 1.5),
+        style: TextStyle(fontSize: 16, height: 1.5, color: textColor),
       ),
     );
   }

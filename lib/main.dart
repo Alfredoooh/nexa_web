@@ -78,7 +78,9 @@ class IPCApp extends StatelessWidget {
     'textPrimary': Color(0xFF000000),
     'textSecondary': Color(0xFF888888),
     'textHint': Color(0xFFAAAAAA),
-    'drawerBackground': Color(0xFFF2F2F7),
+    // Pedido explícito: branco puro no claro (no Kotlin original é #F2F2F7,
+    // mas a instrução atual sobrepõe-se a isso).
+    'drawerBackground': Color(0xFFFFFFFF),
     'drawerText': Color(0xFF000000),
     'cardBackground': Color(0xFFF2F2F7),
     'dialogBackground': Color(0xFFF2F2F7),
@@ -88,6 +90,7 @@ class IPCApp extends StatelessWidget {
     'sendBtnColor': Color(0xFF2F7BF6),
     'sendIconColor': Color(0xFFFFFFFF),
     'addCircleBg': Color(0xFFE8E8E8),
+    'appbarBtnBg': Color(0xFFE8E8E8),
     'tabPreviewPillBg': Color(0xFFE0EBFE),
     'extrasCardActive': Color(0xFFEEF2FF),
     'extrasCardActiveText': Color(0xFF2F7BF6),
@@ -116,6 +119,7 @@ class IPCApp extends StatelessWidget {
     'sendBtnColor': Color(0xFF2F7BF6),
     'sendIconColor': Color(0xFFFFFFFF),
     'addCircleBg': Color(0xFF2C2C2E),
+    'appbarBtnBg': Color(0xFF2C2C2E),
     'tabPreviewPillBg': Color(0xFF1F2D4A),
     'extrasCardActive': Color(0xFF1E2D4F),
     'extrasCardActiveText': Color(0xFFA8C8FA),
@@ -132,7 +136,9 @@ class IPCApp extends StatelessWidget {
       brightness: brightness,
       primaryColor: primary,
       scaffoldBackgroundColor: colors['background'],
-      fontFamily: 'TimesNewRoman',
+      // SEM fontFamily global: no Kotlin, Times New Roman só é usado em
+      // pontos específicos (greeting, preview, títulos de auth). É aplicado
+      // explicitamente nesses Text widgets, não aqui.
       colorScheme: ColorScheme.fromSeed(
         seedColor: primary,
         brightness: brightness,
@@ -146,7 +152,6 @@ class IPCApp extends StatelessWidget {
         iconTheme: IconThemeData(color: colors['iconTint']),
         titleTextStyle: TextStyle(
           color: colors['textPrimary'],
-          fontFamily: 'TimesNewRoman',
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
@@ -199,7 +204,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authState),
         ChangeNotifierProvider.value(value: themeState),
-        ChangeNotifierProvider(create: (_) => ChatState()), // <-- CORRIGIDO
+        ChangeNotifierProvider(create: (_) => ChatState()),
       ],
       child: const IPCApp(),
     ),

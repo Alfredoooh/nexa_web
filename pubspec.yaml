@@ -29,8 +29,8 @@ flutter:
   assets:
     - assets/icons/svg/
     - assets/icons/png/
+    - assets/icons/lottie/
     - assets/fonts/pattern/
-    - assets/lottie/
 
   fonts:
     - family: TimesNewRoman

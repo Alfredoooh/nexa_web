@@ -23,10 +23,29 @@ class SettingsPage extends StatelessWidget {
       backgroundColor: colors['background'],
       appBar: AppBar(
         backgroundColor: colors['appbarSolid'],
-        title: Text('Definições', style: TextStyle(fontFamily: 'TimesNewRoman', color: colors['textPrimary'])),
-        leading: IconButton(
-          icon: SvgPicture.asset('assets/icons/svg/back_arrow.svg', width: 12, height: 12, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
-          onPressed: () => Navigator.pop(context),
+        title: Text(
+          'Definições',
+          style: TextStyle(
+            fontFamily: 'TimesNewRoman',
+            fontWeight: FontWeight.bold,
+            color: colors['textPrimary'],
+          ),
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(color: colors['appbarBtnBg'], shape: BoxShape.circle),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              icon: SvgPicture.asset(
+                'assets/icons/svg/back_arrow.svg',
+                width: 18, height: 18,
+                colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn),
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
         ),
       ),
       body: ListView(
@@ -39,13 +58,13 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 32),
           _section('Aparência', colors, children: [
             ListTile(
-              leading: SvgPicture.asset('assets/icons/svg/appearance.svg', width: 10, height: 10, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
+              leading: SvgPicture.asset('assets/icons/svg/appearance.svg', width: 20, height: 20, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
               title: Text('Tema', style: TextStyle(color: colors['textPrimary'])),
               trailing: Text(themeState.mode == ThemeMode.dark ? 'Escuro' : 'Claro', style: TextStyle(color: colors['textSecondary'])),
               onTap: () => _showThemeSheet(context, colors, themeState),
             ),
             ListTile(
-              leading: SvgPicture.asset('assets/icons/svg/language.svg', width: 10, height: 10, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
+              leading: SvgPicture.asset('assets/icons/svg/language.svg', width: 20, height: 20, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
               title: Text('Idioma', style: TextStyle(color: colors['textPrimary'])),
               trailing: Text('Português', style: TextStyle(color: colors['textSecondary'])),
               onTap: () {},
@@ -53,7 +72,7 @@ class SettingsPage extends StatelessWidget {
           ]),
           const SizedBox(height: 32),
           ListTile(
-            leading: Icon(Icons.logout, color: Colors.red),
+            leading: const Icon(Icons.logout, color: Colors.red, size: 20),
             title: const Text('Sair', style: TextStyle(color: Colors.red)),
             onTap: () => _logout(context, auth),
           ),
@@ -95,9 +114,9 @@ class SettingsPage extends StatelessWidget {
 
   Widget _tile(String label, String icon, Map<String, Color> colors, VoidCallback onTap) {
     return ListTile(
-      leading: SvgPicture.asset(icon, width: 10, height: 10, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
+      leading: SvgPicture.asset(icon, width: 20, height: 20, colorFilter: ColorFilter.mode(colors['iconTint']!, BlendMode.srcIn)),
       title: Text(label, style: TextStyle(color: colors['textPrimary'])),
-      trailing: SvgPicture.asset('assets/icons/svg/chevron_right.svg', width: 15, height: 15, colorFilter: ColorFilter.mode(colors['iconTintSecondary']!, BlendMode.srcIn)),
+      trailing: SvgPicture.asset('assets/icons/svg/chevron_right.svg', width: 16, height: 16, colorFilter: ColorFilter.mode(colors['iconTintSecondary']!, BlendMode.srcIn)),
       onTap: onTap,
     );
   }

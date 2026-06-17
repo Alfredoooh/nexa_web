@@ -695,7 +695,6 @@ window.addEventListener('load',render);window.addEventListener('resize',render);
 }
 
 // ─── Widget regex: backtick fenced ```widget_xxx\n...\n``` ──────────────────
-// Igual ao que o GeminiApiService.kt instrui o modelo a produzir
 const WIDGET_TYPES = 'widget_calendar|widget_bar|widget_pie|widget_table|widget_code|widget_timer|widget_map|widget_graph|widget_mindmap|widget_market|widget_sheet';
 const WIDGET_REGEX = new RegExp('```(' + WIDGET_TYPES + ')\\n([\\s\\S]*?)\\n?```', 'gm');
 
@@ -918,7 +917,7 @@ function SettingsDialog({ onClose, isDark, user }: { onClose: () => void; isDark
   );
 }
 
-// ─── Extras Dialog — card central, 3 botões lado a lado, igual ao Kotlin ──────
+// ─── Extras Dialog ──────────────────────────────────────────────────────────
 function ExtrasDialog({
   onClose, isDark,
   flashMode, thinkMode, widgetsEnabled,
@@ -931,7 +930,6 @@ function ExtrasDialog({
   anchorBottom: number;
 }) {
   const bg = isDark ? '#2C2C2E' : '#ffffff';
-  const textClr = isDark ? '#f0f0f0' : '#1a1a1a';
   const mutedClr = isDark ? '#888' : '#8E8E93';
   const activeBg = isDark ? 'rgba(111,90,246,0.22)' : 'rgba(111,90,246,0.10)';
   const activeText = '#6F5AF6';
@@ -996,54 +994,115 @@ function ExtrasDialog({
   );
 }
 
-// ─── Add Popup Menu ───────────────────────────────────────────────────────────
+// ─── Add Popup Menu — FAB ancorado, cartão estilo iOS, blur só no overlay ────
 function AddPopupMenu({
-  open, onClose, isDark, bottomOffset, inputBarHeight,
+  open, onToggle, onClose, isDark, bottomOffset,
   onImagePick, onFilePick, onExtras,
 }: {
-  open: boolean; onClose: () => void; isDark: boolean;
-  bottomOffset: number; inputBarHeight: number;
+  open: boolean; onToggle: () => void; onClose: () => void; isDark: boolean;
+  bottomOffset: number;
   onImagePick: () => void; onFilePick: () => void; onExtras: () => void;
 }) {
-  const bg = isDark ? '#2C2C2E' : '#ffffff';
-  const textClr = isDark ? '#f0f0f0' : '#1a1a1a';
-  const divider = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+  const cardBg = isDark ? 'rgba(28,28,30,0.96)' : 'rgba(248,248,250,0.96)';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const textClr = isDark ? '#f0f0f0' : '#111111';
+  const iconBoxBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+  const activeBg = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)';
+  const fabBg = isDark ? '#3A3A3C' : '#d1d1d6';
+  const iconStroke = isDark ? '#f0f0f0' : '#111111';
 
   const items = [
-    { icon: '/assets/icons/svg/image.svg', label: 'Carregar imagem', action: onImagePick },
-    { icon: '/assets/icons/svg/extras.svg', label: 'Extras', action: onExtras },
-    { icon: '/assets/icons/svg/download.svg', label: 'Carregar ficheiro', action: onFilePick },
+    {
+      label: 'Carregar imagem', action: onImagePick,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M4 7.5C4 6.12 5.12 5 6.5 5h11C18.88 5 20 6.12 20 7.5v9c0 1.38-1.12 2.5-2.5 2.5h-11C5.12 19 4 17.88 4 16.5v-9Z" stroke={iconStroke} strokeWidth="1.8" />
+          <path d="M8 10h8M8 13h5" stroke={iconStroke} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Extras', action: onExtras,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M6 7.5A2.5 2.5 0 0 1 8.5 5h7A2.5 2.5 0 0 1 18 7.5v9A2.5 2.5 0 0 1 15.5 19h-7A2.5 2.5 0 0 1 6 16.5v-9Z" stroke={iconStroke} strokeWidth="1.8" />
+          <path d="M9 11h6M9 14h4" stroke={iconStroke} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Carregar ficheiro', action: onFilePick,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5v7A2.5 2.5 0 0 1 17.5 18h-11A2.5 2.5 0 0 1 4 15.5v-7Z" stroke={iconStroke} strokeWidth="1.8" />
+          <path d="M8 14l2.2-2.2a1 1 0 0 1 1.4 0L14 14l1.6-1.6a1 1 0 0 1 1.4 0L19 14" stroke={iconStroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="9" cy="10" r="1.2" fill={iconStroke} />
+        </svg>
+      ),
+    },
   ];
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <BlurOverlay onClick={onClose} zIndex={198} />
-          <motion.div
-            initial={{ opacity:0, y:10, scale:0.95 }}
-            animate={{ opacity:1, y:0, scale:1 }}
-            exit={{ opacity:0, y:8, scale:0.95 }}
-            transition={{ type:'spring', stiffness:420, damping:32 }}
-            style={{
-              position: 'fixed', left: 14,
-              bottom: bottomOffset + inputBarHeight + 8,
-              zIndex: 199, background: bg, borderRadius: 14,
-              boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.55)' : '0 8px 32px rgba(0,0,0,0.14)',
-              overflow: 'hidden', minWidth: 200,
-            }}
-          >
-            {items.map((opt, i) => (
-              <button key={opt.label} onClick={() => { opt.action(); onClose(); }}
-                style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'13px 16px', background:'none', border:'none', cursor:'pointer', borderBottom:i<items.length-1?`1px solid ${divider}`:'none', fontSize:15, color:textClr, textAlign:'left' }}>
-                <img src={opt.icon} width={18} height={18} alt="" style={{ filter:isDark?'invert(1)':'none', flexShrink:0 }} />
-                <span style={{ fontWeight:500 }}>{opt.label}</span>
-              </button>
-            ))}
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    <div style={{ position: 'fixed', left: 14, bottom: bottomOffset + 20, zIndex: 220 }}>
+      <AnimatePresence>
+        {open && (
+          <>
+            <BlurOverlay onClick={onClose} zIndex={210} />
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.92 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              style={{
+                position: 'absolute', left: 0, bottom: 56, zIndex: 211,
+                width: 250, background: cardBg, border: `1px solid ${cardBorder}`,
+                borderRadius: 20, boxShadow: isDark ? '0 12px 30px rgba(0,0,0,0.5)' : '0 12px 30px rgba(0,0,0,0.12)',
+                padding: 10, transformOrigin: 'bottom left',
+                backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+              }}
+            >
+              {items.map((opt, i) => (
+                <button
+                  key={opt.label}
+                  onClick={() => { opt.action(); onClose(); }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                    border: 'none', background: 'transparent', padding: '12px 12px',
+                    borderRadius: 14, textAlign: 'left', cursor: 'pointer', color: textClr,
+                    marginTop: i > 0 ? 4 : 0, WebkitTapHighlightColor: 'transparent',
+                  }}
+                  onTouchStart={e => (e.currentTarget.style.background = activeBg)}
+                  onTouchEnd={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', flex: '0 0 28px', background: iconBoxBg }}>
+                    {opt.icon}
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: textClr, lineHeight: 1 }}>{opt.label}</span>
+                </button>
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <button
+        onClick={onToggle}
+        aria-label="Adicionar"
+        style={{
+          width: 44, height: 44, border: 'none', borderRadius: '50%',
+          background: fabBg, display: 'grid', placeItems: 'center', cursor: 'pointer',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: 0, outline: 'none',
+          position: 'relative', zIndex: 221,
+          transform: open ? 'rotate(45deg)' : 'rotate(0deg)',
+          transition: 'transform 160ms ease',
+        }}
+      >
+        <span style={{ position: 'relative', width: 18, height: 18 }}>
+          <span style={{ position: 'absolute', left: '50%', top: '50%', width: 18, height: 2.2, background: isDark ? '#111' : '#ffffff', borderRadius: 999, transform: 'translate(-50%,-50%)' }} />
+          <span style={{ position: 'absolute', left: '50%', top: '50%', width: 2.2, height: 18, background: isDark ? '#111' : '#ffffff', borderRadius: 999, transform: 'translate(-50%,-50%)' }} />
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -1099,7 +1158,6 @@ export default function ChatPage() {
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [inputBarHeight, setInputBarHeight] = useState(90);
 
-  // ─── Modos IA (estado real, usado no system prompt) ────────────────────────
   const [flashMode, setFlashMode] = useState(false);
   const [thinkMode, setThinkMode] = useState(false);
   const [widgetsEnabled, setWidgetsEnabled] = useState(false);
@@ -1257,10 +1315,10 @@ export default function ChatPage() {
 
       <AddPopupMenu
         open={addMenuOpen}
+        onToggle={() => setAddMenuOpen(v => !v)}
         onClose={() => setAddMenuOpen(false)}
         isDark={isDark}
         bottomOffset={bottomOffset}
-        inputBarHeight={inputBarHeight}
         onImagePick={() => imageInputRef.current?.click()}
         onFilePick={() => fileInputRef.current?.click()}
         onExtras={() => { setAddMenuOpen(false); setExtrasOpen(true); }}
@@ -1331,11 +1389,8 @@ export default function ChatPage() {
             <textarea ref={textareaRef} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="Pergunta algo..." rows={1}
               style={{ width:'100%', resize:'none', background:'transparent', border:'none', outline:'none', fontSize:15, color:textColor, lineHeight:1.5, maxHeight:140, fontFamily:'inherit', boxSizing:'border-box' }} />
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              <button onClick={() => setAddMenuOpen(v => !v)} style={iconBtn(isDark)}>
-                <img src="/assets/icons/svg/add.svg" width={16} height={16} alt="+" style={{ filter:isDark?'invert(1)':'none' }} />
-              </button>
+              <div style={{ width:32, height:32 }} />
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                {/* Indicadores de modo activo */}
                 {(flashMode || thinkMode || widgetsEnabled) && (
                   <div style={{ display:'flex', gap:4 }}>
                     {flashMode && <span style={{ fontSize:11, fontWeight:700, color:'#6F5AF6', background:'rgba(111,90,246,0.12)', borderRadius:8, padding:'3px 8px' }}>Flash</span>}
@@ -1371,11 +1426,6 @@ const appBtn = (isDark: boolean): React.CSSProperties => ({
   background:isDark?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.8)',
   border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
   boxShadow:'0 1px 4px rgba(0,0,0,0.08)',
-});
-const iconBtn = (isDark: boolean): React.CSSProperties => ({
-  width:32, height:32, borderRadius:'50%',
-  background:isDark?'#2A2A2C':'#F3F3F3',
-  border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
 });
 const sendBtnStyle: React.CSSProperties = {
   position:'absolute', inset:0, borderRadius:'50%',

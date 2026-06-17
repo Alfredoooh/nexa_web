@@ -1,4 +1,4 @@
-// settings_page.dart
+// lib/pages/settings_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +22,21 @@ class SettingsPage extends StatelessWidget {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
+        titleSpacing: 0,
+        leadingWidth: 56,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: PulseTap(
+            onTap: () => Navigator.pop(context),
+            child: const Center(
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ),
         title: const Text(
           'Definições',
           style: TextStyle(
@@ -30,57 +45,52 @@ class SettingsPage extends StatelessWidget {
             color: Colors.black,
           ),
         ),
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: PulseTap(
-            onTap: () => Navigator.pop(context),
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/svg/back_arrow.svg',
-                width: 18,
-                height: 18,
-                colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: PulseTap(
+              onTap: () => _logout(context, auth),
+              child: const Center(
+                child: Icon(
+                  Icons.logout_rounded,
+                  size: 22,
+                  color: Colors.red,
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.only(top: 8, bottom: 24),
         children: [
-          _simpleAction(
-            context: context,
-            title: 'Sair',
-            icon: Icons.logout,
-            iconColor: Colors.red,
-            titleColor: Colors.red,
-            onTap: () => _logout(context, auth),
-          ),
-          const SizedBox(height: 12),
           _sectionTitle('Conta'),
-          _settingTile(
+          _tile(
             context: context,
             label: 'Personalização',
             icon: 'assets/icons/svg/customise.svg',
+            trailing: null,
             onTap: () {},
           ),
           _divider(),
-          _settingTile(
+          _tile(
             context: context,
             label: 'Controlo de Dados',
             icon: 'assets/icons/svg/database.svg',
+            trailing: null,
             onTap: () {},
           ),
           _divider(),
-          _settingTile(
+          _tile(
             context: context,
             label: 'Segurança',
             icon: 'assets/icons/svg/security.svg',
+            trailing: null,
             onTap: () {},
           ),
           const SizedBox(height: 18),
           _sectionTitle('Aparência'),
-          _settingTile(
+          _tile(
             context: context,
             label: 'Tema',
             icon: 'assets/icons/svg/appearance.svg',
@@ -98,7 +108,7 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _showThemeSheet(context, themeState),
           ),
           _divider(),
-          _settingTile(
+          _tile(
             context: context,
             label: 'Idioma',
             icon: 'assets/icons/svg/language.svg',
@@ -117,6 +127,15 @@ class SettingsPage extends StatelessWidget {
   }
 
   Widget _sectionTitle(String title) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+      child: Text(
+        '',
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
       child: Text(
@@ -141,77 +160,65 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _settingTile({
+  Widget _tile({
     required BuildContext context,
     required String label,
     required String icon,
     required VoidCallback onTap,
     Widget? trailing,
   }) {
-    return PulseTap(
-      onTap: onTap,
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          children: [
-            SvgPicture.asset(
-              icon,
-              width: 20,
-              height: 20,
-              colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+    return Column(
+      children: [
+        PulseTap(
+          onTap: onTap,
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              children: [
+                SvgPicture.asset(
+                  icon,
+                  width: 20,
+                  height: 20,
+                  colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (trailing != null)
+                  trailing
+                else
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Color(0xFFB0B0B0),
+                  ),
+              ],
             ),
-            if (trailing != null) trailing else const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB0B0B0)),
-          ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _simpleAction({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required Color titleColor,
-    required VoidCallback onTap,
-  }) {
-    return PulseTap(
-      onTap: onTap,
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: iconColor),
-            const SizedBox(width: 14),
-            Text(
-              title,
-              style: TextStyle(
-                color: titleColor,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        const Padding(
+          padding: EdgeInsets.only(left: 54),
+          child: Divider(
+            height: 1,
+            thickness: 0.6,
+            color: Color(0xFFEDEDED),
+          ),
         ),
-      ),
+      ],
     );
   }
 
   void _showThemeSheet(BuildContext context, ThemeState themeState) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
@@ -231,6 +238,7 @@ class SettingsPage extends StatelessWidget {
                 children: [
                   _modalOption(
                     label: 'Claro',
+                    active: themeState.mode == ThemeMode.light,
                     onTap: () {
                       themeState.setTheme('light');
                       Navigator.pop(sheetContext);
@@ -239,6 +247,7 @@ class SettingsPage extends StatelessWidget {
                   _modalDivider(),
                   _modalOption(
                     label: 'Escuro',
+                    active: themeState.mode == ThemeMode.dark,
                     onTap: () {
                       themeState.setTheme('dark');
                       Navigator.pop(sheetContext);
@@ -247,6 +256,7 @@ class SettingsPage extends StatelessWidget {
                   _modalDivider(),
                   _modalOption(
                     label: 'Sistema',
+                    active: themeState.mode == ThemeMode.system,
                     onTap: () {
                       themeState.setTheme('system');
                       Navigator.pop(sheetContext);
@@ -272,6 +282,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _modalOption({
     required String label,
+    required bool active,
     required VoidCallback onTap,
   }) {
     return PulseTap(
@@ -290,6 +301,18 @@ class SettingsPage extends StatelessWidget {
                   fontSize: 15,
                   color: Colors.black,
                   fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 120),
+              opacity: active ? 1 : 0,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
                 ),
               ),
             ),
@@ -339,16 +362,8 @@ class _PulseTapState extends State<PulseTap> {
       behavior: HitTestBehavior.translucent,
       onTapDown: widget.onTap == null ? null : (_) => _setPressed(true),
       onTapCancel: widget.onTap == null ? null : () => _setPressed(false),
-      onTapUp: widget.onTap == null
-          ? null
-          : (_) {
-              _setPressed(false);
-            },
-      onTap: widget.onTap == null
-          ? null
-          : () {
-              widget.onTap?.call();
-            },
+      onTapUp: widget.onTap == null ? null : (_) => _setPressed(false),
+      onTap: widget.onTap == null ? null : widget.onTap,
       child: AnimatedScale(
         scale: _pressed ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 110),

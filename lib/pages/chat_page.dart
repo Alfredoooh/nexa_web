@@ -1,4 +1,4 @@
-// chat_page.dart
+// lib/pages/chat_page.dart
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -26,12 +26,6 @@ class ChatState extends ChangeNotifier {
   void addUserMessage(String text) {
     chatHistory.add(ChatMessage(role: 'user', content: text));
     displayMessages.add(DisplayMessage(role: 'user', content: text));
-    notifyListeners();
-  }
-
-  void addAssistantPlaceholder() {
-    final ai = DisplayMessage(role: 'assistant', content: '', isStreaming: true);
-    displayMessages.add(ai);
     notifyListeners();
   }
 
@@ -136,11 +130,13 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _sendMessage(String text) async {
-    if (text.trim().isEmpty) return;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+
     final state = context.read<ChatState>();
     if (state.isStreaming) return;
 
-    state.addUserMessage(text);
+    state.addUserMessage(trimmed);
     _inputController.clear();
     if (mounted) {
       setState(() => _sendBtnVisible = false);
@@ -149,7 +145,7 @@ class _ChatPageState extends State<ChatPage> {
 
     if (!state.titleGenerated) {
       state.titleGenerated = true;
-      final parts = text.trim().split(RegExp(r'\s+')).take(4).join(' ');
+      final parts = trimmed.split(RegExp(r'\s+')).take(4).join(' ');
       state.currentConversationTitle = parts.length > 40 ? parts.substring(0, 40) : parts;
     }
 
@@ -167,10 +163,14 @@ class _ChatPageState extends State<ChatPage> {
     final colors = _colors();
     final auth = context.watch<AuthState>();
     final state = context.watch<ChatState>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final appBarSurface = isDark ? const Color(0xFF101010) : Colors.white;
     final appBarBlur = 18.0 * _appBarBlurProgress;
-    final appBarOverlayOpacity = 0.22 * _appBarBlurProgress;
-    final appBarBottomFade = 1.0 - _appBarBlurProgress;
+
+    final inputFill = isDark ? (colors['bottomBarSolid'] ?? const Color(0xFF1C1C1E)) : Colors.white;
+    final inputTextColor = isDark ? Colors.white : Colors.black87;
+    final inputHintColor = isDark ? const Color(0xFFB6B6B6) : const Color(0xFF9A9A9A);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -187,7 +187,7 @@ class _ChatPageState extends State<ChatPage> {
                     sigmaY: appBarBlur,
                   ),
                   child: Container(
-                    color: Colors.white.withOpacity(appBarOverlayOpacity),
+                    color: appBarSurface.withOpacity(0.02 + (0.16 * _appBarBlurProgress)),
                   ),
                 ),
               ),
@@ -199,8 +199,8 @@ class _ChatPageState extends State<ChatPage> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.white.withOpacity(0.34 * _appBarBlurProgress),
-                          Colors.white.withOpacity(0.14 * _appBarBlurProgress),
+                          appBarSurface.withOpacity(isDark ? 0.24 * _appBarBlurProgress : 0.30 * _appBarBlurProgress),
+                          appBarSurface.withOpacity(isDark ? 0.10 * _appBarBlurProgress : 0.14 * _appBarBlurProgress),
                           Colors.transparent,
                         ],
                         stops: const [0.0, 0.45, 1.0],
@@ -216,7 +216,7 @@ class _ChatPageState extends State<ChatPage> {
                 surfaceTintColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 titleSpacing: 8,
-                title: null,
+                leadingWidth: 56,
                 leading: Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: PulseTap(
@@ -325,7 +325,10 @@ class _ChatPageState extends State<ChatPage> {
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
                 child: Text(
                   'CONVERSAS',
-                  style: TextStyle(fontSize: 11, color: colors['settings_section_label']),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colors['settings_section_label'],
+                  ),
                 ),
               ),
               Expanded(
@@ -351,9 +354,19 @@ class _ChatPageState extends State<ChatPage> {
       body: Column(
         children: [
           Expanded(
-            child: state.displayMessages.isEmpty ? _buildEmptyState(colors) : _buildChatList(state, colors),
+            child: state.displayMessages.isEmpty
+                ? _buildEmptyState(colors)
+                : _buildChatList(state, colors),
           ),
-          _buildBottomBar(state, bottomPadding, colors),
+          _buildBottomBar(
+            state,
+            bottomPadding,
+            colors,
+            inputFill,
+            inputTextColor,
+            inputHintColor,
+            isDark,
+          ),
         ],
       ),
     );
@@ -424,12 +437,15 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Widget _buildBottomBar(ChatState state, double bottomPadding, Map<String, Color> colors) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inputFill = isDark ? (colors['bottomBarSolid'] ?? Colors.grey.shade900) : Colors.white;
-    final inputTextColor = isDark ? Colors.white : Colors.black87;
-    final hintColor = isDark ? const Color(0xFFB6B6B6) : const Color(0xFF9A9A9A);
-
+  Widget _buildBottomBar(
+    ChatState state,
+    double bottomPadding,
+    Map<String, Color> colors,
+    Color inputFill,
+    Color inputTextColor,
+    Color inputHintColor,
+    bool isDark,
+  ) {
     return Container(
       margin: EdgeInsets.fromLTRB(16, 0, 16, 20 + bottomPadding),
       decoration: BoxDecoration(
@@ -456,7 +472,7 @@ class _ChatPageState extends State<ChatPage> {
               style: TextStyle(fontSize: 15, color: inputTextColor),
               decoration: InputDecoration(
                 hintText: 'Escreve aqui...',
-                hintStyle: TextStyle(color: hintColor),
+                hintStyle: TextStyle(color: inputHintColor),
                 filled: true,
                 fillColor: inputFill,
                 border: InputBorder.none,
@@ -518,7 +534,10 @@ class _ChatPageState extends State<ChatPage> {
                           'assets/icons/svg/preview_filled.svg',
                           width: 20,
                           height: 20,
-                          colorFilter: ColorFilter.mode(colors['textPrimary']!, BlendMode.srcIn),
+                          colorFilter: ColorFilter.mode(
+                            colors['textPrimary']!,
+                            BlendMode.srcIn,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -553,7 +572,10 @@ class _ChatPageState extends State<ChatPage> {
                                 'assets/icons/svg/ic_send_arrow.svg',
                                 width: 15,
                                 height: 15,
-                                colorFilter: ColorFilter.mode(colors['sendIconColor']!, BlendMode.srcIn),
+                                colorFilter: ColorFilter.mode(
+                                  colors['sendIconColor']!,
+                                  BlendMode.srcIn,
+                                ),
                               ),
                             ),
                           ),
@@ -574,7 +596,10 @@ class _ChatPageState extends State<ChatPage> {
                                 'assets/icons/svg/record.svg',
                                 width: 18,
                                 height: 18,
-                                colorFilter: ColorFilter.mode(colors['sendIconColor']!, BlendMode.srcIn),
+                                colorFilter: ColorFilter.mode(
+                                  colors['sendIconColor']!,
+                                  BlendMode.srcIn,
+                                ),
                               ),
                             ),
                           ),
@@ -861,69 +886,6 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  void _showThinkModal(String thinkingContent, Map<String, Color> colors) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colors['dialogBackground'],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        builder: (_, scrollController) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors['divider'],
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  SvgPicture.asset(
-                    'assets/icons/svg/brain_filled.svg',
-                    width: 18,
-                    height: 18,
-                    colorFilter: ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Processo de raciocínio',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: colors['textPrimary'],
-                    ),
-                  ),
-                ],
-              ),
-              Divider(height: 20, color: colors['divider']),
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Text(
-                    thinkingContent,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.6,
-                      color: colors['textSecondary'],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   String _formatTimestamp(int millis) {
     final dt = DateTime.fromMillisecondsSinceEpoch(millis);
     final now = DateTime.now();
@@ -964,16 +926,8 @@ class _PulseTapState extends State<PulseTap> {
       behavior: HitTestBehavior.translucent,
       onTapDown: widget.onTap == null ? null : (_) => _setPressed(true),
       onTapCancel: widget.onTap == null ? null : () => _setPressed(false),
-      onTapUp: widget.onTap == null
-          ? null
-          : (_) {
-              _setPressed(false);
-            },
-      onTap: widget.onTap == null
-          ? null
-          : () {
-              widget.onTap?.call();
-            },
+      onTapUp: widget.onTap == null ? null : (_) => _setPressed(false),
+      onTap: widget.onTap == null ? null : widget.onTap,
       child: AnimatedScale(
         scale: _pressed ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 110),
@@ -981,9 +935,7 @@ class _PulseTapState extends State<PulseTap> {
         child: AnimatedOpacity(
           opacity: _pressed ? 0.86 : 1.0,
           duration: const Duration(milliseconds: 110),
-          child: widget.circular
-              ? ClipOval(child: widget.child)
-              : widget.child,
+          child: widget.circular ? ClipOval(child: widget.child) : widget.child,
         ),
       ),
     );

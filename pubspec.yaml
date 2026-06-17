@@ -1,8 +1,6 @@
-name: meu_app_web
-description: Um projeto Flutter web de exemplo.
-
-publish_to: 'none' # Remove essa linha se quiser publicar no pub.dev
-
+name: ipc_app
+description: IPC – Conversor 100% pixel perfect do Android para Flutter Web.
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
@@ -11,19 +9,24 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # Adicione outras dependências aqui, ex:
-  # http: ^1.1.0
-  # provider: ^6.0.0
+  flutter_svg: ^2.0.9          # para ícones SVG
+  provider: ^6.1.1             # gerenciamento de estado
+  google_fonts: ^6.1.0         # Times New Roman
+  fl_chart: ^0.66.0            # gráficos de linha/barras
+  table_calendar: ^3.0.9       # calendário interativo
+  flutter_math_fork: ^0.7.2    # renderização de fórmulas (opcional)
+  http: ^1.1.0                 # chamadas API (mockadas)
+  lottie: ^2.7.0               # animações de loading
+  intl: ^0.18.1                # formatação de datas
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0   # Pacote de boas práticas de código
+  flutter_lints: ^3.0.1
 
 flutter:
-  uses-material-design: true   # Habilita ícones do Material Design
-
-  # Se tiver assets (imagens, fontes), declare:
-  # assets:
-  #   - assets/imagens/
-  #   - assets/fonts/
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/fonts/
+    - assets/lottie/

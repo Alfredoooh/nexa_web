@@ -99,7 +99,11 @@ class RegisterPage extends StatelessWidget {
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () async {
-                    final user = await AuthApiService.register(nameCtrl.text, emailCtrl.text, passCtrl.text);
+                    final user = await AuthApiService.register(
+                      nameCtrl.text,
+                      emailCtrl.text,
+                      passCtrl.text,
+                    );
                     if (user != null) {
                       context.read<AuthState>().setUser(user);
                       Navigator.pushAndRemoveUntil(

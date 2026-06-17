@@ -29,7 +29,6 @@ class LoginPage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo com sombra suave
                 Container(
                   decoration: BoxDecoration(
                     boxShadow: [
@@ -43,7 +42,6 @@ class LoginPage extends StatelessWidget {
                   child: Image.asset('assets/icons/png/logo.png', width: 80, height: 80),
                 ),
                 const SizedBox(height: 24),
-                // Nome da app
                 Text(
                   'IPC',
                   style: TextStyle(
@@ -62,7 +60,6 @@ class LoginPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Campo Email
                 _buildTextField(
                   controller: emailCtrl,
                   hint: 'Email',
@@ -71,7 +68,6 @@ class LoginPage extends StatelessWidget {
                   obscure: false,
                 ),
                 const SizedBox(height: 16),
-                // Campo Password
                 _buildTextField(
                   controller: passCtrl,
                   hint: 'Password',
@@ -80,7 +76,6 @@ class LoginPage extends StatelessWidget {
                   obscure: true,
                 ),
                 const SizedBox(height: 24),
-                // Botão Entrar
                 ElevatedButton(
                   onPressed: () async {
                     final user = await AuthApiService.login(emailCtrl.text, passCtrl.text);
@@ -106,7 +101,6 @@ class LoginPage extends StatelessWidget {
                   child: const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 24),
-                // Link para registro
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -118,7 +112,7 @@ class LoginPage extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const RegisterPage()),
+                          MaterialPageRoute(builder: (_) => RegisterPage()), // removido const
                         );
                       },
                       child: Text(

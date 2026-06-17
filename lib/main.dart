@@ -39,24 +39,12 @@ class AuthState extends ChangeNotifier {
   }
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final authState = AuthState();
-  await authState.loadUser();
-  runApp(
-    ChangeNotifierProvider.value(
-      value: authState,
-      child: const IPCApp(),
-    ),
-  );
-}
-
 class IPCApp extends StatelessWidget {
   const IPCApp({super.key});
 
-  static const Color _primary = Color(0xFF2F7BF6);
+  static const Color primary = Color(0xFF2F7BF6);
 
-  static const _lightColors = {
+  static const Map<String, Color> lightColors = {
     'background': Color(0xFFFFFFFF),
     'appbarSolid': Color(0xFFFFFFFF),
     'bottomBarSolid': Color(0xFFFFFFFF),
@@ -76,9 +64,10 @@ class IPCApp extends StatelessWidget {
     'tabPreviewPillBg': Color(0xFFE0EBFE),
     'extrasCardActive': Color(0xFFEEF2FF),
     'extrasCardActiveText': Color(0xFF2F7BF6),
+    'settings_section_label': Color(0xFF888888),
   };
 
-  static const _darkColors = {
+  static const Map<String, Color> darkColors = {
     'background': Color(0xFF121212),
     'appbarSolid': Color(0xFF121212),
     'bottomBarSolid': Color(0xFF1F1F1F),
@@ -98,6 +87,7 @@ class IPCApp extends StatelessWidget {
     'tabPreviewPillBg': Color(0xFF1F2D4A),
     'extrasCardActive': Color(0xFF1E2D4F),
     'extrasCardActiveText': Color(0xFFA8C8FA),
+    'settings_section_label': Color(0xFF939393),
   };
 
   @override
@@ -107,29 +97,41 @@ class IPCApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
-        primaryColor: _primary,
-        scaffoldBackgroundColor: _lightColors['background'],
+        primaryColor: primary,
+        scaffoldBackgroundColor: lightColors['background'],
         fontFamily: 'TimesNewRoman',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: _primary,
+          seedColor: primary,
           brightness: Brightness.light,
-          surface: _lightColors['cardBackground'],
-          onSurface: _lightColors['textPrimary'],
+          surface: lightColors['cardBackground'],
+          onSurface: lightColors['textPrimary'],
         ),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: _primary,
-        scaffoldBackgroundColor: _darkColors['background'],
+        primaryColor: primary,
+        scaffoldBackgroundColor: darkColors['background'],
         fontFamily: 'TimesNewRoman',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: _primary,
+          seedColor: primary,
           brightness: Brightness.dark,
-          surface: _darkColors['cardBackground'],
-          onSurface: _darkColors['textPrimary'],
+          surface: darkColors['cardBackground'],
+          onSurface: darkColors['textPrimary'],
         ),
       ),
       home: const ChatPage(),
     );
   }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final authState = AuthState();
+  await authState.loadUser();
+  runApp(
+    ChangeNotifierProvider.value(
+      value: authState,
+      child: const IPCApp(),
+    ),
+  );
 }

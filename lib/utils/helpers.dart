@@ -12,7 +12,6 @@ double evaluateSimpleExpr(String expr, double x) {
         .replaceAll('x', x.toString())
         .replaceAll('pi', '3.1415926535')
         .replaceAll('e', '2.7182818284');
-    // Avaliação muito simplificada – use um parser real em produção
     return _evalBasic(e);
   } catch (_) {
     return double.nan;
@@ -20,7 +19,6 @@ double evaluateSimpleExpr(String expr, double x) {
 }
 
 double _evalBasic(String expr) {
-  // Suporta apenas operações básicas para demonstração
   final parts = expr.split(RegExp(r'(\+|\-|\*|\/)'));
   if (parts.length == 2) {
     final a = double.tryParse(parts[0]) ?? 0;

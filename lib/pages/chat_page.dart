@@ -82,7 +82,7 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin {
+class _ChatPageState extends State<ChatPage> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -157,7 +157,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colors = isDark ? IPCApp._darkColors : IPCApp._lightColors;
+    final colors = isDark ? IPCApp.darkColors : IPCApp.lightColors;
     final auth = context.watch<AuthState>();
 
     return Consumer<ChatState>(
@@ -204,7 +204,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   ),
                 ),
                 actions: [
-                  // Botão Nova conversa (animado)
                   TweenAnimationBuilder<double>(
                     tween: Tween(
                       begin: state.displayMessages.isEmpty ? 0.8 : 0.0,
@@ -226,7 +225,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                         'assets/icons/svg/new_chat.svg',
                         width: 17,
                         height: 17,
-                        colorFilter: ColorFilter.mode(IPCApp._primary, BlendMode.srcIn),
+                        colorFilter: ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
                       ),
                       onPressed: state.displayMessages.isEmpty ? null : () => state.resetConversation(),
                     ),
@@ -239,9 +238,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                         'assets/icons/svg/more_vertical.svg',
                         width: 16,
                         height: 16,
-                        colorFilter: ColorFilter.mode(IPCApp._primary, BlendMode.srcIn),
+                        colorFilter: ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
                       ),
-                      onPressed: () {}, // TODO: popup more
+                      onPressed: () {},
                     ),
                   ),
                 ],
@@ -272,7 +271,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   ),
                   ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: IPCApp._primary,
+                      backgroundColor: IPCApp.primary,
                       child: Text(
                         (auth.user?.name ?? 'U').substring(0, 1).toUpperCase(),
                         style: const TextStyle(color: Colors.white),
@@ -290,7 +289,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     ),
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/settings');
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
                     },
                   ),
                   const Divider(color: Color(0xFFE5E5EA)),
@@ -312,7 +311,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           ),
                           onTap: () {
                             Navigator.pop(context);
-                            // TODO: load conversation
                           },
                         );
                       },
@@ -421,7 +419,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Linha 1: campo de texto
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
             child: TextField(
@@ -442,13 +439,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               },
             ),
           ),
-          // Linha 2: botão + , Preview, Enviar/Microfone
           Container(
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
-                // Botão + com container circular
                 Container(
                   width: 40,
                   height: 40,
@@ -469,7 +464,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   ),
                 ),
                 const Spacer(),
-                // Preview Pill
                 GestureDetector(
                   onTap: () => _showPreviewModal(colors),
                   child: Container(
@@ -501,7 +495,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   ),
                 ),
                 const Spacer(),
-                // Botão Microfone / Enviar
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: _sendBtnVisible
@@ -552,7 +545,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  // --- Modal Preview ---
   void _showPreviewModal(Map<String, Color> colors) {
     showModalBottomSheet(
       context: context,
@@ -603,9 +595,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  void _showVoiceModal(Map<String, Color> colors) {
-    // Placeholder
-  }
+  void _showVoiceModal(Map<String, Color> colors) {}
 
   void _showAddPopup(Map<String, Color> colors) {
     showModalBottomSheet(
@@ -672,13 +662,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36,
-              height: 4,
+              width: 36, height: 4,
               margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: colors['divider'],
-                borderRadius: BorderRadius.circular(3),
-              ),
+              decoration: BoxDecoration(color: colors['divider'], borderRadius: BorderRadius.circular(3)),
             ),
             Text('Extras', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors['textPrimary'])),
             const SizedBox(height: 20),
@@ -711,8 +697,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           children: [
             SvgPicture.asset(
               active ? iconOn : iconOff,
-              width: 20,
-              height: 20,
+              width: 20, height: 20,
               colorFilter: ColorFilter.mode(
                 active ? colors['extrasCardActiveText']! : colors['iconTintSecondary']!,
                 BlendMode.srcIn,
@@ -722,8 +707,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             Text(
               title,
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
+                fontSize: 13, fontWeight: FontWeight.bold,
                 color: active ? colors['extrasCardActiveText'] : colors['textSecondary'],
               ),
             ),
@@ -750,8 +734,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           child: Column(
             children: [
               Container(
-                width: 36,
-                height: 4,
+                width: 36, height: 4,
                 decoration: BoxDecoration(color: colors['divider'], borderRadius: BorderRadius.circular(3)),
               ),
               const SizedBox(height: 8),
@@ -759,9 +742,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 children: [
                   SvgPicture.asset(
                     'assets/icons/svg/brain_filled.svg',
-                    width: 18,
-                    height: 18,
-                    colorFilter: ColorFilter.mode(IPCApp._primary, BlendMode.srcIn),
+                    width: 18, height: 18,
+                    colorFilter: ColorFilter.mode(IPCApp.primary, BlendMode.srcIn),
                   ),
                   const SizedBox(width: 10),
                   Text('Processo de raciocínio',

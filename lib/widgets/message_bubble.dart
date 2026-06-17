@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/chat_message.dart';
-import '../widgets/thinking_skeleton.dart';
-import '../widgets/native_widgets.dart';
+import 'thinking_skeleton.dart';
+import 'native_widgets.dart';
 
 class MessageBubble extends StatelessWidget {
   final DisplayMessage message;
@@ -110,11 +110,11 @@ class MessageBubble extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          _actionButton('assets/icons/copy.svg', 'Copiar'),
-          _actionButton('assets/icons/thumbs_up.svg', 'Like'),
-          _actionButton('assets/icons/thumbs_down.svg', 'Dislike'),
-          _actionButton('assets/icons/share.svg', 'Partilhar'),
-          _actionButton('assets/icons/regenerate.svg', 'Regenerar'),
+          _actionButton('assets/icons/svg/copy.svg', 'Copiar'),
+          _actionButton('assets/icons/svg/thumbs_up.svg', 'Like'),
+          _actionButton('assets/icons/svg/thumbs_down.svg', 'Dislike'),
+          _actionButton('assets/icons/svg/share.svg', 'Partilhar'),
+          _actionButton('assets/icons/svg/regenerate.svg', 'Regenerar'),
         ],
       ),
     );

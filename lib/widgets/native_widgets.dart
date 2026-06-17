@@ -2,14 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';               // ← Clipboard
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:table_calendar/table_calendar.dart';   // ← movido para o topo
+import 'package:table_calendar/table_calendar.dart';
 import '../utils/helpers.dart';
 
-// ─── Container comum para widgets ───
 class WidgetContainer extends StatelessWidget {
   final String? title;
   final Widget child;
@@ -49,7 +47,6 @@ class WidgetContainer extends StatelessWidget {
   }
 }
 
-// ─── Widget: Bar Chart ───────────────────────────────────────────────────────
 class NativeBarChart extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeBarChart({super.key, required this.json});
@@ -144,7 +141,6 @@ class _BarItem {
   _BarItem({required this.label, required this.value, required this.color});
 }
 
-// ─── Widget: Pie Chart ───────────────────────────────────────────────────────
 class NativePieChart extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativePieChart({super.key, required this.json});
@@ -241,7 +237,6 @@ class _SliceItem {
   _SliceItem({required this.label, required this.value, required this.color});
 }
 
-// ─── Widget: Table ───────────────────────────────────────────────────────────
 class NativeTable extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeTable({super.key, required this.json});
@@ -294,11 +289,7 @@ class _TableRow extends StatelessWidget {
   final bool isHeader;
   final List<String> aligns;
 
-  const _TableRow({
-    required this.cells,
-    this.isHeader = false,
-    required this.aligns,
-  });
+  const _TableRow({required this.cells, this.isHeader = false, required this.aligns});
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +306,8 @@ class _TableRow extends StatelessWidget {
                 color: isHeader ? const Color(0xFFF2F2F2) : null,
                 child: Text(
                   text,
-                  style: GoogleFonts.tinos(
+                  style: TextStyle(
+                    fontFamily: 'TimesNewRoman',
                     fontSize: 16,
                     fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
                     height: 1.2,
@@ -340,7 +332,6 @@ class _TableRow extends StatelessWidget {
   }
 }
 
-// ─── Widget: Calendar ────────────────────────────────────────────────────────
 class NativeCalendar extends StatefulWidget {
   final Map<String, dynamic> json;
   const NativeCalendar({super.key, required this.json});
@@ -463,7 +454,6 @@ class _NativeCalendarState extends State<NativeCalendar> {
   }
 }
 
-// ─── Widget: Code Block ──────────────────────────────────────────────────────
 class NativeCodeBlock extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeCodeBlock({super.key, required this.json});
@@ -507,7 +497,7 @@ class NativeCodeBlock extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFF4A4A4A)),
                     ),
-                    child: SvgPicture.asset('assets/icons/copy.svg',
+                    child: SvgPicture.asset('assets/icons/svg/copy.svg',
                         width: 14, height: 14,
                         colorFilter: const ColorFilter.mode(Color(0xFFF2F2F2), BlendMode.srcIn)),
                   ),
@@ -535,7 +525,6 @@ class NativeCodeBlock extends StatelessWidget {
   }
 }
 
-// ─── Widget: Timer ───────────────────────────────────────────────────────────
 class NativeTimer extends StatefulWidget {
   final Map<String, dynamic> json;
   const NativeTimer({super.key, required this.json});
@@ -544,7 +533,7 @@ class NativeTimer extends StatefulWidget {
   State<NativeTimer> createState() => _NativeTimerState();
 }
 
-class _NativeTimerState extends State<NativeTimer> with SingleTickerProviderStateMixin {
+class _NativeTimerState extends State<NativeTimer> {
   late int elapsedMs;
   bool running = false;
   Timer? _timer;
@@ -666,7 +655,6 @@ class _NativeTimerState extends State<NativeTimer> with SingleTickerProviderStat
   }
 }
 
-// ─── Widget: Math Graph ──────────────────────────────────────────────────────
 class NativeMathGraph extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMathGraph({super.key, required this.json});
@@ -744,7 +732,6 @@ class _MathGraphPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// ─── Widget: Mind Map ────────────────────────────────────────────────────────
 class NativeMindMap extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMindMap({super.key, required this.json});
@@ -803,7 +790,6 @@ class _MindMapPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// ─── Widget: Market ──────────────────────────────────────────────────────────
 class NativeMarket extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMarket({super.key, required this.json});
@@ -892,7 +878,6 @@ class NativeMarket extends StatelessWidget {
   }
 }
 
-// ─── Widget: Map Placeholder ─────────────────────────────────────────────────
 class NativeMapPlaceholder extends StatelessWidget {
   final Map<String, dynamic> json;
   const NativeMapPlaceholder({super.key, required this.json});
@@ -957,7 +942,6 @@ class NativeMapPlaceholder extends StatelessWidget {
   }
 }
 
-// ─── Dispatcher principal ────────────────────────────────────────────────────
 Widget buildNativeWidget(String widgetType, String jsonData) {
   try {
     final json = jsonDecode(jsonData) as Map<String, dynamic>;

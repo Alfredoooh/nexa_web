@@ -6,12 +6,33 @@
   <title>Nexa</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/styles.css">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="light" id="body">
   <div id="app"></div>
   <div id="toast" style="position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);background:#1C1C1E;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;opacity:0;transition:all 0.3s ease;z-index:9999;pointer-events:none;white-space:nowrap;"></div>
 
+  <!-- Firebase SDK compat (síncrono, sem type=module) -->
+  <script src="https://www.gstatic.com/firebasejs/11.9.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.9.0/firebase-auth-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey:            "AIzaSyD5vbUGQFTkcJ5_oH9BgU-_M4yFKBiHpuA",
+      authDomain:        "nexa-app-e4bb3.firebaseapp.com",
+      projectId:         "nexa-app-e4bb3",
+      storageBucket:     "nexa-app-e4bb3.firebasestorage.app",
+      messagingSenderId: "534344296518",
+      appId:             "1:534344296518:web:1575ac66d6d65fb42b8247"
+    });
+
+    window._firebaseAuth   = firebase.auth();
+    window._googleProvider = new firebase.auth.GoogleAuthProvider();
+
+    window._signInWithPopup = function(auth, provider) {
+      return auth.signInWithPopup(provider);
+    };
+  </script>
+
+  <!-- App scripts -->
   <script src="js/utils.js"></script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>

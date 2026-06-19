@@ -1,9 +1,5 @@
 /* =========================================================================
    FIX DE ALTURA DINÂMICA
-   Resolve o bug do bottom bar a ficar "encostado" / invisível no Chrome
-   mobile quando a barra de endereço colapsa ou expande ao fazer scroll.
-   100vh sozinho não acompanha essa mudança em tempo real; recalculamos
-   --vh manualmente e usamos visualViewport quando disponível.
    ========================================================================= */
 (function setupDynamicViewportHeight() {
     function applyVH() {
@@ -141,7 +137,7 @@ class ChatState {
 const chatState = new ChatState();
 
 /* =========================================================================
-   PREFERÊNCIAS DE WIDGETS (switches do modal "Edit")
+   PREFERÊNCIAS DE WIDGETS
    ========================================================================= */
 
 const WIDGET_SETTINGS_KEY = 'ipc_widget_settings_v1';
@@ -150,16 +146,12 @@ function loadWidgetSettings() {
     try {
         const raw = localStorage.getItem(WIDGET_SETTINGS_KEY);
         return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-        return {};
-    }
+    } catch (e) { return {}; }
 }
 
 let widgetSettings = loadWidgetSettings();
 
-function isWidgetEnabled(type) {
-    return widgetSettings[type] !== false;
-}
+function isWidgetEnabled(type) { return widgetSettings[type] !== false; }
 
 function setWidgetEnabled(type, enabled) {
     widgetSettings[type] = enabled;
@@ -212,7 +204,7 @@ function renderMarkdown(rawText) {
     if (!rawText) return '';
 
     const codeBlocks = [];
-    let text = rawText.replace(/```([\w_]*)[\r\n]+([\s\S]*?)```/g, (match, lang, code) => {
+    let text = rawText.replace(/```([\w_]*?)[\r\n]+([\s\S]*?)```/g, (match, lang, code) => {
         const index = codeBlocks.length;
         codeBlocks.push({ lang: lang.trim(), code: code.replace(/\n$/, '') });
         return `\u0000CODEBLOCK${index}\u0000`;
@@ -232,21 +224,18 @@ function renderMarkdown(rawText) {
         if (joined.trim()) resultParts.push(`<p class="md-para">${joined}</p>`);
         paraLines = [];
     };
-
     const flushList = () => {
         if (listItems.length === 0) return;
         const items = listItems.map(li => `<li class="md-li">${li}</li>`).join('');
         resultParts.push(`<ul class="md-list">${items}</ul>`);
         listItems = [];
     };
-
     const flushOrdered = () => {
         if (orderedItems.length === 0) return;
         const items = orderedItems.map(li => `<li class="md-li">${li}</li>`).join('');
         resultParts.push(`<ol class="md-olist">${items}</ol>`);
         orderedItems = [];
     };
-
     const flushBlockquote = () => {
         if (blockquoteLines.length === 0) return;
         const inner = blockquoteLines.join('<br>');
@@ -260,23 +249,14 @@ function renderMarkdown(rawText) {
         const escaped = escapeHtml(raw);
 
         if (raw.trim() === '') {
-            flushList();
-            flushOrdered();
-            flushBlockquote();
-            flushPara();
+            flushList(); flushOrdered(); flushBlockquote(); flushPara();
             continue;
         }
-
         if (raw.trim().startsWith('\u0000CODEBLOCK')) {
-            flushList();
-            flushOrdered();
-            flushBlockquote();
-            flushPara();
+            flushList(); flushOrdered(); flushBlockquote(); flushPara();
             resultParts.push(raw.trim());
             continue;
         }
-
-        // Headings
         const h4 = raw.match(/^####\s+(.+)/);
         const h3 = raw.match(/^###\s+(.+)/);
         const h2 = raw.match(/^##\s+(.+)/);
@@ -288,15 +268,11 @@ function renderMarkdown(rawText) {
             if (h2) { resultParts.push(`<h2 class="md-h2">${applyInline(escapeHtml(h2[1]))}</h2>`); continue; }
             if (h1) { resultParts.push(`<h1 class="md-h1">${applyInline(escapeHtml(h1[1]))}</h1>`); continue; }
         }
-
-        // Horizontal rule
         if (/^(\*{3,}|-{3,}|_{3,})\s*$/.test(raw.trim())) {
             flushList(); flushOrdered(); flushBlockquote(); flushPara();
             resultParts.push(`<hr class="md-hr">`);
             continue;
         }
-
-        // Blockquote
         const bqMatch = raw.match(/^>\s*(.*)/);
         if (bqMatch) {
             flushList(); flushOrdered(); flushPara();
@@ -305,44 +281,31 @@ function renderMarkdown(rawText) {
             continue;
         }
         if (inBlockquote) { flushBlockquote(); }
-
-        // Unordered list
         const listMatch = raw.match(/^(\s*)[-*+]\s+(.+)/);
         if (listMatch) {
             flushOrdered(); flushPara();
             listItems.push(applyInline(escapeHtml(listMatch[2])));
             continue;
         }
-
-        // Ordered list
         const numMatch = raw.match(/^(\s*)\d+\.\s+(.+)/);
         if (numMatch) {
             flushList(); flushPara();
             orderedItems.push(applyInline(escapeHtml(numMatch[2])));
             continue;
         }
-
-        // Paragraph
-        flushList();
-        flushOrdered();
+        flushList(); flushOrdered();
         paraLines.push(applyInline(escaped));
     }
 
-    flushList();
-    flushOrdered();
-    flushBlockquote();
-    flushPara();
+    flushList(); flushOrdered(); flushBlockquote(); flushPara();
 
     text = resultParts.join('');
-
     text = text.replace(/\u0000CODEBLOCK(\d+)\u0000/g, (match, idx) => {
         const block = codeBlocks[Number(idx)];
         const lang = block.lang;
-
         if (ALL_WIDGET_TYPES.has(lang) && isWidgetEnabled(lang)) {
             return `<div class="native-widget" data-widget-type="${lang}" data-widget-json="${escapeAttr(block.code)}"></div>`;
         }
-
         const safeCode = escapeHtml(block.code);
         const langLabel = lang
             ? `<div class="code-block-header"><span class="code-lang-label">${escapeHtml(lang)}</span><button class="code-copy-btn pulse-tap" onclick="copyCodeBlock(this)" title="Copiar código"><span class="icon-mask" style="mask-image:url('assets/icons/svg/copy.svg');-webkit-mask-image:url('assets/icons/svg/copy.svg');width:13px;height:13px;background:currentColor;"></span></button></div>`
@@ -354,21 +317,15 @@ function renderMarkdown(rawText) {
 }
 
 function applyInline(text) {
-    // Bold
     text = text.replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>');
     text = text.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
     text = text.replace(/__([^_\n]+)__/g, '<strong>$1</strong>');
-    // Italic
     text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
     text = text.replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>');
-    // Strikethrough
     text = text.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
-    // Inline code
     text = text.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
-    // Links
     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
         '<a class="md-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    // Mark/highlight
     text = text.replace(/==([^=\n]+)==/g, '<mark class="md-mark">$1</mark>');
     return text;
 }
@@ -380,12 +337,256 @@ function copyCodeBlock(btn) {
 }
 
 /* =========================================================================
+   GRAVAÇÃO DE VOZ (MediaRecorder → Groq Whisper v3 Turbo)
+   ========================================================================= */
+
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let waveAnimFrame = null;
+let waveAnalyser = null;
+let waveAudioCtx = null;
+let waveSource = null;
+
+function startWaveAnimation(analyser) {
+    const bar = document.getElementById('waveformBar');
+    if (!bar) return;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    function draw() {
+        if (!isRecording) return;
+        waveAnimFrame = requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+        const avg = sum / bufferLength;
+        const level = Math.min(1, avg / 80);
+
+        // Atualiza barrinhas
+        const bars = bar.querySelectorAll('.wave-bar');
+        bars.forEach((b, i) => {
+            const noise = Math.random() * 0.4 + 0.6;
+            const height = Math.max(4, level * 28 * noise + (i % 3 === 1 ? 6 : 0));
+            b.style.height = height + 'px';
+        });
+    }
+    draw();
+}
+
+function stopWaveAnimation() {
+    if (waveAnimFrame) { cancelAnimationFrame(waveAnimFrame); waveAnimFrame = null; }
+    if (waveSource) { try { waveSource.disconnect(); } catch (e) {} waveSource = null; }
+    if (waveAudioCtx) { try { waveAudioCtx.close(); } catch (e) {} waveAudioCtx = null; }
+    waveAnalyser = null;
+}
+
+function buildWaveformBar() {
+    const wrap = document.createElement('div');
+    wrap.id = 'waveformBar';
+    wrap.style.cssText = `
+        display: flex; align-items: center; justify-content: center;
+        gap: 3px; height: 40px; padding: 0 18px;
+        background: linear-gradient(90deg, #6F5AF6, #A78BFA, #6F5AF6);
+        background-size: 200% 100%;
+        animation: waveGradientShift 1.8s linear infinite;
+        border-radius: 14px 14px 0 0;
+        flex-shrink: 0;
+    `;
+    const NUM_BARS = 18;
+    for (let i = 0; i < NUM_BARS; i++) {
+        const b = document.createElement('div');
+        b.className = 'wave-bar';
+        b.style.cssText = `
+            width: 3px; height: 4px; border-radius: 2px;
+            background: rgba(255,255,255,0.85);
+            transition: height 0.08s ease;
+            flex-shrink: 0;
+        `;
+        wrap.appendChild(b);
+    }
+    return wrap;
+}
+
+async function startRecording() {
+    if (isRecording) return;
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Analisador de áudio para waveform
+        waveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        waveAnalyser = waveAudioCtx.createAnalyser();
+        waveAnalyser.fftSize = 64;
+        waveSource = waveAudioCtx.createMediaStreamSource(stream);
+        waveSource.connect(waveAnalyser);
+
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = handleRecordingStop;
+        mediaRecorder.start();
+        isRecording = true;
+
+        // Substitui a bottom bar pelo waveform
+        showWaveformUI();
+        startWaveAnimation(waveAnalyser);
+
+    } catch (err) {
+        showToast('Sem acesso ao microfone');
+    }
+}
+
+function stopRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    isRecording = false;
+    mediaRecorder.stop();
+    mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+    stopWaveAnimation();
+    hideWaveformUI();
+}
+
+function cancelRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    isRecording = false;
+    mediaRecorder.onstop = null; // cancela o handler
+    mediaRecorder.stop();
+    mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+    audioChunks = [];
+    stopWaveAnimation();
+    hideWaveformUI();
+}
+
+async function handleRecordingStop() {
+    if (audioChunks.length === 0) return;
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    audioChunks = [];
+
+    showToast('A transcrever…');
+
+    try {
+        const token = authState.user?.token || '';
+        const formData = new FormData();
+        formData.append('file', blob, 'audio.webm');
+        formData.append('language', 'pt');
+
+        const res = await fetch(`${API_BASE}/ai/transcribe`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+
+        if (!res.ok) throw new Error('Erro na transcrição');
+        const data = await res.json();
+        const text = (data.text || '').trim();
+
+        if (text) {
+            const input = document.getElementById('textInput');
+            if (input) {
+                input.value = (input.value ? input.value + ' ' : '') + text;
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+                updateSendButton();
+                input.focus();
+            }
+        } else {
+            showToast('Nenhum texto reconhecido');
+        }
+    } catch (err) {
+        showToast('Erro ao transcrever áudio');
+    }
+}
+
+function showWaveformUI() {
+    const bottomBar = document.getElementById('bottomBar');
+    if (!bottomBar) return;
+
+    // Esconde o conteúdo normal
+    const textarea = document.getElementById('textInput');
+    const btnRow = bottomBar.querySelector('.flex.items-center.h-\\[52px\\]');
+    if (textarea) textarea.style.display = 'none';
+    if (btnRow) btnRow.style.display = 'none';
+
+    // Insere waveform no topo da bottomBar
+    const wave = buildWaveformBar();
+    bottomBar.insertBefore(wave, bottomBar.firstChild);
+
+    // Linha de controlos: cancelar | timer | parar
+    const controls = document.createElement('div');
+    controls.id = 'recordControls';
+    controls.style.cssText = `
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 20px; gap: 12px;
+    `;
+
+    // Botão cancelar
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'pulse-tap';
+    cancelBtn.style.cssText = `background: transparent; border: none; font-size: 14px; font-weight: 600; color: #EF4444; cursor: pointer; padding: 6px 10px;`;
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.onclick = cancelRecording;
+
+    // Timer
+    const timer = document.createElement('span');
+    timer.id = 'recordTimer';
+    timer.style.cssText = `font-size: 14px; font-weight: 600; color: #6F5AF6; font-variant-numeric: tabular-nums;`;
+    timer.textContent = '0:00';
+
+    let seconds = 0;
+    const timerInterval = setInterval(() => {
+        if (!isRecording) { clearInterval(timerInterval); return; }
+        seconds++;
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        const el = document.getElementById('recordTimer');
+        if (el) el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+    }, 1000);
+
+    // Botão parar/enviar
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'pulse-tap';
+    stopBtn.style.cssText = `
+        width: 44px; height: 44px; border-radius: 50%; border: none;
+        background: #6F5AF6; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; flex-shrink: 0;
+    `;
+    stopBtn.innerHTML = `<span class="icon-mask" style="mask-image:url('assets/icons/svg/record.svg');-webkit-mask-image:url('assets/icons/svg/record.svg');width:18px;height:18px;background:#fff;"></span>`;
+    stopBtn.onclick = stopRecording;
+
+    controls.appendChild(cancelBtn);
+    controls.appendChild(timer);
+    controls.appendChild(stopBtn);
+    bottomBar.appendChild(controls);
+}
+
+function hideWaveformUI() {
+    const bottomBar = document.getElementById('bottomBar');
+    if (!bottomBar) return;
+
+    // Remove waveform e controlos
+    document.getElementById('waveformBar')?.remove();
+    document.getElementById('recordControls')?.remove();
+
+    // Mostra conteúdo normal
+    const textarea = document.getElementById('textInput');
+    const btnRow = bottomBar.querySelector('.flex.items-center.h-\\[52px\\]');
+    if (textarea) textarea.style.display = '';
+    if (btnRow) btnRow.style.display = '';
+}
+
+/* =========================================================================
    PÁGINA DE CHAT
    ========================================================================= */
 
 function renderChatPage() {
     const colors = getThemeColors();
     document.getElementById('app').innerHTML = `
+    <style>
+        @keyframes waveGradientShift {
+            0%   { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+    </style>
     <div id="chatApp" class="h-full w-full flex flex-col relative overflow-hidden">
 
         <div class="app-bar-gradient ${isDarkMode ? 'dark' : 'light'}"></div>
@@ -515,7 +716,9 @@ function bindChatEvents() {
         const text = document.getElementById('textInput').value;
         if (text.trim() && !chatState.isStreaming) sendMessage(text);
     };
-    document.getElementById('micBtn').onclick = () => showToast('Funcionalidade de voz em breve');
+
+    // Mic: toque inicia gravação
+    document.getElementById('micBtn').onclick = () => startRecording();
 
     const textInput = document.getElementById('textInput');
     textInput.oninput = () => {
@@ -523,10 +726,20 @@ function bindChatEvents() {
         textInput.style.height = 'auto';
         textInput.style.height = Math.min(textInput.scrollHeight, 150) + 'px';
     };
+
+    // Enter só envia em desktop (sem touchscreen); em mobile faz nova linha
     textInput.onkeydown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (textInput.value.trim() && !chatState.isStreaming) sendMessage(textInput.value);
+        if (e.key === 'Enter') {
+            const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+            if (isMobile) {
+                // Em mobile: Enter = nova linha — não faz nada especial, deixa o comportamento padrão
+                return;
+            }
+            // Desktop: Enter sem Shift envia
+            if (!e.shiftKey) {
+                e.preventDefault();
+                if (textInput.value.trim() && !chatState.isStreaming) sendMessage(textInput.value);
+            }
         }
     };
 
@@ -678,20 +891,18 @@ function createMessageBubble(msg, idx, colors) {
             wrapper.appendChild(buildThinkingSkeleton(colors));
             return wrapper;
         }
-
         if (msg.isStreaming && msg.isThinking && msg.thinkingContent && !msg.content) {
             wrapper.appendChild(buildThinkingBadge(msg.thinkingContent, colors));
             wrapper.appendChild(buildThinkingSkeleton(colors));
             return wrapper;
         }
-
         if (msg.thinkingContent && !msg.isThinking) {
             wrapper.appendChild(buildThinkingBadge(msg.thinkingContent, colors));
         }
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'assistant-content';
-        contentDiv.style.cssText = `font-size: 15px; line-height: 1.65; color: ${isDarkMode ? colors.textPrimary : '#232933'};`;
+        contentDiv.style.cssText = `font-size: 15px; line-height: 1.65; color: ${isDarkMode ? colors.textPrimary : '#212730'};`;
         contentDiv.innerHTML = renderMarkdown(msg.content);
         if (msg.isStreaming && msg.content) contentDiv.classList.add('cursor-blink');
         wrapper.appendChild(contentDiv);
@@ -840,7 +1051,7 @@ function renderConversationsList() {
     });
 }
 
-/* ── Modal de opções de conversa (redesenhado) ────────────────────────────── */
+/* ── Modal de opções de conversa ─────────────────────────────────────────── */
 function showConvOptionsSheet(conv) {
     closeDrawer();
     const colors = getThemeColors();
@@ -959,7 +1170,7 @@ function shareConversationText(conv) {
     }
 }
 
-/* ── Renomear conversa: diálogo central nativo ────────────────────────────── */
+/* ── Renomear conversa ────────────────────────────────────────────────────── */
 function showRenameDialog(conv) {
     closeAllModals();
     document.getElementById('renameDialogOverlay')?.remove();
@@ -1223,11 +1434,10 @@ function closeModalSheet() {
     sheet.style.transform = '';
     sheet.style.transition = '';
     overlay.style.opacity = '';
-    // Restaurar altura padrão
     sheet.style.minHeight = '';
 }
 
-/* ── Handle de arrastar reutilizável (drag-to-dismiss nativo) ─────────────── */
+/* ── Handle de arrastar ───────────────────────────────────────────────────── */
 function buildSheetHandle(sheetEl, overlayEl, closeFn) {
     const wrap = document.createElement('div');
     wrap.className = 'sheet-handle-wrap';
@@ -1302,51 +1512,55 @@ function showAddPopup() {
         closeModalSheet
     ));
 
-    // Input de ficheiro escondido
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.style.display = 'none';
-    fileInput.onchange = (e) => {
+    // Input imagem escondido
+    const fileInputImage = document.createElement('input');
+    fileInputImage.type = 'file';
+    fileInputImage.accept = 'image/*';
+    fileInputImage.style.display = 'none';
+    fileInputImage.onchange = (e) => {
         const file = e.target.files?.[0];
-        if (file) {
-            closeAllModals();
-            showToast(`Imagem "${file.name}" selecionada`);
-        }
+        if (file) { closeAllModals(); showToast(`Imagem "${file.name}" selecionada`); }
     };
-    content.appendChild(fileInput);
+    content.appendChild(fileInputImage);
 
-    const rowImage = document.createElement('div');
-    rowImage.className = 'pulse-tap';
-    rowImage.style.cssText = `display: flex; align-items: center; padding: 14px 20px; cursor: pointer;`;
-    rowImage.onclick = () => fileInput.click();
-    const iconImage = document.createElement('span');
-    iconImage.className = 'icon-mask';
-    iconImage.style.cssText = `mask-image: url('assets/icons/svg/image.svg'); -webkit-mask-image: url('assets/icons/svg/image.svg'); width: 22px; height: 22px; background: ${colors.iconTint}; flex-shrink: 0;`;
-    rowImage.appendChild(iconImage);
-    const labelImage = document.createElement('span');
-    labelImage.style.cssText = `margin-left: 14px; font-size: 15px; font-weight: 500; color: ${colors.textPrimary};`;
-    labelImage.textContent = 'Enviar Imagem';
-    rowImage.appendChild(labelImage);
-    content.appendChild(rowImage);
+    // Input upload qualquer ficheiro escondido
+    const fileInputUpload = document.createElement('input');
+    fileInputUpload.type = 'file';
+    fileInputUpload.accept = '*/*';
+    fileInputUpload.style.display = 'none';
+    fileInputUpload.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) { closeAllModals(); showToast(`Ficheiro "${file.name}" selecionado`); }
+    };
+    content.appendChild(fileInputUpload);
 
-    const sep = document.createElement('div');
-    sep.style.cssText = `height: 1px; margin-left: 56px; background: ${colors.divider};`;
-    content.appendChild(sep);
+    function buildRow(iconName, label, onClick) {
+        const row = document.createElement('div');
+        row.className = 'pulse-tap';
+        row.style.cssText = `display: flex; align-items: center; padding: 14px 20px; cursor: pointer;`;
+        row.onclick = onClick;
+        const icon = document.createElement('span');
+        icon.className = 'icon-mask';
+        icon.style.cssText = `mask-image: url('assets/icons/svg/${iconName}.svg'); -webkit-mask-image: url('assets/icons/svg/${iconName}.svg'); width: 22px; height: 22px; background: ${colors.iconTint}; flex-shrink: 0;`;
+        row.appendChild(icon);
+        const lbl = document.createElement('span');
+        lbl.style.cssText = `margin-left: 14px; font-size: 15px; font-weight: 500; color: ${colors.textPrimary};`;
+        lbl.textContent = label;
+        row.appendChild(lbl);
+        return row;
+    }
 
-    const rowExtras = document.createElement('div');
-    rowExtras.className = 'pulse-tap';
-    rowExtras.style.cssText = `display: flex; align-items: center; padding: 14px 20px; cursor: pointer;`;
-    rowExtras.onclick = () => { closeAllModals(); setTimeout(showExtrasSheet, 180); };
-    const iconExtras = document.createElement('span');
-    iconExtras.className = 'icon-mask';
-    iconExtras.style.cssText = `mask-image: url('assets/icons/svg/extras.svg'); -webkit-mask-image: url('assets/icons/svg/extras.svg'); width: 22px; height: 22px; background: ${colors.iconTint}; flex-shrink: 0;`;
-    rowExtras.appendChild(iconExtras);
-    const labelExtras = document.createElement('span');
-    labelExtras.style.cssText = `margin-left: 14px; font-size: 15px; font-weight: 500; color: ${colors.textPrimary};`;
-    labelExtras.textContent = 'Extras';
-    rowExtras.appendChild(labelExtras);
-    content.appendChild(rowExtras);
+    function buildSep() {
+        const sep = document.createElement('div');
+        sep.style.cssText = `height: 1px; margin-left: 56px; background: ${colors.divider};`;
+        return sep;
+    }
+
+    content.appendChild(buildRow('camera', 'Enviar Imagem', () => fileInputImage.click()));
+    content.appendChild(buildSep());
+    content.appendChild(buildRow('upload', 'Enviar Ficheiro', () => fileInputUpload.click()));
+    content.appendChild(buildSep());
+    content.appendChild(buildRow('extras', 'Extras', () => { closeAllModals(); setTimeout(showExtrasSheet, 180); }));
 
     const pad = document.createElement('div');
     pad.style.height = '16px';
@@ -1417,7 +1631,6 @@ function appendDividerRow(container, marginLeftPx) {
     container.appendChild(div);
 }
 
-/* ── Interruptor nativo reutilizável ──────────────────────────────────────── */
 function buildSwitch(initialValue, onChange) {
     let value = !!initialValue;
     const track = document.createElement('div');
@@ -1433,28 +1646,26 @@ function buildSwitch(initialValue, onChange) {
     return track;
 }
 
-/* ── Modal "Edit" (antigo Widgets) esvaziado e mais alto ────────────────── */
+/* ── Modal "Edit" ────────────────────────────────────────────────────────── */
 function showEditModal() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
     content.innerHTML = '';
 
-    // Handle de arrastar
     content.appendChild(buildSheetHandle(
         document.getElementById('modalSheet'),
         document.getElementById('modalOverlay'),
         closeModalSheet
     ));
 
-    // Título "Edit"
     const titleEl = document.createElement('div');
     titleEl.style.cssText = `padding: 4px 20px 20px; font-size: 17px; font-weight: 700; color: ${colors.textPrimary};`;
     titleEl.textContent = 'Edit';
     content.appendChild(titleEl);
 
-    // Aumentar altura mínima do sheet
+    // Modal Edit sobe mais: minHeight aumentado de 58vh para 75vh
     const sheet = document.getElementById('modalSheet');
-    if (sheet) sheet.style.minHeight = '58vh';
+    if (sheet) sheet.style.minHeight = '75vh';
 
     openModalSheet();
 }

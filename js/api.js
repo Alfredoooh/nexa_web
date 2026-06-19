@@ -1,9 +1,9 @@
-const BASE_URL = 'https://ipc.alfredopjonas.workers.dev';
+const API_BASE = 'https://nexa.alfredopjonas.workers.dev';
 
 const AuthApiService = {
   async login(email, password) {
     try {
-      const res = await fetch(`${BASE_URL}/auth/login`, {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -12,9 +12,10 @@ const AuthApiService = {
     } catch (e) { console.error('Login error:', e); }
     return null;
   },
+
   async register(name, email, password) {
     try {
-      const res = await fetch(`${BASE_URL}/auth/register`, {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password })
@@ -23,17 +24,31 @@ const AuthApiService = {
     } catch (e) { console.error('Register error:', e); }
     return null;
   },
+
+  async loginWithFirebase(idToken) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/firebase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken })
+      });
+      if (res.ok) return await res.json();
+    } catch (e) { console.error('Firebase login error:', e); }
+    return null;
+  },
+
   async logout(token) {
     try {
-      await fetch(`${BASE_URL}/auth/logout`, {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
     } catch (e) { console.error('Logout error:', e); }
   },
+
   async listConversations(token) {
     try {
-      const res = await fetch(`${BASE_URL}/conversations`, {
+      const res = await fetch(`${API_BASE}/conversations`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -43,9 +58,10 @@ const AuthApiService = {
     } catch (e) { console.error('List conversations error:', e); }
     return [];
   },
+
   async createConversation(token, title, messages) {
     try {
-      const res = await fetch(`${BASE_URL}/conversations`, {
+      const res = await fetch(`${API_BASE}/conversations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,9 +76,10 @@ const AuthApiService = {
     } catch (e) { console.error('Create conversation error:', e); }
     return null;
   },
+
   async updateConversation(token, id, title, messages) {
     try {
-      await fetch(`${BASE_URL}/conversations/${id}`, {
+      await fetch(`${API_BASE}/conversations/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -72,13 +89,27 @@ const AuthApiService = {
       });
     } catch (e) { console.error('Update conversation error:', e); }
   },
+
   async deleteConversation(token, id) {
     try {
-      await fetch(`${BASE_URL}/conversations/${id}`, {
+      await fetch(`${API_BASE}/conversations/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
     } catch (e) { console.error('Delete conversation error:', e); }
+  },
+
+  async pinConversation(token, id, pinned) {
+    try {
+      await fetch(`${API_BASE}/conversations/${id}/pin`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ pinned })
+      });
+    } catch (e) { console.error('Pin conversation error:', e); }
   }
 };
 
@@ -127,6 +158,7 @@ Never use markdown tables (| col | col |) or normal code blocks (\`\`\`lang).`;
 
     const sheets = sheetsEnabled ? (pt ? `
 
+
 Com o Sheets ativo podes também usar estes widgets adicionais quando relevante:
 
 Gráfico de barras:
@@ -169,6 +201,7 @@ ${tick}widget_graph
 {"expression":"sin(x)","xMin":-10,"xMax":10}
 ${tick}`
       : `
+
 
 With Sheets enabled you can also use these additional widgets when relevant:
 
@@ -217,7 +250,7 @@ ${tick}`) : '';
 
   async * streamChat({ messages, systemPrompt, token, think }) {
     try {
-      const res = await fetch(`${BASE_URL}/ai/chat`, {
+      const res = await fetch(`${API_BASE}/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -237,9 +270,9 @@ ${tick}`) : '';
         return;
       }
 
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer   = '';
       let fullText = '';
 
       while (true) {
@@ -258,7 +291,7 @@ ${tick}`) : '';
             return;
           }
           try {
-            const json = JSON.parse(data);
+            const json       = JSON.parse(data);
             const candidates = json.candidates;
             if (!candidates || !candidates.length) continue;
             const parts = candidates[0].content?.parts || [];
@@ -288,7 +321,7 @@ ${tick}`) : '';
 
   async generateTitle(message, token) {
     try {
-      const res = await fetch(`${BASE_URL}/ai/title`, {
+      const res = await fetch(`${API_BASE}/ai/title`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

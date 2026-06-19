@@ -5,183 +5,284 @@ class AuthState {
   }
   setUser(user) {
     this.user = user;
-    localStorage.setItem('ipc_user', JSON.stringify(user));
+    localStorage.setItem('nexa_user', JSON.stringify(user));
     this.notify();
   }
   clear() {
     this.user = null;
-    localStorage.removeItem('ipc_user');
+    localStorage.removeItem('nexa_user');
     this.notify();
   }
-  subscribe(fn) {
-    this.listeners.push(fn);
-  }
-  notify() {
-    this.listeners.forEach(fn => fn(this.user));
-  }
+  subscribe(fn) { this.listeners.push(fn); }
+  notify() { this.listeners.forEach(fn => fn(this.user)); }
 }
 
 const authState = new AuthState();
 
-function renderLoginPage() {
-  const colors = isDarkMode ? darkColors : lightColors;
-  document.getElementById('app').innerHTML = `
-    <div class="min-h-screen flex items-center justify-center" style="background: ${isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)'};">
-        <div class="max-w-sm w-full p-8">
-            <img src="assets/icons/png/logo.png" class="w-20 h-20 mx-auto mb-8" alt="Logo" />
-            <h1 class="text-4xl font-bold text-center mb-2" style="font-family: 'TimesNewRoman', serif; color: ${colors.textPrimary}">Bem-vindo</h1>
-            <p class="text-center text-secondary mb-12" style="color: ${colors.textSecondary}">Entra na tua conta para continuar</p>
-            <input id="loginEmail" type="email" placeholder="Email" class="w-full h-14 rounded-3xl px-5 text-sm mb-4 border-none outline-none" style="background: ${colors.authInputFill || '#F3F4F6'}; color: ${colors.textPrimary};" />
-            <div class="relative mb-4">
-                <input id="loginPass" type="password" placeholder="Password" class="w-full h-14 rounded-3xl px-5 text-sm border-none outline-none" style="background: ${colors.authInputFill || '#F3F4F6'}; color: ${colors.textPrimary};" />
-                <button id="togglePass" class="absolute right-4 top-4 w-5 h-5 pulse-tap" style="color: ${colors.iconTintSecondary}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/eye_closed.svg'); -webkit-mask-image: url('assets/icons/svg/eye_closed.svg'); background: currentColor;"></span>
-                </button>
-            </div>
-            <p class="text-right text-sm mb-5" style="color: ${colors.authBtnBg || '#4F46E5'}">Esqueceste a password?</p>
-            <div id="loginError" class="text-red-500 text-sm text-center mb-4 hidden"></div>
-            <button id="loginBtn" class="w-full h-14 rounded-3xl text-white font-bold text-lg" style="background: ${colors.authBtnBg || '#4F46E5'};">Entrar</button>
-            <div class="flex items-center my-6">
-                <hr class="flex-1" style="border-color: ${colors.divider}" />
-                <span class="mx-4 text-sm" style="color: ${colors.textSecondary}">ou</span>
-                <hr class="flex-1" style="border-color: ${colors.divider}" />
-            </div>
-            <button class="w-full h-14 rounded-3xl flex items-center justify-center gap-3 opacity-50" style="background: ${colors.authInputFill || '#F3F4F6'};">
-                <img src="assets/icons/png/google.png" class="w-5 h-5" alt="Google" />
-                <span class="font-bold text-sm" style="color: ${colors.textPrimary}">Continuar com Google</span>
-            </button>
-            <p class="text-center mt-6 text-sm">
-                <span style="color: ${colors.textSecondary}">Não tens conta? </span>
-                <a id="goRegister" class="font-bold cursor-pointer" style="color: ${colors.authBtnBg || '#4F46E5'}">Regista-te</a>
-            </p>
-        </div>
-    </div>`;
+/* ── Google Sign-In ────────────────────────────────────────────────────────── */
+async function handleGoogleSignIn(btnEl) {
+  if (!window._firebaseAuth || !window._googleProvider) {
+    showToast('Firebase ainda a carregar, tenta novamente');
+    return;
+  }
+  const original = btnEl.innerHTML;
+  btnEl.disabled = true;
+  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;">A entrar…</span>`;
   
-  let passVisible = false;
-  document.getElementById('togglePass').onclick = () => {
-    passVisible = !passVisible;
-    const passInput = document.getElementById('loginPass');
-    passInput.type = passVisible ? 'text' : 'password';
-    const icon = document.querySelector('#togglePass .icon-mask');
-    icon.style.maskImage = passVisible ? "url('assets/icons/svg/eye.svg')" : "url('assets/icons/svg/eye_closed.svg')";
-    icon.style.webkitMaskImage = icon.style.maskImage;
-  };
-  
-  document.getElementById('goRegister').onclick = renderRegisterPage;
-  
-  document.getElementById('loginBtn').onclick = async () => {
-    const email = document.getElementById('loginEmail').value.trim();
-    const pass = document.getElementById('loginPass').value;
-    if (!email || !pass) {
-      document.getElementById('loginError').classList.remove('hidden');
-      document.getElementById('loginError').textContent = 'Preenche todos os campos.';
-      return;
-    }
-    document.getElementById('loginBtn').disabled = true;
-    document.getElementById('loginBtn').textContent = '...';
-    const user = await AuthApiService.login(email, pass);
-    if (user) {
+  try {
+    const result = await window._signInWithPopup(window._firebaseAuth, window._googleProvider);
+    const idToken = await result.user.getIdToken();
+    const user = await AuthApiService.loginWithFirebase(idToken);
+    
+    if (user && user.token) {
       authState.setUser(user);
       renderChatPage();
     } else {
-      document.getElementById('loginError').classList.remove('hidden');
-      document.getElementById('loginError').textContent = 'Email ou password incorretos.';
-      document.getElementById('loginBtn').disabled = false;
-      document.getElementById('loginBtn').textContent = 'Entrar';
+      showToast('Não foi possível entrar com Google');
+      btnEl.disabled = false;
+      btnEl.innerHTML = original;
+    }
+  } catch (err) {
+    console.error('Google sign-in error:', err);
+    if (err.code !== 'auth/popup-closed-by-user') {
+      showToast('Erro ao entrar com Google');
+    }
+    btnEl.disabled = false;
+    btnEl.innerHTML = original;
+  }
+}
+
+/* ── Página de Login ───────────────────────────────────────────────────────── */
+function renderLoginPage() {
+  const colors = isDarkMode ? darkColors : lightColors;
+  const bg = isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)';
+  
+  document.getElementById('app').innerHTML = `
+    <div class="min-h-screen flex items-center justify-center" style="background: ${bg};">
+      <div class="max-w-sm w-full p-8">
+
+        <img src="assets/icons/png/logo.png" class="w-20 h-20 mx-auto mb-8" alt="Logo" />
+        <h1 class="text-4xl font-bold text-center mb-2" style="font-family:'TimesNewRoman',serif; color:${colors.textPrimary}">Bem-vindo</h1>
+        <p class="text-center text-sm mb-10" style="color:${colors.textSecondary}">Entra na tua conta para continuar</p>
+
+        <!-- Google -->
+        <button id="googleLoginBtn" class="w-full h-14 rounded-3xl flex items-center justify-center gap-3 mb-4 pulse-tap" style="background:${colors.authInputFill || '#F3F4F6'}; border: 1px solid ${colors.divider};">
+          <img src="assets/icons/png/google.png" class="w-5 h-5" alt="Google" />
+          <span class="font-bold text-sm" style="color:${colors.textPrimary}">Continuar com Google</span>
+        </button>
+
+        <!-- Divisor -->
+        <div class="flex items-center my-5">
+          <hr class="flex-1" style="border-color:${colors.divider}" />
+          <span class="mx-4 text-sm" style="color:${colors.textSecondary}">ou usa o email</span>
+          <hr class="flex-1" style="border-color:${colors.divider}" />
+        </div>
+
+        <!-- Email -->
+        <input id="loginEmail" type="email" placeholder="Email"
+          class="w-full h-14 rounded-3xl px-5 text-sm mb-4 border-none outline-none"
+          style="background:${colors.authInputFill || '#F3F4F6'}; color:${colors.textPrimary};" />
+
+        <!-- Password -->
+        <div class="relative mb-3">
+          <input id="loginPass" type="password" placeholder="Password"
+            class="w-full h-14 rounded-3xl px-5 text-sm border-none outline-none"
+            style="background:${colors.authInputFill || '#F3F4F6'}; color:${colors.textPrimary};" />
+          <button id="togglePass" class="absolute right-4 top-4 w-5 h-5 pulse-tap" style="color:${colors.iconTintSecondary}">
+            <span class="icon-mask" style="mask-image:url('assets/icons/svg/eye_closed.svg'); -webkit-mask-image:url('assets/icons/svg/eye_closed.svg'); background:currentColor; width:20px; height:20px; display:block;"></span>
+          </button>
+        </div>
+
+        <p class="text-right text-sm mb-5 cursor-pointer" id="forgotPassBtn" style="color:${colors.authBtnBg || '#4F46E5'}">Esqueceste a password?</p>
+
+        <div id="loginError" class="text-red-500 text-sm text-center mb-4 hidden"></div>
+
+        <button id="loginBtn" class="w-full h-14 rounded-3xl text-white font-bold text-lg pulse-tap"
+          style="background:${colors.authBtnBg || '#4F46E5'};">Entrar</button>
+
+        <p class="text-center mt-8 text-sm">
+          <span style="color:${colors.textSecondary}">Não tens conta? </span>
+          <a id="goRegister" class="font-bold cursor-pointer" style="color:${colors.authBtnBg || '#4F46E5'}">Regista-te</a>
+        </p>
+      </div>
+    </div>`;
+  
+  // Toggle password
+  let passVisible = false;
+  document.getElementById('togglePass').onclick = () => {
+    passVisible = !passVisible;
+    document.getElementById('loginPass').type = passVisible ? 'text' : 'password';
+    const icon = document.querySelector('#togglePass .icon-mask');
+    const svg = passVisible ? 'eye' : 'eye_closed';
+    icon.style.maskImage = `url('assets/icons/svg/${svg}.svg')`;
+    icon.style.webkitMaskImage = icon.style.maskImage;
+  };
+  
+  // Google
+  document.getElementById('googleLoginBtn').onclick = function() {
+    handleGoogleSignIn(this);
+  };
+  
+  // Navegar para registo
+  document.getElementById('goRegister').onclick = renderRegisterPage;
+  
+  // Esqueci password
+  document.getElementById('forgotPassBtn').onclick = () => {
+    showToast('Recuperação de password em breve');
+  };
+  
+  // Login email/password
+  document.getElementById('loginBtn').onclick = async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPass').value;
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    
+    if (!email || !pass) {
+      errEl.classList.remove('hidden');
+      errEl.textContent = 'Preenche todos os campos.';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '…';
+    
+    const user = await AuthApiService.login(email, pass);
+    if (user && user.token) {
+      authState.setUser(user);
+      renderChatPage();
+    } else {
+      errEl.classList.remove('hidden');
+      errEl.textContent = 'Email ou password incorretos.';
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
     }
   };
 }
 
+/* ── Página de Registo ─────────────────────────────────────────────────────── */
 function renderRegisterPage() {
   const colors = isDarkMode ? darkColors : lightColors;
+  const bg = isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)';
+  
   document.getElementById('app').innerHTML = `
-    <div class="min-h-screen flex flex-col" style="background: ${isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)'};">
-        <div class="flex items-center h-14 px-4 pt-2">
-            <button id="backBtn" class="w-10 h-10 rounded-full flex items-center justify-center pulse-tap" style="background: ${colors.appbarBtnBg || '#F3F4F6'};">
-                <span class="icon-mask" style="mask-image: url('assets/icons/svg/back_arrow.svg'); -webkit-mask-image: url('assets/icons/svg/back_arrow.svg'); background: ${colors.iconTint}; width: 18px; height: 18px;"></span>
-            </button>
-            <h1 class="ml-3 text-xl font-bold" style="font-family: 'TimesNewRoman', serif; color: ${colors.textPrimary}">Criar conta</h1>
+    <div class="min-h-screen flex flex-col" style="background:${bg};">
+      <div class="flex items-center h-14 px-4 pt-2">
+        <button id="backBtn" class="w-10 h-10 rounded-full flex items-center justify-center pulse-tap" style="background:${colors.appbarBtnBg || '#F3F4F6'};">
+          <span class="icon-mask" style="mask-image:url('assets/icons/svg/back_arrow.svg'); -webkit-mask-image:url('assets/icons/svg/back_arrow.svg'); background:${colors.iconTint}; width:18px; height:18px; display:block;"></span>
+        </button>
+        <h1 class="ml-3 text-xl font-bold" style="font-family:'TimesNewRoman',serif; color:${colors.textPrimary}">Criar conta</h1>
+      </div>
+
+      <div class="flex-1 px-8 pt-4 max-w-sm mx-auto w-full">
+        <p class="text-sm mb-6" style="color:${colors.textSecondary}">Preenche os campos para começar</p>
+
+        <!-- Google -->
+        <button id="googleRegBtn" class="w-full h-14 rounded-3xl flex items-center justify-center gap-3 mb-5 pulse-tap" style="background:${colors.authInputFill || '#F3F4F6'}; border: 1px solid ${colors.divider};">
+          <img src="assets/icons/png/google.png" class="w-5 h-5" alt="Google" />
+          <span class="font-bold text-sm" style="color:${colors.textPrimary}">Continuar com Google</span>
+        </button>
+
+        <div class="flex items-center mb-5">
+          <hr class="flex-1" style="border-color:${colors.divider}" />
+          <span class="mx-4 text-sm" style="color:${colors.textSecondary}">ou usa o email</span>
+          <hr class="flex-1" style="border-color:${colors.divider}" />
         </div>
-        <div class="flex-1 px-8 pt-6 max-w-sm mx-auto w-full">
-            <p class="text-secondary text-sm mb-8" style="color: ${colors.textSecondary}">Preenche os campos para começar</p>
-            <input id="regName" placeholder="Nome completo" class="w-full h-14 rounded-3xl px-5 text-sm mb-4 border-none outline-none" style="background: ${colors.authInputFill || '#F3F4F6'}; color: ${colors.textPrimary};" />
-            <input id="regEmail" type="email" placeholder="Email" class="w-full h-14 rounded-3xl px-5 text-sm mb-4 border-none outline-none" style="background: ${colors.authInputFill || '#F3F4F6'}; color: ${colors.textPrimary};" />
-            <div class="relative mb-4">
-                <input id="regPass" type="password" placeholder="Password" class="w-full h-14 rounded-3xl px-5 text-sm border-none outline-none" style="background: ${colors.authInputFill || '#F3F4F6'}; color: ${colors.textPrimary};" />
-                <button id="toggleRegPass" class="absolute right-4 top-4 w-5 h-5 pulse-tap" style="color: ${colors.iconTintSecondary}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/eye_closed.svg'); -webkit-mask-image: url('assets/icons/svg/eye_closed.svg'); background: currentColor;"></span>
-                </button>
-            </div>
-            <div class="relative mb-4">
-                <input id="regPassConf" type="password" placeholder="Confirmar password" class="w-full h-14 rounded-3xl px-5 text-sm border-none outline-none" style="background: ${colors.authInputFill || '#F3F4F6'}; color: ${colors.textPrimary};" />
-                <button id="toggleRegPassConf" class="absolute right-4 top-4 w-5 h-5 pulse-tap" style="color: ${colors.iconTintSecondary}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/eye_closed.svg'); -webkit-mask-image: url('assets/icons/svg/eye_closed.svg'); background: currentColor;"></span>
-                </button>
-            </div>
-            <div id="regError" class="text-red-500 text-sm text-center mb-4 hidden"></div>
-            <button id="regBtn" class="w-full h-14 rounded-3xl text-white font-bold text-lg" style="background: ${colors.authBtnBg || '#4F46E5'};">Criar conta</button>
-            <div class="flex items-center my-6">
-                <hr class="flex-1" style="border-color: ${colors.divider}" />
-                <span class="mx-4 text-sm" style="color: ${colors.textSecondary}">ou</span>
-                <hr class="flex-1" style="border-color: ${colors.divider}" />
-            </div>
-            <button class="w-full h-14 rounded-3xl flex items-center justify-center gap-3 opacity-50" style="background: ${colors.authInputFill || '#F3F4F6'};">
-                <img src="assets/icons/png/google.png" class="w-5 h-5" alt="Google" />
-                <span class="font-bold text-sm" style="color: ${colors.textPrimary}">Continuar com Google</span>
-            </button>
-            <p class="text-center mt-6 text-sm">
-                <span style="color: ${colors.textSecondary}">Já tens conta? </span>
-                <a id="goLogin" class="font-bold cursor-pointer" style="color: ${colors.authBtnBg || '#4F46E5'}">Inicia sessão</a>
-            </p>
+
+        <input id="regName" placeholder="Nome completo"
+          class="w-full h-14 rounded-3xl px-5 text-sm mb-4 border-none outline-none"
+          style="background:${colors.authInputFill || '#F3F4F6'}; color:${colors.textPrimary};" />
+
+        <input id="regEmail" type="email" placeholder="Email"
+          class="w-full h-14 rounded-3xl px-5 text-sm mb-4 border-none outline-none"
+          style="background:${colors.authInputFill || '#F3F4F6'}; color:${colors.textPrimary};" />
+
+        <div class="relative mb-4">
+          <input id="regPass" type="password" placeholder="Password"
+            class="w-full h-14 rounded-3xl px-5 text-sm border-none outline-none"
+            style="background:${colors.authInputFill || '#F3F4F6'}; color:${colors.textPrimary};" />
+          <button id="toggleRegPass" class="absolute right-4 top-4 w-5 h-5 pulse-tap" style="color:${colors.iconTintSecondary}">
+            <span class="icon-mask" style="mask-image:url('assets/icons/svg/eye_closed.svg'); -webkit-mask-image:url('assets/icons/svg/eye_closed.svg'); background:currentColor; width:20px; height:20px; display:block;"></span>
+          </button>
         </div>
+
+        <div class="relative mb-4">
+          <input id="regPassConf" type="password" placeholder="Confirmar password"
+            class="w-full h-14 rounded-3xl px-5 text-sm border-none outline-none"
+            style="background:${colors.authInputFill || '#F3F4F6'}; color:${colors.textPrimary};" />
+          <button id="toggleRegPassConf" class="absolute right-4 top-4 w-5 h-5 pulse-tap" style="color:${colors.iconTintSecondary}">
+            <span class="icon-mask" style="mask-image:url('assets/icons/svg/eye_closed.svg'); -webkit-mask-image:url('assets/icons/svg/eye_closed.svg'); background:currentColor; width:20px; height:20px; display:block;"></span>
+          </button>
+        </div>
+
+        <div id="regError" class="text-red-500 text-sm text-center mb-4 hidden"></div>
+
+        <button id="regBtn" class="w-full h-14 rounded-3xl text-white font-bold text-lg pulse-tap"
+          style="background:${colors.authBtnBg || '#4F46E5'};">Criar conta</button>
+
+        <p class="text-center mt-6 text-sm">
+          <span style="color:${colors.textSecondary}">Já tens conta? </span>
+          <a id="goLogin" class="font-bold cursor-pointer" style="color:${colors.authBtnBg || '#4F46E5'}">Inicia sessão</a>
+        </p>
+      </div>
     </div>`;
   
-  let regPassVisible = false;
+  // Toggles password
+  let rv = false;
   document.getElementById('toggleRegPass').onclick = () => {
-    regPassVisible = !regPassVisible;
-    document.getElementById('regPass').type = regPassVisible ? 'text' : 'password';
+    rv = !rv;
+    document.getElementById('regPass').type = rv ? 'text' : 'password';
     const icon = document.querySelector('#toggleRegPass .icon-mask');
-    icon.style.maskImage = regPassVisible ? "url('assets/icons/svg/eye.svg')" : "url('assets/icons/svg/eye_closed.svg')";
+    icon.style.maskImage = `url('assets/icons/svg/${rv ? 'eye' : 'eye_closed'}.svg')`;
     icon.style.webkitMaskImage = icon.style.maskImage;
   };
-  let regPassConfVisible = false;
+  let rc = false;
   document.getElementById('toggleRegPassConf').onclick = () => {
-    regPassConfVisible = !regPassConfVisible;
-    document.getElementById('regPassConf').type = regPassConfVisible ? 'text' : 'password';
+    rc = !rc;
+    document.getElementById('regPassConf').type = rc ? 'text' : 'password';
     const icon = document.querySelector('#toggleRegPassConf .icon-mask');
-    icon.style.maskImage = regPassConfVisible ? "url('assets/icons/svg/eye.svg')" : "url('assets/icons/svg/eye_closed.svg')";
+    icon.style.maskImage = `url('assets/icons/svg/${rc ? 'eye' : 'eye_closed'}.svg')`;
     icon.style.webkitMaskImage = icon.style.maskImage;
   };
   
   document.getElementById('backBtn').onclick = renderLoginPage;
   document.getElementById('goLogin').onclick = renderLoginPage;
   
+  // Google no registo
+  document.getElementById('googleRegBtn').onclick = function() {
+    handleGoogleSignIn(this);
+  };
+  
+  // Registo email/password
   document.getElementById('regBtn').onclick = async () => {
     const name = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim();
     const pass = document.getElementById('regPass').value;
     const passConf = document.getElementById('regPassConf').value;
+    const errEl = document.getElementById('regError');
+    const btn = document.getElementById('regBtn');
+    
     if (!name || !email || !pass || !passConf) {
-      document.getElementById('regError').classList.remove('hidden');
-      document.getElementById('regError').textContent = 'Preenche todos os campos.';
+      errEl.classList.remove('hidden');
+      errEl.textContent = 'Preenche todos os campos.';
       return;
     }
     if (pass !== passConf) {
-      document.getElementById('regError').classList.remove('hidden');
-      document.getElementById('regError').textContent = 'As passwords não coincidem.';
+      errEl.classList.remove('hidden');
+      errEl.textContent = 'As passwords não coincidem.';
       return;
     }
-    document.getElementById('regBtn').disabled = true;
-    document.getElementById('regBtn').textContent = '...';
+    btn.disabled = true;
+    btn.textContent = '…';
+    
     const user = await AuthApiService.register(name, email, pass);
-    if (user) {
+    if (user && user.token) {
       authState.setUser(user);
       renderChatPage();
     } else {
-      document.getElementById('regError').classList.remove('hidden');
-      document.getElementById('regError').textContent = 'Não foi possível criar a conta.';
-      document.getElementById('regBtn').disabled = false;
-      document.getElementById('regBtn').textContent = 'Criar conta';
+      errEl.classList.remove('hidden');
+      errEl.textContent = 'Não foi possível criar a conta.';
+      btn.disabled = false;
+      btn.textContent = 'Criar conta';
     }
   };
 }

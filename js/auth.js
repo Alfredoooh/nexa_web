@@ -20,41 +20,46 @@ class AuthState {
 
 const authState = new AuthState();
 
-async function handleGoogleSignIn(btnEl) {
-  const original = btnEl.innerHTML;
-  btnEl.disabled = true;
-  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.6;">A redirecionar…</span>`;
-  
-  if (!window._firebaseAuth || !window._googleProvider) {
-    showToast('Firebase não carregou. Recarrega a página.');
-    btnEl.disabled = false;
-    btnEl.innerHTML = original;
+// Google Client ID da tua Firebase project
+const GOOGLE_CLIENT_ID = '534344296518-auto.apps.googleusercontent.com';
+
+function initGoogleSignIn(buttonId) {
+  if (!window.google || !window.google.accounts) {
+    setTimeout(() => initGoogleSignIn(buttonId), 300);
     return;
   }
   
-  try {
-    localStorage.setItem('nexa_google_redirect', '1');
-    await window._firebaseAuth.signInWithRedirect(window._googleProvider);
-  } catch (err) {
-    console.error('Google redirect error:', err);
-    showToast('Erro ao iniciar login com Google.');
-    btnEl.disabled = false;
-    btnEl.innerHTML = original;
-  }
+  window.google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  });
+  
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+  
+  window.google.accounts.id.renderButton(btn, {
+    type: 'standard',
+    shape: 'pill',
+    theme: isDarkMode ? 'filled_black' : 'outline',
+    size: 'large',
+    text: 'continue_with',
+    locale: 'pt-PT',
+    width: btn.offsetWidth || 300,
+  });
 }
 
-async function processGoogleRedirectResult() {
+async function handleGoogleCredential(response) {
+  if (!response || !response.credential) {
+    showToast('Erro ao obter credencial Google.');
+    return;
+  }
+  
+  showToast('A autenticar…');
+  
   try {
-    const pending = localStorage.getItem('nexa_google_redirect');
-    if (!pending) return;
-    localStorage.removeItem('nexa_google_redirect');
-    
-    const result = await window._firebaseAuth.getRedirectResult();
-    if (!result || !result.user) return;
-    
-    const idToken = await result.user.getIdToken();
-    const user = await AuthApiService.loginWithFirebase(idToken);
-    
+    const user = await AuthApiService.loginWithFirebase(response.credential);
     if (user && user.token) {
       authState.setUser(user);
       window.currentPage = 'chat';
@@ -63,10 +68,8 @@ async function processGoogleRedirectResult() {
       showToast('Não foi possível autenticar. Tenta novamente.');
     }
   } catch (err) {
-    console.error('Redirect result error:', err);
-    if (err.code !== 'auth/no-auth-event') {
-      showToast('Erro ao processar login Google.');
-    }
+    console.error('Google credential error:', err);
+    showToast('Erro ao autenticar com Google.');
   }
 }
 
@@ -100,20 +103,16 @@ function renderLoginPage() {
 
         <div id="loginError" class="text-red-500 text-sm text-center mb-3 hidden"></div>
 
-        <button id="loginBtn" class="w-full h-14 rounded-3xl text-white font-bold text-base pulse-tap mb-4"
+        <button id="loginBtn" class="w-full h-14 rounded-3xl text-white font-bold text-base pulse-tap mb-5"
           style="background:${colors.authBtnBg};">Entrar</button>
 
-        <div class="flex items-center my-4">
+        <div class="flex items-center mb-5">
           <hr class="flex-1" style="border-color:${colors.divider}" />
           <span class="mx-4 text-sm" style="color:${colors.textSecondary}">ou</span>
           <hr class="flex-1" style="border-color:${colors.divider}" />
         </div>
 
-        <button id="googleLoginBtn" class="w-full h-14 rounded-3xl flex items-center justify-center gap-3 pulse-tap"
-          style="background:${colors.authInputFill}; border:1px solid ${colors.divider};">
-          <img src="assets/icons/png/google.png" class="w-5 h-5" alt="Google" />
-          <span class="font-bold text-sm" style="color:${colors.textPrimary}">Continuar com Google</span>
-        </button>
+        <div id="googleLoginBtn" class="w-full flex justify-center"></div>
 
         <p class="text-center mt-8 text-sm">
           <span style="color:${colors.textSecondary}">Não tens conta? </span>
@@ -134,10 +133,6 @@ function renderLoginPage() {
   document.getElementById('forgotPassBtn').onclick = () => showToast('Recuperação em breve');
   document.getElementById('goRegister').onclick = renderRegisterPage;
   
-  document.getElementById('googleLoginBtn').onclick = function() {
-    handleGoogleSignIn(this);
-  };
-  
   document.getElementById('loginBtn').onclick = async () => {
     const email = document.getElementById('loginEmail').value.trim();
     const pass = document.getElementById('loginPass').value;
@@ -145,16 +140,13 @@ function renderLoginPage() {
     const btn = document.getElementById('loginBtn');
     
     errEl.classList.add('hidden');
-    
     if (!email || !pass) {
       errEl.classList.remove('hidden');
       errEl.textContent = 'Preenche todos os campos.';
       return;
     }
-    
     btn.disabled = true;
     btn.textContent = '…';
-    
     const user = await AuthApiService.login(email, pass);
     if (user && user.token) {
       authState.setUser(user);
@@ -167,6 +159,8 @@ function renderLoginPage() {
       btn.textContent = 'Entrar';
     }
   };
+  
+  setTimeout(() => initGoogleSignIn('googleLoginBtn'), 100);
 }
 
 function renderRegisterPage() {
@@ -214,20 +208,16 @@ function renderRegisterPage() {
 
         <div id="regError" class="text-red-500 text-sm text-center mb-3 hidden"></div>
 
-        <button id="regBtn" class="w-full h-14 rounded-3xl text-white font-bold text-base pulse-tap mb-4"
+        <button id="regBtn" class="w-full h-14 rounded-3xl text-white font-bold text-base pulse-tap mb-5"
           style="background:${colors.authBtnBg};">Criar conta</button>
 
-        <div class="flex items-center my-4">
+        <div class="flex items-center mb-5">
           <hr class="flex-1" style="border-color:${colors.divider}" />
           <span class="mx-4 text-sm" style="color:${colors.textSecondary}">ou</span>
           <hr class="flex-1" style="border-color:${colors.divider}" />
         </div>
 
-        <button id="googleRegBtn" class="w-full h-14 rounded-3xl flex items-center justify-center gap-3 pulse-tap"
-          style="background:${colors.authInputFill}; border:1px solid ${colors.divider};">
-          <img src="assets/icons/png/google.png" class="w-5 h-5" alt="Google" />
-          <span class="font-bold text-sm" style="color:${colors.textPrimary}">Continuar com Google</span>
-        </button>
+        <div id="googleRegBtn" class="w-full flex justify-center"></div>
 
         <p class="text-center mt-6 text-sm">
           <span style="color:${colors.textSecondary}">Já tens conta? </span>
@@ -256,10 +246,6 @@ function renderRegisterPage() {
   document.getElementById('backBtn').onclick = renderLoginPage;
   document.getElementById('goLogin').onclick = renderLoginPage;
   
-  document.getElementById('googleRegBtn').onclick = function() {
-    handleGoogleSignIn(this);
-  };
-  
   document.getElementById('regBtn').onclick = async () => {
     const name = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim();
@@ -269,7 +255,6 @@ function renderRegisterPage() {
     const btn = document.getElementById('regBtn');
     
     errEl.classList.add('hidden');
-    
     if (!name || !email || !pass || !passConf) {
       errEl.classList.remove('hidden');
       errEl.textContent = 'Preenche todos os campos.';
@@ -280,10 +265,8 @@ function renderRegisterPage() {
       errEl.textContent = 'As passwords não coincidem.';
       return;
     }
-    
     btn.disabled = true;
     btn.textContent = '…';
-    
     const user = await AuthApiService.register(name, email, pass);
     if (user && user.token) {
       authState.setUser(user);
@@ -296,4 +279,6 @@ function renderRegisterPage() {
       btn.textContent = 'Criar conta';
     }
   };
+  
+  setTimeout(() => initGoogleSignIn('googleRegBtn'), 100);
 }

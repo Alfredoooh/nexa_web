@@ -23,23 +23,42 @@ const authState = new AuthState();
 async function handleGoogleRedirectResult() {
   try {
     const result = await window._firebaseAuth.getRedirectResult();
-    if (!result || !result.user) return;
-    
+    if (!result || !result.user) {
+      console.log('[NEXA] getRedirectResult: sem resultado pendente');
+      return;
+    }
+
+    console.log('[NEXA] getRedirectResult: utilizador obtido ->', result.user.email);
+    showToast('A autenticar…');
+
     const idToken = await result.user.getIdToken();
-    const user = await AuthApiService.loginWithFirebase(idToken);
-    
+    console.log('[NEXA] idToken obtido, a enviar para worker...');
+
+    const res = await fetch('https://nexa.alfredopjonas.workers.dev/auth/firebase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+
+    const text = await res.text();
+    console.log('[NEXA] Worker respondeu:', res.status, text);
+
+    if (!res.ok) {
+      showToast('Erro Worker: ' + res.status + ' — ' + text);
+      return;
+    }
+
+    const user = JSON.parse(text);
     if (user && user.token) {
       authState.setUser(user);
       window.currentPage = 'chat';
       renderChatPage();
     } else {
-      showToast('Erro ao autenticar. Tenta novamente.');
+      showToast('Resposta inválida do servidor.');
     }
   } catch (err) {
-    console.error('Google redirect result error:', err);
-    if (err.code && err.code !== 'auth/popup-closed-by-user') {
-      showToast('Erro ao entrar com Google: ' + (err.message || err.code || ''));
-    }
+    console.error('[NEXA] handleGoogleRedirectResult erro:', err);
+    showToast('Erro: ' + (err.message || err.code || JSON.stringify(err)));
   }
 }
 
@@ -47,13 +66,13 @@ async function handleGoogleSignIn(btnEl) {
   const original = btnEl.innerHTML;
   btnEl.disabled = true;
   btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.6;">A redirecionar…</span>`;
-  
+
   try {
     window._googleProvider.setCustomParameters({ prompt: 'select_account' });
     await window._firebaseAuth.signInWithRedirect(window._googleProvider);
   } catch (err) {
-    console.error('Google signInWithRedirect error:', err);
-    showToast('Erro ao iniciar login com Google: ' + (err.message || err.code || ''));
+    console.error('[NEXA] signInWithRedirect erro:', err);
+    showToast('Erro: ' + (err.message || err.code || ''));
     btnEl.disabled = false;
     btnEl.innerHTML = original;
   }
@@ -63,7 +82,7 @@ function renderLoginPage() {
   window.currentPage = 'login';
   const colors = isDarkMode ? darkColors : lightColors;
   const bg = isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)';
-  
+
   document.getElementById('app').innerHTML = `
     <div class="min-h-screen flex items-center justify-center" style="background:${bg};">
       <div class="max-w-sm w-full p-8">
@@ -110,7 +129,7 @@ function renderLoginPage() {
         </p>
       </div>
     </div>`;
-  
+
   let passVisible = false;
   document.getElementById('togglePass').onclick = () => {
     passVisible = !passVisible;
@@ -119,20 +138,20 @@ function renderLoginPage() {
     icon.style.maskImage = `url('assets/icons/svg/${passVisible ? 'eye' : 'eye_closed'}.svg')`;
     icon.style.webkitMaskImage = icon.style.maskImage;
   };
-  
+
   document.getElementById('forgotPassBtn').onclick = () => showToast('Recuperação em breve');
   document.getElementById('goRegister').onclick = renderRegisterPage;
-  
+
   document.getElementById('googleLoginBtn').onclick = function() {
     handleGoogleSignIn(this);
   };
-  
+
   document.getElementById('loginBtn').onclick = async () => {
     const email = document.getElementById('loginEmail').value.trim();
     const pass = document.getElementById('loginPass').value;
     const errEl = document.getElementById('loginError');
     const btn = document.getElementById('loginBtn');
-    
+
     errEl.classList.add('hidden');
     if (!email || !pass) {
       errEl.classList.remove('hidden');
@@ -141,7 +160,7 @@ function renderLoginPage() {
     }
     btn.disabled = true;
     btn.textContent = '…';
-    
+
     const user = await AuthApiService.login(email, pass);
     if (user && user.token) {
       authState.setUser(user);
@@ -160,7 +179,7 @@ function renderRegisterPage() {
   window.currentPage = 'register';
   const colors = isDarkMode ? darkColors : lightColors;
   const bg = isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)';
-  
+
   document.getElementById('app').innerHTML = `
     <div class="min-h-screen flex flex-col" style="background:${bg};">
       <div class="flex items-center h-14 px-4 pt-2">
@@ -222,7 +241,7 @@ function renderRegisterPage() {
         </p>
       </div>
     </div>`;
-  
+
   let rv = false;
   document.getElementById('toggleRegPass').onclick = () => {
     rv = !rv;
@@ -239,14 +258,14 @@ function renderRegisterPage() {
     icon.style.maskImage = `url('assets/icons/svg/${rc ? 'eye' : 'eye_closed'}.svg')`;
     icon.style.webkitMaskImage = icon.style.maskImage;
   };
-  
+
   document.getElementById('backBtn').onclick = renderLoginPage;
   document.getElementById('goLogin').onclick = renderLoginPage;
-  
+
   document.getElementById('googleRegBtn').onclick = function() {
     handleGoogleSignIn(this);
   };
-  
+
   document.getElementById('regBtn').onclick = async () => {
     const name = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim();
@@ -254,7 +273,7 @@ function renderRegisterPage() {
     const passConf = document.getElementById('regPassConf').value;
     const errEl = document.getElementById('regError');
     const btn = document.getElementById('regBtn');
-    
+
     errEl.classList.add('hidden');
     if (!name || !email || !pass || !passConf) {
       errEl.classList.remove('hidden');
@@ -268,7 +287,7 @@ function renderRegisterPage() {
     }
     btn.disabled = true;
     btn.textContent = '…';
-    
+
     const user = await AuthApiService.register(name, email, pass);
     if (user && user.token) {
       authState.setUser(user);

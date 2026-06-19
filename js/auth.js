@@ -21,28 +21,29 @@ class AuthState {
 const authState = new AuthState();
 
 // Retorna true se tratou um redirect com sucesso, false caso contrário
+// js/auth.js
 async function handleGoogleRedirectResult() {
   try {
     const result = await window._firebaseAuth.getRedirectResult();
     if (!result || !result.user) return false;
-
+    
     showToast('A autenticar…');
-
-    const idToken = await result.user.getIdToken();
-
+    
+    const idToken = await result.user.getIdToken(true);
     const res = await fetch('https://nexa.alfredopjonas.workers.dev/auth/firebase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),
     });
-
+    
     const text = await res.text();
-
+    
     if (!res.ok) {
-      showToast('Erro: ' + text);
+      console.error('[NEXA] /auth/firebase falhou:', res.status, text);
+      showToast(text || 'Falha ao autenticar com Google');
       return false;
     }
-
+    
     const user = JSON.parse(text);
     if (user && user.token) {
       authState.setUser(user);
@@ -50,7 +51,7 @@ async function handleGoogleRedirectResult() {
       renderChatPage();
       return true;
     }
-
+    
     showToast('Erro ao autenticar. Tenta novamente.');
     return false;
   } catch (err) {

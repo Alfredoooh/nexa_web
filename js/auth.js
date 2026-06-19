@@ -3,56 +3,61 @@ class AuthState {
     this.user = null;
     this.listeners = [];
   }
+
   setUser(user) {
     this.user = user;
     localStorage.setItem('nexa_user', JSON.stringify(user));
     this.notify();
   }
+
   clear() {
     this.user = null;
     localStorage.removeItem('nexa_user');
     localStorage.removeItem('ipc_user');
     this.notify();
   }
-  subscribe(fn) { this.listeners.push(fn); }
-  notify() { this.listeners.forEach(fn => fn(this.user)); }
+
+  subscribe(fn) {
+    this.listeners.push(fn);
+  }
+
+  notify() {
+    this.listeners.forEach(fn => fn(this.user));
+  }
 }
 
 const authState = new AuthState();
 
+function safeText(value) {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 // Retorna true se tratou um redirect com sucesso, false caso contrário
-// js/auth.js
 async function handleGoogleRedirectResult() {
   try {
     const result = await window._firebaseAuth.getRedirectResult();
     if (!result || !result.user) return false;
-    
+
     showToast('A autenticar…');
-    
+
     const idToken = await result.user.getIdToken(true);
-    const res = await fetch('https://nexa.alfredopjonas.workers.dev/auth/firebase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
-    });
-    
-    const text = await res.text();
-    
-    if (!res.ok) {
-      console.error('[NEXA] /auth/firebase falhou:', res.status, text);
-      showToast(text || 'Falha ao autenticar com Google');
-      return false;
-    }
-    
-    const user = JSON.parse(text);
+    const user = await AuthApiService.loginWithFirebase(idToken);
+
     if (user && user.token) {
       authState.setUser(user);
       window.currentPage = 'chat';
       renderChatPage();
       return true;
     }
-    
+
     showToast('Erro ao autenticar. Tenta novamente.');
+    console.error('[NEXA] loginWithFirebase devolveu vazio:', user);
     return false;
   } catch (err) {
     console.error('[NEXA] redirect result erro:', err);
@@ -141,7 +146,7 @@ function renderLoginPage() {
   document.getElementById('forgotPassBtn').onclick = () => showToast('Recuperação em breve');
   document.getElementById('goRegister').onclick = renderRegisterPage;
 
-  document.getElementById('googleLoginBtn').onclick = function() {
+  document.getElementById('googleLoginBtn').onclick = function () {
     handleGoogleSignIn(this);
   };
 
@@ -152,11 +157,13 @@ function renderLoginPage() {
     const btn = document.getElementById('loginBtn');
 
     errEl.classList.add('hidden');
+
     if (!email || !pass) {
       errEl.classList.remove('hidden');
       errEl.textContent = 'Preenche todos os campos.';
       return;
     }
+
     btn.disabled = true;
     btn.textContent = '…';
 
@@ -249,6 +256,7 @@ function renderRegisterPage() {
     icon.style.maskImage = `url('assets/icons/svg/${rv ? 'eye' : 'eye_closed'}.svg')`;
     icon.style.webkitMaskImage = icon.style.maskImage;
   };
+
   let rc = false;
   document.getElementById('toggleRegPassConf').onclick = () => {
     rc = !rc;
@@ -261,7 +269,7 @@ function renderRegisterPage() {
   document.getElementById('backBtn').onclick = renderLoginPage;
   document.getElementById('goLogin').onclick = renderLoginPage;
 
-  document.getElementById('googleRegBtn').onclick = function() {
+  document.getElementById('googleRegBtn').onclick = function () {
     handleGoogleSignIn(this);
   };
 
@@ -274,16 +282,19 @@ function renderRegisterPage() {
     const btn = document.getElementById('regBtn');
 
     errEl.classList.add('hidden');
+
     if (!name || !email || !pass || !passConf) {
       errEl.classList.remove('hidden');
       errEl.textContent = 'Preenche todos os campos.';
       return;
     }
+
     if (pass !== passConf) {
       errEl.classList.remove('hidden');
       errEl.textContent = 'As passwords não coincidem.';
       return;
     }
+
     btn.disabled = true;
     btn.textContent = '…';
 

@@ -11,7 +11,7 @@ class AuthState {
   clear() {
     this.user = null;
     localStorage.removeItem('nexa_user');
-    localStorage.removeItem('ipc_user'); // limpa chave antiga também
+    localStorage.removeItem('ipc_user');
     this.notify();
   }
   subscribe(fn) { this.listeners.push(fn); }
@@ -20,28 +20,38 @@ class AuthState {
 
 const authState = new AuthState();
 
-/* ── Google Sign-In ──────────────────────────────────────────────────────── */
 async function handleGoogleSignIn(btnEl) {
   const original = btnEl.innerHTML;
   btnEl.disabled = true;
-  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.6;">A entrar…</span>`;
+  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.6;">A redirecionar…</span>`;
   
-  // Aguarda até 3s pelo Firebase SDK carregar (é módulo assíncrono)
-  let attempts = 0;
-  while (!window._signInWithPopup && attempts < 30) {
-    await new Promise(r => setTimeout(r, 100));
-    attempts++;
-  }
-  
-  if (!window._signInWithPopup || !window._firebaseAuth || !window._googleProvider) {
-    showToast('Erro: Firebase não carregou. Recarrega a página.');
+  if (!window._firebaseAuth || !window._googleProvider) {
+    showToast('Firebase não carregou. Recarrega a página.');
     btnEl.disabled = false;
     btnEl.innerHTML = original;
     return;
   }
   
   try {
-    const result = await window._signInWithPopup(window._firebaseAuth, window._googleProvider);
+    localStorage.setItem('nexa_google_redirect', '1');
+    await window._firebaseAuth.signInWithRedirect(window._googleProvider);
+  } catch (err) {
+    console.error('Google redirect error:', err);
+    showToast('Erro ao iniciar login com Google.');
+    btnEl.disabled = false;
+    btnEl.innerHTML = original;
+  }
+}
+
+async function processGoogleRedirectResult() {
+  try {
+    const pending = localStorage.getItem('nexa_google_redirect');
+    if (!pending) return;
+    localStorage.removeItem('nexa_google_redirect');
+    
+    const result = await window._firebaseAuth.getRedirectResult();
+    if (!result || !result.user) return;
+    
     const idToken = await result.user.getIdToken();
     const user = await AuthApiService.loginWithFirebase(idToken);
     
@@ -51,25 +61,15 @@ async function handleGoogleSignIn(btnEl) {
       renderChatPage();
     } else {
       showToast('Não foi possível autenticar. Tenta novamente.');
-      btnEl.disabled = false;
-      btnEl.innerHTML = original;
     }
   } catch (err) {
-    console.error('Google sign-in error:', err);
-    const msg = err.code === 'auth/popup-closed-by-user' ?
-      'Login cancelado.' :
-      err.code === 'auth/popup-blocked' ?
-      'Popup bloqueado. Permite popups para este site.' :
-      err.code === 'auth/unauthorized-domain' ?
-      'Domínio não autorizado no Firebase.' :
-      'Erro ao entrar com Google.';
-    if (err.code !== 'auth/popup-closed-by-user') showToast(msg);
-    btnEl.disabled = false;
-    btnEl.innerHTML = original;
+    console.error('Redirect result error:', err);
+    if (err.code !== 'auth/no-auth-event') {
+      showToast('Erro ao processar login Google.');
+    }
   }
 }
 
-/* ── Página de Login ─────────────────────────────────────────────────────── */
 function renderLoginPage() {
   window.currentPage = 'login';
   const colors = isDarkMode ? darkColors : lightColors;
@@ -169,7 +169,6 @@ function renderLoginPage() {
   };
 }
 
-/* ── Página de Registo ───────────────────────────────────────────────────── */
 function renderRegisterPage() {
   window.currentPage = 'register';
   const colors = isDarkMode ? darkColors : lightColors;

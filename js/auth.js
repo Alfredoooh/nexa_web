@@ -20,13 +20,11 @@ class AuthState {
 
 const authState = new AuthState();
 
-async function handleGoogleSignIn(btnEl) {
-  const original = btnEl.innerHTML;
-  btnEl.disabled = true;
-  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.6;">A entrar…</span>`;
-  
+async function handleGoogleRedirectResult() {
   try {
-    const result = await window._firebaseAuth.signInWithPopup(window._googleProvider);
+    const result = await window._firebaseAuth.getRedirectResult();
+    if (!result || !result.user) return;
+    
     const idToken = await result.user.getIdToken();
     const user = await AuthApiService.loginWithFirebase(idToken);
     
@@ -36,14 +34,26 @@ async function handleGoogleSignIn(btnEl) {
       renderChatPage();
     } else {
       showToast('Erro ao autenticar. Tenta novamente.');
-      btnEl.disabled = false;
-      btnEl.innerHTML = original;
     }
   } catch (err) {
-    console.error('Google error:', err);
-    if (err.code !== 'auth/popup-closed-by-user') {
-      showToast('Erro ao entrar com Google: ' + (err.message || ''));
+    console.error('Google redirect result error:', err);
+    if (err.code && err.code !== 'auth/popup-closed-by-user') {
+      showToast('Erro ao entrar com Google: ' + (err.message || err.code || ''));
     }
+  }
+}
+
+async function handleGoogleSignIn(btnEl) {
+  const original = btnEl.innerHTML;
+  btnEl.disabled = true;
+  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.6;">A redirecionar…</span>`;
+  
+  try {
+    window._googleProvider.setCustomParameters({ prompt: 'select_account' });
+    await window._firebaseAuth.signInWithRedirect(window._googleProvider);
+  } catch (err) {
+    console.error('Google signInWithRedirect error:', err);
+    showToast('Erro ao iniciar login com Google: ' + (err.message || err.code || ''));
     btnEl.disabled = false;
     btnEl.innerHTML = original;
   }

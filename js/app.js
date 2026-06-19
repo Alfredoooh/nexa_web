@@ -82,13 +82,14 @@ function toggleDarkMode() {
     showToast(isDarkMode ? '🌙 Modo escuro' : '☀️ Modo claro');
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     const savedTheme = localStorage.getItem('nexa_theme');
     if (savedTheme === 'dark')       isDarkMode = true;
     else if (savedTheme === 'light') isDarkMode = false;
     else isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-    applyTheme();
+    document.body.classList.toggle('light', !isDarkMode);
+    document.body.classList.toggle('dark', isDarkMode);
 
     const savedUser =
         JSON.parse(localStorage.getItem('nexa_user')) ||
@@ -100,8 +101,10 @@ window.addEventListener('DOMContentLoaded', () => {
         window.currentPage = 'chat';
         renderChatPage();
     } else {
+        // Tenta capturar resultado do redirect Google antes de mostrar login
         window.currentPage = 'login';
         renderLoginPage();
+        await handleGoogleRedirectResult();
     }
 
     document.addEventListener('keydown', (e) => {

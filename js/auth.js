@@ -20,19 +20,15 @@ class AuthState {
 
 const authState = new AuthState();
 
+// Retorna true se tratou um redirect com sucesso, false caso contrário
 async function handleGoogleRedirectResult() {
   try {
     const result = await window._firebaseAuth.getRedirectResult();
-    if (!result || !result.user) {
-      console.log('[NEXA] getRedirectResult: sem resultado pendente');
-      return;
-    }
+    if (!result || !result.user) return false;
 
-    console.log('[NEXA] getRedirectResult: utilizador obtido ->', result.user.email);
     showToast('A autenticar…');
 
     const idToken = await result.user.getIdToken();
-    console.log('[NEXA] idToken obtido, a enviar para worker...');
 
     const res = await fetch('https://nexa.alfredopjonas.workers.dev/auth/firebase', {
       method: 'POST',
@@ -41,11 +37,10 @@ async function handleGoogleRedirectResult() {
     });
 
     const text = await res.text();
-    console.log('[NEXA] Worker respondeu:', res.status, text);
 
     if (!res.ok) {
-      showToast('Erro Worker: ' + res.status + ' — ' + text);
-      return;
+      showToast('Erro: ' + text);
+      return false;
     }
 
     const user = JSON.parse(text);
@@ -53,12 +48,15 @@ async function handleGoogleRedirectResult() {
       authState.setUser(user);
       window.currentPage = 'chat';
       renderChatPage();
-    } else {
-      showToast('Resposta inválida do servidor.');
+      return true;
     }
+
+    showToast('Erro ao autenticar. Tenta novamente.');
+    return false;
   } catch (err) {
-    console.error('[NEXA] handleGoogleRedirectResult erro:', err);
-    showToast('Erro: ' + (err.message || err.code || JSON.stringify(err)));
+    console.error('[NEXA] redirect result erro:', err);
+    showToast('Erro: ' + (err.message || err.code || ''));
+    return false;
   }
 }
 

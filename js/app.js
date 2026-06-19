@@ -91,9 +91,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.toggle('light', !isDarkMode);
     document.body.classList.toggle('dark', isDarkMode);
 
+    // Mostra splash enquanto verifica estado
+    document.getElementById('app').innerHTML = `
+        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:${isDarkMode ? '#121212' : '#fff'};">
+            <img src="assets/icons/png/logo.png" style="width:72px;height:72px;opacity:0.8;" />
+        </div>`;
+
+    // 1. Primeiro verifica se já há sessão guardada
     const savedUser =
-        JSON.parse(localStorage.getItem('nexa_user')) ||
-        JSON.parse(localStorage.getItem('ipc_user'));
+        JSON.parse(localStorage.getItem('nexa_user') || 'null') ||
+        JSON.parse(localStorage.getItem('ipc_user')  || 'null');
 
     if (savedUser && savedUser.token) {
         localStorage.removeItem('ipc_user');
@@ -101,10 +108,14 @@ window.addEventListener('DOMContentLoaded', async () => {
         window.currentPage = 'chat';
         renderChatPage();
     } else {
-        // Tenta capturar resultado do redirect Google antes de mostrar login
-        window.currentPage = 'login';
-        renderLoginPage();
-        await handleGoogleRedirectResult();
+        // 2. Sem sessão — verifica se vem de redirect Google
+        const redirectHandled = await handleGoogleRedirectResult();
+        // Se o redirect tratou o login, handleGoogleRedirectResult já chamou renderChatPage
+        // Se não, mostra o login
+        if (!redirectHandled) {
+            window.currentPage = 'login';
+            renderLoginPage();
+        }
     }
 
     document.addEventListener('keydown', (e) => {

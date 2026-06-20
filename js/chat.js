@@ -16,19 +16,60 @@
 })();
 
 /* =========================================================================
-   SPLASH SCREEN
+   SPLASH SCREEN — animado, varia por tema, só na abertura do site
    ========================================================================= */
 function showSplashScreen() {
+    if (document.getElementById('splashScreen')) return;
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
     const splash = document.createElement('div');
     splash.id = 'splashScreen';
+
+    // Gradiente que varia por tema
+    const bg = dark
+        ? 'linear-gradient(135deg, #0d0d0d 0%, #1a1040 50%, #0d1a2e 100%)'
+        : 'linear-gradient(135deg, #ffffff 0%, #ede9ff 50%, #dceeff 100%)';
+
     splash.style.cssText = `
         position: fixed; inset: 0; z-index: 99999;
-        display: flex; align-items: center; justify-content: center;
-        background: ${window.matchMedia('(prefers-color-scheme: dark)').matches ? '#121212' : '#ffffff'};
-        transition: opacity 0.4s ease;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: ${bg};
+        transition: opacity 0.5s ease;
+        gap: 20px;
     `;
-    splash.innerHTML = `<img src="assets/icons/png/logo.png" style="width:88px;height:88px;border-radius:22px;" alt="Nexa" />`;
+
+    // Logo com animação de escala
+    const logoWrap = document.createElement('div');
+    logoWrap.style.cssText = `
+        transform: scale(0.7); opacity: 0;
+        transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease;
+    `;
+    logoWrap.innerHTML = `<img src="assets/icons/png/logo.png" style="width:80px;height:80px;border-radius:20px;" alt="Nexa" />`;
+    splash.appendChild(logoWrap);
+
+    // Nome da app
+    const nameEl = document.createElement('div');
+    nameEl.style.cssText = `
+        font-size: 22px; font-weight: 700; letter-spacing: 0.04em;
+        color: ${dark ? '#ffffff' : '#212730'}; opacity: 0;
+        font-family: 'TimesNewRoman', serif;
+        transition: opacity 0.4s ease 0.2s;
+    `;
+    nameEl.textContent = 'Nexa';
+    splash.appendChild(nameEl);
+
     document.body.appendChild(splash);
+
+    // Animação de entrada
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            logoWrap.style.transform = 'scale(1)';
+            logoWrap.style.opacity = '1';
+            nameEl.style.opacity = '1';
+        }, 60);
+    });
+
     return splash;
 }
 
@@ -36,7 +77,7 @@ function hideSplashScreen() {
     const splash = document.getElementById('splashScreen');
     if (!splash) return;
     splash.style.opacity = '0';
-    setTimeout(() => splash.remove(), 420);
+    setTimeout(() => splash.remove(), 520);
 }
 
 /* =========================================================================
@@ -68,6 +109,7 @@ class ChatState {
         this.thinkMoreMode = false;
         this.sheetsEnabled = false;
         this.isStreaming = false;
+        this.incognitoMode = false;
         this.listeners = [];
     }
 
@@ -128,6 +170,7 @@ class ChatState {
         this.titleGenerated = false;
         this.chatHistory = [];
         this.displayMessages = [];
+        this.incognitoMode = false;
         this.notify();
     }
 
@@ -137,6 +180,7 @@ class ChatState {
         this.titleGenerated = true;
         this.chatHistory = [...conv.messages];
         this.displayMessages = conv.messages.map(m => new DisplayMessage(m.role, m.content));
+        this.incognitoMode = false;
         this.notify();
     }
 
@@ -154,6 +198,16 @@ class ChatState {
 
     toggleSheets() {
         this.sheetsEnabled = !this.sheetsEnabled;
+        this.notify();
+    }
+
+    activateIncognito() {
+        this.incognitoMode = true;
+        this.currentConversationId = '';
+        this.currentConversationTitle = 'Conversa privada';
+        this.titleGenerated = true;
+        this.chatHistory = [];
+        this.displayMessages = [];
         this.notify();
     }
 }
@@ -348,11 +402,9 @@ function applyInline(text) {
     text = text.replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>');
     text = text.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
     text = text.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
-    // Links clicáveis com cor primária
     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
         '<a class="md-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    // URLs nuas clicáveis
-    text = text.replace(/(?<![">])(https?:\/\/[^\s<>"']+)/g,
+    text = text.replace(/(?<!["'>])(https?:\/\/[^\s<>"']+)/g,
         '<a class="md-link" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
     text = text.replace(/==([^=\n]+)==/g, '<mark class="md-mark">$1</mark>');
     return text;
@@ -651,7 +703,6 @@ async function handleRecordingStop() {
     const blob = new Blob(audioChunks, { type: 'audio/webm' });
     audioChunks = [];
 
-    // Mostra Lottie enquanto transcreve
     showLottieLoader('A transcrever…');
 
     try {
@@ -675,8 +726,7 @@ async function handleRecordingStop() {
             const input = document.getElementById('textInput');
             if (input) {
                 input.value = (input.value ? input.value + ' ' : '') + text;
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+                autoResizeInput(input);
                 updateSendButton();
                 input.focus();
             }
@@ -690,7 +740,7 @@ async function handleRecordingStop() {
 }
 
 /* =========================================================================
-   LOTTIE LOADER (para resposta da IA e transcrição)
+   LOTTIE LOADER
    ========================================================================= */
 
 let _lottieInstance = null;
@@ -703,7 +753,7 @@ function showLottieLoader(label) {
         position: fixed; inset: 0; z-index: 9000;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+        background: rgba(0,0,0,0.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
         gap: 14px;
     `;
 
@@ -721,15 +771,14 @@ function showLottieLoader(label) {
 
     document.body.appendChild(wrap);
 
-    // Carrega Lottie via CDN se não estiver carregado
     function initLottie() {
         if (typeof lottie === 'undefined') return;
         _lottieInstance = lottie.loadAnimation({
-            container:     animDiv,
-            renderer:      'svg',
-            loop:          true,
-            autoplay:      true,
-            path:          'assets/icons/lottie/loader.json',
+            container:  animDiv,
+            renderer:   'svg',
+            loop:       true,
+            autoplay:   true,
+            path:       'assets/icons/lottie/loader.json',
         });
     }
 
@@ -753,27 +802,34 @@ function hideLottieLoader() {
    ========================================================================= */
 
 function renderChatPage() {
-    // Splash screen ao entrar no chat
-    const splash = showSplashScreen();
-    setTimeout(() => hideSplashScreen(), 900);
-
+    // NÃO mostra splash ao navegar entre telas — só app.js faz isso na abertura
     const colors = getThemeColors();
     document.getElementById('app').innerHTML = `
     <div id="chatApp" class="h-full w-full flex flex-col relative overflow-hidden">
 
         <div class="app-bar-gradient ${isDarkMode ? 'dark' : 'light'}"></div>
 
-        <div class="app-bar">
-            <button id="menuBtn" class="pulse-tap circular w-10 h-10 ml-2 flex items-center justify-center" style="color: ${colors.iconTint}">
-                <span class="icon-mask" style="mask-image: url('assets/icons/svg/menu.svg'); -webkit-mask-image: url('assets/icons/svg/menu.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
+        <!-- AppBar fixo — sempre visível -->
+        <div class="app-bar" style="position:sticky;top:0;z-index:50;flex-shrink:0;">
+            <button id="menuBtn" class="pulse-tap circular w-10 h-10 ml-2 flex items-center justify-center" style="color:${colors.iconTint}">
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/menu.svg');-webkit-mask-image:url('assets/icons/svg/menu.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
             </button>
-            <span id="appBarTitle" class="text-sm font-semibold ml-2 hidden truncate" style="color: ${colors.textSecondary}; max-width: 180px; letter-spacing: 0.01em;">${MODEL_NAME}</span>
+            <!-- Modelo sempre visível no centro/esquerda -->
+            <button id="modelPillBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full ml-2 pulse-tap" style="background:${colors.appbarBtnBg};max-width:180px;">
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/ai.svg');-webkit-mask-image:url('assets/icons/svg/ai.svg');width:13px;height:13px;background:${colors.iconTint};flex-shrink:0;"></span>
+                <span id="modelPillLabel" class="text-xs font-semibold truncate" style="color:${colors.textPrimary};max-width:130px;">${MODEL_NAME}</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${colors.iconTintSecondary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <div class="flex-1"></div>
-            <button id="newChatBtn" class="pulse-tap circular w-10 h-10 px-2 hidden" style="color: ${colors.iconTint}">
-                <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 17px; height: 17px; background: ${colors.iconTint};"></span>
+            <!-- Incógnito: só visível sem chat -->
+            <button id="incognitoBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center" style="color:${colors.iconTint};display:flex;">
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/incognito.svg');-webkit-mask-image:url('assets/icons/svg/incognito.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
             </button>
-            <button id="moreBtn" class="pulse-tap circular w-10 h-10 px-2 hidden" style="color: ${colors.iconTint}">
-                <span class="icon-mask" style="mask-image: url('assets/icons/svg/more_vertical.svg'); -webkit-mask-image: url('assets/icons/svg/more_vertical.svg'); width: 16px; height: 16px; background: ${colors.iconTint};"></span>
+            <button id="newChatBtn" class="pulse-tap circular w-10 h-10 px-2" style="color:${colors.iconTint};display:none;">
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:17px;height:17px;background:${colors.iconTint};"></span>
+            </button>
+            <button id="moreBtn" class="pulse-tap circular w-10 h-10 px-2" style="color:${colors.iconTint};display:none;">
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/more_vertical.svg');-webkit-mask-image:url('assets/icons/svg/more_vertical.svg');width:16px;height:16px;background:${colors.iconTint};"></span>
             </button>
         </div>
 
@@ -783,38 +839,38 @@ function renderChatPage() {
             <div class="drawer-header">
                 <div class="drawer-header-left">
                     <img src="assets/icons/png/logo.png" class="drawer-logo" alt="Logo" />
-                    <div class="drawer-app-name" style="color: ${colors.drawerText}">Nexa</div>
+                    <div class="drawer-app-name" style="color:${colors.drawerText}">Nexa</div>
                 </div>
-                <button id="newChatDrawerBtn" class="pulse-tap circular w-9 h-9 flex items-center justify-center" style="color: ${colors.iconTint}" title="Nova conversa">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 17px; height: 17px; background: ${colors.iconTint};"></span>
+                <button id="newChatDrawerBtn" class="pulse-tap circular w-9 h-9 flex items-center justify-center" style="color:${colors.iconTint}" title="Nova conversa">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:17px;height:17px;background:${colors.iconTint};"></span>
                 </button>
             </div>
 
             <div class="drawer-menu-section" id="drawerMenuSection">
-                <div class="drawer-menu-item pulse-tap" id="profileTile" style="color: ${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/user.svg'); -webkit-mask-image: url('assets/icons/svg/user.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="profileTile" style="color:${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/user.svg');-webkit-mask-image:url('assets/icons/svg/user.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
                     <span class="drawer-menu-label">${authState.user?.name || 'Perfil'}</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="projectsDrawerBtn" style="color: ${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/folder.svg'); -webkit-mask-image: url('assets/icons/svg/folder.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="projectsDrawerBtn" style="color:${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/folder.svg');-webkit-mask-image:url('assets/icons/svg/folder.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Projetos</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="extrasDrawerBtn" style="color: ${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/extras.svg'); -webkit-mask-image: url('assets/icons/svg/extras.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="extrasDrawerBtn" style="color:${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/extras.svg');-webkit-mask-image:url('assets/icons/svg/extras.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Extras</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="settingsDrawerBtn" style="color: ${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/settings.svg'); -webkit-mask-image: url('assets/icons/svg/settings.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="settingsDrawerBtn" style="color:${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/settings.svg');-webkit-mask-image:url('assets/icons/svg/settings.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Definições</span>
                 </div>
             </div>
 
-            <div class="drawer-section-divider" style="background: ${colors.divider}"></div>
+            <div class="drawer-section-divider" style="background:${colors.divider}"></div>
 
             <div class="drawer-conv-section-header pulse-tap" id="convSectionToggle">
-                <span class="icon-mask" style="mask-image: url('assets/icons/svg/meassage.svg'); -webkit-mask-image: url('assets/icons/svg/meassage.svg'); width: 16px; height: 16px; background: ${colors.settings_section_label};"></span>
-                <span class="drawer-conv-section-label" style="color: ${colors.settings_section_label}">CONVERSAS</span>
-                <span class="icon-mask drawer-conv-chevron" id="convSectionChevron" style="mask-image: url('assets/icons/svg/chevron_right.svg'); -webkit-mask-image: url('assets/icons/svg/chevron_right.svg'); width: 11px; height: 11px; background: ${colors.settings_section_label}; transform: rotate(90deg);"></span>
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/meassage.svg');-webkit-mask-image:url('assets/icons/svg/meassage.svg');width:16px;height:16px;background:${colors.settings_section_label};"></span>
+                <span class="drawer-conv-section-label" style="color:${colors.settings_section_label}">CONVERSAS</span>
+                <span class="icon-mask drawer-conv-chevron" id="convSectionChevron" style="mask-image:url('assets/icons/svg/chevron_right.svg');-webkit-mask-image:url('assets/icons/svg/chevron_right.svg');width:11px;height:11px;background:${colors.settings_section_label};transform:rotate(90deg);"></span>
             </div>
 
             <div class="drawer-conv-list-outer" id="conversationsListOuter">
@@ -825,8 +881,8 @@ function renderChatPage() {
         <div class="messages-container" id="messagesContainer">
             <div id="emptyState" class="flex flex-col items-center justify-start pt-20 min-h-full">
                 <img src="assets/icons/png/logo.png" class="w-[72px] h-[72px] mb-4" alt="Logo" />
-                <h1 id="greetingText" class="text-5xl font-bold text-center mb-2" style="font-family: 'TimesNewRoman', serif; color: ${colors.textPrimary}"></h1>
-                <p class="text-base text-center" style="color: ${colors.textSecondary}">Em que estás a pensar?</p>
+                <h1 id="greetingText" class="text-5xl font-bold text-center mb-2" style="font-family:'TimesNewRoman',serif;color:${colors.textPrimary}"></h1>
+                <p class="text-base text-center" style="color:${colors.textSecondary}">Em que estás a pensar?</p>
             </div>
             <div id="chatMessages" class="hidden"></div>
         </div>
@@ -834,20 +890,20 @@ function renderChatPage() {
         <div class="bottom-bar ${isDarkMode ? 'dark' : 'light'}" id="bottomBar">
             <textarea id="textInput" class="chat-input ${isDarkMode ? 'dark' : 'light'}" placeholder="Escreve aqui..." rows="1"></textarea>
             <div class="flex items-center h-[52px] px-[10px]">
-                <button id="addBtn" class="pulse-tap circular w-10 h-10 ml-1 flex items-center justify-center rounded-full" style="background: ${colors.addCircleBg}; color: ${colors.iconTint}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/add.svg'); -webkit-mask-image: url('assets/icons/svg/add.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
+                <button id="addBtn" class="pulse-tap circular w-10 h-10 ml-1 flex items-center justify-center rounded-full" style="background:${colors.addCircleBg};color:${colors.iconTint}">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/add.svg');-webkit-mask-image:url('assets/icons/svg/add.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
                 </button>
                 <div class="flex-1"></div>
-                <button id="editBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-full pulse-tap" style="background: ${colors.tabPreviewPillBg}; color: ${colors.textPrimary}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/preview_filled.svg'); -webkit-mask-image: url('assets/icons/svg/preview_filled.svg'); width: 20px; height: 20px; background: ${colors.textPrimary};"></span>
-                    <span class="text-sm font-bold" style="color: ${colors.textPrimary}">Edit</span>
+                <button id="editBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-full pulse-tap" style="background:${colors.tabPreviewPillBg};color:${colors.textPrimary}">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/preview_filled.svg');-webkit-mask-image:url('assets/icons/svg/preview_filled.svg');width:20px;height:20px;background:${colors.textPrimary};"></span>
+                    <span class="text-sm font-bold" style="color:${colors.textPrimary}">Edit</span>
                 </button>
                 <div class="w-2"></div>
-                <button id="sendBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full hidden" style="background: ${colors.sendBtnColor}; color: ${colors.sendIconColor}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/ic_send_arrow.svg'); -webkit-mask-image: url('assets/icons/svg/ic_send_arrow.svg'); width: 15px; height: 15px; background: ${colors.sendIconColor};"></span>
+                <button id="sendBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full" style="background:${colors.sendBtnColor};color:${colors.sendIconColor};display:none;">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('assets/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:${colors.sendIconColor};"></span>
                 </button>
-                <button id="micBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full" style="background: ${colors.sendBtnColor}; color: ${colors.sendIconColor}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/record.svg'); -webkit-mask-image: url('assets/icons/svg/record.svg'); width: 18px; height: 18px; background: ${colors.sendIconColor};"></span>
+                <button id="micBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full" style="background:${colors.sendBtnColor};color:${colors.sendIconColor};">
+                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/record.svg');-webkit-mask-image:url('assets/icons/svg/record.svg');width:18px;height:18px;background:${colors.sendIconColor};"></span>
                 </button>
             </div>
         </div>
@@ -873,10 +929,8 @@ function renderChatPage() {
 function setupDrawerScrollCollapse() {
     const drawer = document.getElementById('drawer');
     const menuSection = document.getElementById('drawerMenuSection');
-    const profileTile = document.getElementById('profileTile');
     if (!drawer || !menuSection) return;
 
-    // Itens que sobem e desaparecem (todos menos perfil e secção conversas)
     const collapseItems = ['projectsDrawerBtn', 'extrasDrawerBtn', 'settingsDrawerBtn'];
 
     let lastScrollY = 0;
@@ -933,21 +987,51 @@ function bindChatEvents() {
     document.getElementById('settingsDrawerBtn').onclick = () => { closeDrawer(); renderSettingsPage(); };
     document.getElementById('convSectionToggle').onclick = () => toggleConversationsSection();
 
+    document.getElementById('modelPillBtn').onclick = () => showModelPickerSheet();
+
+    // Incógnito — ativar conversa privada
+    document.getElementById('incognitoBtn').onclick = () => {
+        if (chatState.incognitoMode) return; // já ativo, não faz nada
+        showIncognitoConfirmSheet();
+    };
+
     document.getElementById('newChatBtn').onclick = () => chatState.resetConversation();
-    document.getElementById('moreBtn').onclick = () => showAddPopup();
+
+    // moreBtn agora mostra opções da conversa atual
+    document.getElementById('moreBtn').onclick = () => {
+        const conv = conversations.find(c => c.id === chatState.currentConversationId);
+        if (conv) {
+            showConvOptionsSheet(conv);
+        } else {
+            showToast('Sem conversa ativa');
+        }
+    };
+
     document.getElementById('addBtn').onclick = () => showAddPopup();
     document.getElementById('editBtn').onclick = () => showEditModal();
+
     document.getElementById('sendBtn').onclick = () => {
-        const text = document.getElementById('textInput').value;
+        const input = document.getElementById('textInput');
+        const text = input.value;
         if (text.trim() && !chatState.isStreaming) sendMessage(text);
     };
     document.getElementById('micBtn').onclick = () => startRecording();
 
     const textInput = document.getElementById('textInput');
+
+    // Keyboard padding — visualViewport
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            const bottomBar = document.getElementById('bottomBar');
+            if (!bottomBar) return;
+            const keyboardHeight = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+            bottomBar.style.paddingBottom = keyboardHeight > 0 ? keyboardHeight + 'px' : '';
+        });
+    }
+
     textInput.oninput = () => {
         updateSendButton();
-        textInput.style.height = 'auto';
-        textInput.style.height = Math.min(textInput.scrollHeight, 150) + 'px';
+        autoResizeInput(textInput);
     };
 
     textInput.onkeydown = (e) => {
@@ -963,6 +1047,16 @@ function bindChatEvents() {
 
     document.getElementById('modalOverlay').onclick = closeAllModals;
     chatState.subscribe(() => updateChatUI());
+}
+
+function autoResizeInput(input) {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+}
+
+function resetInputHeight(input) {
+    input.style.height = 'auto';
+    input.style.height = '';
 }
 
 /* =========================================================================
@@ -985,11 +1079,27 @@ function toggleConversationsSection() {
 
 function updateChatUI() {
     const hasMessages = chatState.displayMessages.length > 0;
-    document.getElementById('appBarTitle').classList.toggle('hidden', !hasMessages);
-    document.getElementById('newChatBtn').classList.toggle('hidden', !hasMessages);
-    document.getElementById('moreBtn').classList.toggle('hidden', !hasMessages);
+    const isIncognito = chatState.incognitoMode;
+
+    // Incógnito só aparece quando não há conversa ativa
+    const incognitoBtn = document.getElementById('incognitoBtn');
+    if (incognitoBtn) incognitoBtn.style.display = hasMessages ? 'none' : 'flex';
+
+    // newChatBtn e moreBtn só com mensagens e fora de incógnito
+    const newChatBtn = document.getElementById('newChatBtn');
+    const moreBtn = document.getElementById('moreBtn');
+    if (newChatBtn) newChatBtn.style.display = hasMessages ? 'flex' : 'none';
+    // moreBtn não aparece em incógnito (sem opções de conversa)
+    if (moreBtn) moreBtn.style.display = (hasMessages && !isIncognito) ? 'flex' : 'none';
+
     document.getElementById('emptyState').style.display = hasMessages ? 'none' : 'flex';
     document.getElementById('chatMessages').classList.toggle('hidden', !hasMessages);
+
+    // Badge incógnito no model pill
+    const modelPillLabel = document.getElementById('modelPillLabel');
+    if (modelPillLabel) {
+        modelPillLabel.textContent = isIncognito ? '🕵️ ' + MODEL_NAME : MODEL_NAME;
+    }
 
     renderMessages();
     renderConversationsList();
@@ -999,8 +1109,10 @@ function updateChatUI() {
 
 function updateSendButton() {
     const hasText = document.getElementById('textInput')?.value.trim().length > 0;
-    document.getElementById('sendBtn')?.classList.toggle('hidden', !hasText);
-    document.getElementById('micBtn')?.classList.toggle('hidden', hasText);
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
+    if (sendBtn) sendBtn.style.display = hasText ? 'flex' : 'none';
+    if (micBtn) micBtn.style.display = hasText ? 'none' : 'flex';
 }
 
 function scrollToBottom() {
@@ -1078,14 +1190,41 @@ function createMessageBubble(msg, idx, colors) {
 
     if (msg.role === 'user') {
         wrapper.className = 'px-4 py-2 flex justify-end';
+        wrapper.setAttribute('data-msg-idx', idx);
+
         const bubble = document.createElement('div');
-        bubble.className = 'max-w-[82%] rounded-2xl px-4 py-3';
-        bubble.style.cssText = `background-color: ${colors.userBubbleBg}; color: ${colors.textPrimary}; border-bottom-right-radius: 6px;`;
+        // Todas as bordas curvas na mensagem do utilizador
+        bubble.className = 'max-w-[82%] px-4 py-3';
+        bubble.style.cssText = `
+            background-color: ${colors.userBubbleBg};
+            color: ${colors.textPrimary};
+            border-radius: 20px;
+            cursor: pointer;
+        `;
         const p = document.createElement('p');
         p.className = 'text-sm leading-relaxed whitespace-pre-wrap';
         p.style.margin = '0';
         p.textContent = msg.content;
         bubble.appendChild(p);
+
+        // Long-press / click-hold para mostrar opções
+        let pressTimer = null;
+        let didLongPress = false;
+
+        bubble.addEventListener('pointerdown', () => {
+            didLongPress = false;
+            pressTimer = setTimeout(() => {
+                didLongPress = true;
+                showUserMessageOptions(msg.content, idx);
+            }, 500);
+        });
+        bubble.addEventListener('pointerup', () => { if (pressTimer) clearTimeout(pressTimer); });
+        bubble.addEventListener('pointercancel', () => { if (pressTimer) clearTimeout(pressTimer); });
+        bubble.addEventListener('pointermove', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
+        bubble.addEventListener('click', (e) => {
+            if (didLongPress) { e.stopImmediatePropagation(); didLongPress = false; }
+        }, true);
+
         wrapper.appendChild(bubble);
 
     } else {
@@ -1108,7 +1247,7 @@ function createMessageBubble(msg, idx, colors) {
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'assistant-content';
-        contentDiv.style.cssText = `font-size: 15px; line-height: 1.65; color: ${isDarkMode ? colors.textPrimary : '#212730'};`;
+        contentDiv.style.cssText = `font-size:15px;line-height:1.65;color:${isDarkMode ? colors.textPrimary : '#212730'};`;
         contentDiv.innerHTML = renderMarkdown(msg.content);
         if (msg.isStreaming && msg.content) contentDiv.classList.add('cursor-blink');
         wrapper.appendChild(contentDiv);
@@ -1121,44 +1260,123 @@ function createMessageBubble(msg, idx, colors) {
     return wrapper;
 }
 
+/* =========================================================================
+   MODAL DE OPÇÕES DA MENSAGEM DO UTILIZADOR
+   ========================================================================= */
+
+function showUserMessageOptions(content, idx) {
+    const colors = getThemeColors();
+    const sheet = document.getElementById('modalSheet');
+    const sheetContent = document.getElementById('modalSheetContent');
+    const overlay = document.getElementById('modalOverlay');
+    sheetContent.innerHTML = '';
+
+    sheetContent.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+        margin: 8px 12px 4px;
+        border-radius: 16px;
+        overflow: hidden;
+        background: ${isDarkMode ? '#1C1C1E' : '#F2F2F7'};
+    `;
+
+    const opts = [
+        {
+            icon: 'copy', label: 'Copiar mensagem',
+            action: () => {
+                navigator.clipboard.writeText(content).then(() => showToast('Copiado!')).catch(() => {});
+                closeModalSheet();
+            }
+        },
+        {
+            icon: 'pen', label: 'Editar e reenviar',
+            action: () => {
+                closeModalSheet();
+                const input = document.getElementById('textInput');
+                if (input) {
+                    input.value = content;
+                    autoResizeInput(input);
+                    updateSendButton();
+                    input.focus();
+                }
+            }
+        },
+        {
+            icon: 'trash', label: 'Eliminar mensagem', danger: true,
+            action: () => {
+                closeModalSheet();
+                // Remove a mensagem do utilizador e a resposta do assistente seguinte
+                const msgs = chatState.displayMessages;
+                const hist = chatState.chatHistory;
+                // Encontra o índice real
+                const displayIdx = idx;
+                if (displayIdx >= 0 && displayIdx < msgs.length) {
+                    msgs.splice(displayIdx, msgs.length - displayIdx); // remove essa e todas seguintes
+                    hist.splice(displayIdx, hist.length - displayIdx);
+                    chatState.notify();
+                }
+            }
+        }
+    ];
+
+    opts.forEach((opt, i) => {
+        if (i > 0) {
+            const sep = document.createElement('div');
+            sep.style.cssText = `height:1px;margin-left:52px;background:${colors.divider};`;
+            card.appendChild(sep);
+        }
+        const row = document.createElement('div');
+        row.className = 'pulse-tap';
+        row.style.cssText = `display:flex;align-items:center;padding:14px 16px;cursor:pointer;`;
+        row.onclick = opt.action;
+
+        const icon = document.createElement('span');
+        icon.className = 'icon-mask';
+        const tint = opt.danger ? '#EF4444' : colors.iconTint;
+        icon.style.cssText = `mask-image:url('assets/icons/svg/${opt.icon}.svg');-webkit-mask-image:url('assets/icons/svg/${opt.icon}.svg');width:18px;height:18px;background:${tint};flex-shrink:0;`;
+        row.appendChild(icon);
+
+        const lbl = document.createElement('span');
+        lbl.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${opt.danger ? '#EF4444' : colors.textPrimary};`;
+        lbl.textContent = opt.label;
+        row.appendChild(lbl);
+
+        card.appendChild(row);
+    });
+
+    sheetContent.appendChild(card);
+
+    const pad = document.createElement('div');
+    pad.style.height = '20px';
+    sheetContent.appendChild(pad);
+
+    openModalSheet();
+}
+
 /* Lottie inline como placeholder de "a pensar" */
 function buildLottieThinkingPlaceholder(colors) {
     const container = document.createElement('div');
     container.className = 'lottie-thinking-wrap';
-    container.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 4px 0 8px;';
+    container.style.cssText = 'display:flex;align-items:center;gap:10px;padding:4px 0 8px;';
 
     const animDiv = document.createElement('div');
     animDiv.className = 'lottie-thinking-anim';
-    animDiv.style.cssText = 'width: 40px; height: 40px; flex-shrink: 0;';
+    animDiv.style.cssText = 'width:40px;height:40px;flex-shrink:0;';
     container.appendChild(animDiv);
 
     const lbl = document.createElement('span');
-    lbl.style.cssText = `font-size: 14px; color: ${colors.textSecondary};`;
+    lbl.style.cssText = `font-size:14px;color:${colors.textSecondary};`;
     lbl.textContent = 'A processar…';
     container.appendChild(lbl);
 
-    // Inicia animação Lottie inline
     requestAnimationFrame(() => {
         if (typeof lottie !== 'undefined') {
-            lottie.loadAnimation({
-                container:  animDiv,
-                renderer:   'svg',
-                loop:       true,
-                autoplay:   true,
-                path:       'assets/icons/lottie/loader.json',
-            });
+            lottie.loadAnimation({ container: animDiv, renderer: 'svg', loop: true, autoplay: true, path: 'assets/icons/lottie/loader.json' });
         } else {
             const s = document.createElement('script');
             s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
-            s.onload = () => {
-                lottie.loadAnimation({
-                    container:  animDiv,
-                    renderer:   'svg',
-                    loop:       true,
-                    autoplay:   true,
-                    path:       'assets/icons/lottie/loader.json',
-                });
-            };
+            s.onload = () => lottie.loadAnimation({ container: animDiv, renderer: 'svg', loop: true, autoplay: true, path: 'assets/icons/lottie/loader.json' });
             document.head.appendChild(s);
         }
     });
@@ -1169,14 +1387,14 @@ function buildLottieThinkingPlaceholder(colors) {
 function buildThinkingBadge(thinkingContent, colors) {
     const div = document.createElement('div');
     div.className = 'thinking-badge';
-    div.style.cssText = `font-size: 12px; font-style: italic; opacity: 0.6; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed ${colors.divider}; color: ${colors.textSecondary};`;
+    div.style.cssText = `font-size:12px;font-style:italic;opacity:0.6;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed ${colors.divider};color:${colors.textSecondary};`;
     div.textContent = '💭 ' + thinkingContent;
     return div;
 }
 
 function buildActionButtons(content, colors) {
     const row = document.createElement('div');
-    row.style.cssText = 'display: flex; align-items: center; gap: 2px; margin-top: 8px; padding-top: 2px;';
+    row.style.cssText = 'display:flex;align-items:center;gap:2px;margin-top:8px;padding-top:2px;';
 
     const actions = [
         { icon: 'copy',        title: 'Copiar',    fn: () => copyMessageToClipboard(content) },
@@ -1190,8 +1408,8 @@ function buildActionButtons(content, colors) {
         const btn = document.createElement('button');
         btn.className = 'pulse-tap circular';
         btn.title = title;
-        btn.style.cssText = `width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; border: none; cursor: pointer; color: ${colors.iconTintSecondary}; opacity: 0.65; padding: 0; flex-shrink: 0;`;
-        btn.innerHTML = `<span class="icon-mask" style="mask-image: url('assets/icons/svg/${icon}.svg'); -webkit-mask-image: url('assets/icons/svg/${icon}.svg'); width: 17px; height: 17px; background: ${colors.iconTintSecondary};"></span>`;
+        btn.style.cssText = `width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:transparent;border:none;cursor:pointer;color:${colors.iconTintSecondary};opacity:0.65;padding:0;flex-shrink:0;`;
+        btn.innerHTML = `<span class="icon-mask" style="mask-image:url('assets/icons/svg/${icon}.svg');-webkit-mask-image:url('assets/icons/svg/${icon}.svg');width:17px;height:17px;background:${colors.iconTintSecondary};"></span>`;
         btn.onmouseenter = () => { btn.style.opacity = '1'; };
         btn.onmouseleave = () => { btn.style.opacity = '0.65'; };
         btn.onclick = fn;
@@ -1225,8 +1443,30 @@ function shareMessage(content) {
 }
 
 function regenerateLastResponse() {
-    const lastUser = [...chatState.chatHistory].reverse().find(m => m.role === 'user');
-    if (lastUser && !chatState.isStreaming) sendMessage(lastUser.content);
+    if (chatState.isStreaming) return;
+    // Reenvia a última mensagem do utilizador exatamente como estava
+    const lastUserMsg = [...chatState.chatHistory].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
+
+    // Remove a última resposta do assistente do display e do histórico
+    const msgs = chatState.displayMessages;
+    const hist = chatState.chatHistory;
+
+    // Remove última mensagem do assistente
+    if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
+        msgs.pop();
+        if (hist.length > 0 && hist[hist.length - 1].role === 'assistant') hist.pop();
+    }
+    // Remove última mensagem do utilizador
+    if (msgs.length > 0 && msgs[msgs.length - 1].role === 'user') {
+        msgs.pop();
+        if (hist.length > 0 && hist[hist.length - 1].role === 'user') hist.pop();
+    }
+
+    chatState.notify();
+
+    // Reenvia a mesma mensagem
+    setTimeout(() => sendMessage(lastUserMsg.content), 100);
 }
 
 /* =========================================================================
@@ -1241,10 +1481,10 @@ function renderConversationsList() {
 
     if (conversations.length === 0) {
         const empty = document.createElement('div');
-        empty.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 10px; opacity: 0.45;';
+        empty.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:10px;opacity:0.45;';
         empty.innerHTML = `
-            <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 28px; height: 28px; background: ${colors.textHint};"></span>
-            <span style="font-size:13px; color:${colors.textHint}; text-align:center;">Ainda não há conversas</span>`;
+            <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:28px;height:28px;background:${colors.textHint};"></span>
+            <span style="font-size:13px;color:${colors.textHint};text-align:center;">Ainda não há conversas</span>`;
         list.appendChild(empty);
         return;
     }
@@ -1272,7 +1512,7 @@ function renderConversationsList() {
             const pinIcon = document.createElement('span');
             pinIcon.className = 'icon-mask drawer-conv-pin-icon';
             const pinColor = isActive ? colors.extrasCardActiveText : colors.iconTintSecondary;
-            pinIcon.style.cssText = `mask-image: url('assets/icons/svg/pin_filled.svg'); -webkit-mask-image: url('assets/icons/svg/pin_filled.svg'); background: ${pinColor};`;
+            pinIcon.style.cssText = `mask-image:url('assets/icons/svg/pin_filled.svg');-webkit-mask-image:url('assets/icons/svg/pin_filled.svg');background:${pinColor};`;
             item.appendChild(pinIcon);
         }
 
@@ -1286,48 +1526,50 @@ function renderConversationsList() {
     });
 }
 
+/* =========================================================================
+   OPÇÕES DA CONVERSA — cores neutras, sem azul
+   ========================================================================= */
+
 function showConvOptionsSheet(conv) {
     closeDrawer();
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
+    const sheet = document.getElementById('modalSheet');
+    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(
-        document.getElementById('modalSheet'),
-        document.getElementById('modalOverlay'),
-        closeModalSheet
-    ));
+    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
 
     const dt = new Date(conv.updatedAt);
     const dateStr = dt.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
     const timeStr = dt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 
+    // Cabeçalho sem cores azuis
     const header = document.createElement('div');
-    header.className = 'conv-options-header';
+    header.style.cssText = 'display:flex;align-items:center;padding:4px 16px 16px;gap:12px;';
     header.innerHTML = `
-        <div class="conv-options-avatar" style="background:${colors.extrasCardActiveText}1A;">
-            <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg'); -webkit-mask-image:url('assets/icons/svg/new_chat.svg'); width:16px; height:16px; background:${colors.extrasCardActiveText};"></span>
+        <div style="width:40px;height:40px;border-radius:12px;background:${isDarkMode ? '#2C2C2E' : '#E5E5EA'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:16px;height:16px;background:${colors.iconTint};"></span>
         </div>
-        <div class="conv-options-header-text">
-            <div class="conv-options-title" style="color:${colors.textPrimary};">${escapeHtml(conv.title)}</div>
-            <div class="conv-options-subtitle" style="color:${colors.textSecondary};">${dateStr} · ${timeStr}</div>
+        <div>
+            <div style="font-size:15px;font-weight:600;color:${colors.textPrimary};line-height:1.3;">${escapeHtml(conv.title)}</div>
+            <div style="font-size:12px;color:${colors.textSecondary};margin-top:2px;">${dateStr} · ${timeStr}</div>
         </div>`;
     content.appendChild(header);
 
     const card = document.createElement('div');
-    card.className = 'conv-options-card';
-    card.style.background = isDarkMode ? '#1C1C1E' : '#F2F2F7';
+    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
     content.appendChild(card);
 
     const options = [
         {
-            icon: 'external', label: 'Abrir conversa', tint: colors.extrasCardActiveText, danger: false,
+            icon: 'external', label: 'Abrir conversa', danger: false,
             action: () => { closeAllModals(); setTimeout(() => chatState.loadConversation(conv), 200); }
         },
         {
             icon: conv.pinned ? 'pin_filled' : 'pin',
             label: conv.pinned ? 'Desafixar conversa' : 'Fixar conversa',
-            tint: colors.extrasCardActiveText, danger: false,
+            danger: false,
             action: async () => {
                 closeAllModals();
                 const previous = conv.pinned;
@@ -1346,15 +1588,15 @@ function showConvOptionsSheet(conv) {
             }
         },
         {
-            icon: 'pen', label: 'Renomear', tint: colors.extrasCardActiveText, danger: false,
+            icon: 'pen', label: 'Renomear', danger: false,
             action: () => showRenameDialog(conv)
         },
         {
-            icon: 'share', label: 'Partilhar conversa', tint: colors.extrasCardActiveText, danger: false,
+            icon: 'share', label: 'Partilhar conversa', danger: false,
             action: () => { closeAllModals(); shareConversationText(conv); }
         },
         {
-            icon: 'trash', label: 'Eliminar conversa', tint: '#EF4444', danger: true,
+            icon: 'trash', label: 'Eliminar conversa', danger: true,
             action: () => { closeAllModals(); deleteConversation(conv); }
         }
     ];
@@ -1362,33 +1604,30 @@ function showConvOptionsSheet(conv) {
     options.forEach((opt, i) => {
         if (i > 0) {
             const div = document.createElement('div');
-            div.style.cssText = `height:1px; margin-left:60px; background:${colors.divider};`;
+            div.style.cssText = `height:1px;margin-left:52px;background:${colors.divider};`;
             card.appendChild(div);
         }
         const row = document.createElement('div');
-        row.className = 'conv-options-row pulse-tap';
+        row.className = 'pulse-tap';
+        row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;';
         row.onclick = opt.action;
 
-        const iconCircle = document.createElement('span');
-        iconCircle.className = 'conv-options-icon-circle';
-        iconCircle.style.background = opt.tint + '1A';
-        const icon = document.createElement('span');
-        icon.className = 'icon-mask';
-        icon.style.cssText = `mask-image:url('assets/icons/svg/${opt.icon}.svg'); -webkit-mask-image:url('assets/icons/svg/${opt.icon}.svg'); width:16px; height:16px; background:${opt.tint};`;
-        iconCircle.appendChild(icon);
+        const iconEl = document.createElement('span');
+        iconEl.className = 'icon-mask';
+        const tint = opt.danger ? '#EF4444' : colors.iconTint;
+        iconEl.style.cssText = `mask-image:url('assets/icons/svg/${opt.icon}.svg');-webkit-mask-image:url('assets/icons/svg/${opt.icon}.svg');width:18px;height:18px;background:${tint};flex-shrink:0;`;
+        row.appendChild(iconEl);
 
         const label = document.createElement('span');
-        label.className = 'conv-options-label';
-        label.style.color = opt.danger ? '#EF4444' : colors.textPrimary;
+        label.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${opt.danger ? '#EF4444' : colors.textPrimary};`;
         label.textContent = opt.label;
-
-        row.appendChild(iconCircle);
         row.appendChild(label);
+
         card.appendChild(row);
     });
 
     const pad = document.createElement('div');
-    pad.style.height = '20px';
+    pad.style.height = '24px';
     content.appendChild(pad);
 
     openModalSheet();
@@ -1524,6 +1763,132 @@ async function deleteConversation(conv) {
 }
 
 /* =========================================================================
+   INCÓGNITO
+   ========================================================================= */
+
+function showIncognitoConfirmSheet() {
+    const colors = getThemeColors();
+    const content = document.getElementById('modalSheetContent');
+    const sheet = document.getElementById('modalSheet');
+    const overlay = document.getElementById('modalOverlay');
+    content.innerHTML = '';
+
+    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
+
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:8px 20px 8px;text-align:center;';
+    body.innerHTML = `
+        <span class="icon-mask" style="mask-image:url('assets/icons/svg/incognito.svg');-webkit-mask-image:url('assets/icons/svg/incognito.svg');width:36px;height:36px;background:${colors.iconTint};display:block;margin:0 auto 12px;"></span>
+        <div style="font-size:17px;font-weight:700;color:${colors.textPrimary};margin-bottom:8px;">Conversa Privada</div>
+        <div style="font-size:14px;color:${colors.textSecondary};line-height:1.5;margin-bottom:20px;">Esta conversa não será guardada.<br>Não será possível desativar o modo incógnito durante a conversa.</div>
+    `;
+    content.appendChild(body);
+
+    const btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'padding:0 16px 8px;display:flex;flex-direction:column;gap:10px;';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'pulse-tap';
+    confirmBtn.style.cssText = `width:100%;height:50px;border-radius:25px;border:none;cursor:pointer;font-size:15px;font-weight:700;background:${colors.textPrimary};color:${colors.background};`;
+    confirmBtn.textContent = 'Ativar modo incógnito';
+    confirmBtn.onclick = () => {
+        closeModalSheet();
+        chatState.activateIncognito();
+    };
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'pulse-tap';
+    cancelBtn.style.cssText = `width:100%;height:50px;border-radius:25px;border:none;cursor:pointer;font-size:15px;font-weight:500;background:${isDarkMode ? '#2C2C2E' : '#E5E5EA'};color:${colors.textPrimary};`;
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.onclick = () => closeModalSheet();
+
+    btnWrap.appendChild(confirmBtn);
+    btnWrap.appendChild(cancelBtn);
+    content.appendChild(btnWrap);
+
+    const pad = document.createElement('div');
+    pad.style.height = '16px';
+    content.appendChild(pad);
+
+    openModalSheet();
+}
+
+/* =========================================================================
+   MODEL PICKER
+   ========================================================================= */
+
+const AVAILABLE_MODELS = [
+    { name: 'Gemini 2.5 Flash', id: 'gemini-2.5-flash' },
+    { name: 'Gemini 2.5 Pro',   id: 'gemini-2.5-pro' },
+    { name: 'Gemini 2.0 Flash', id: 'gemini-2.0-flash' },
+];
+
+function showModelPickerSheet() {
+    const colors = getThemeColors();
+    const content = document.getElementById('modalSheetContent');
+    const sheet = document.getElementById('modalSheet');
+    const overlay = document.getElementById('modalOverlay');
+    content.innerHTML = '';
+
+    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = `padding:4px 20px 12px;font-size:17px;font-weight:700;color:${colors.textPrimary};`;
+    titleEl.textContent = 'Modelo';
+    content.appendChild(titleEl);
+
+    const card = document.createElement('div');
+    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
+
+    AVAILABLE_MODELS.forEach((model, i) => {
+        if (i > 0) {
+            const sep = document.createElement('div');
+            sep.style.cssText = `height:1px;margin-left:52px;background:${colors.divider};`;
+            card.appendChild(sep);
+        }
+        const row = document.createElement('div');
+        row.className = 'pulse-tap';
+        row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;';
+        row.onclick = () => {
+            // Atualiza o modelo (apenas visual por agora — adaptar ao worker se necessário)
+            window.MODEL_NAME = model.name;
+            window.MODEL_ID = model.id;
+            const label = document.getElementById('modelPillLabel');
+            if (label) label.textContent = chatState.incognitoMode ? '🕵️ ' + model.name : model.name;
+            closeModalSheet();
+            showToast('Modelo: ' + model.name);
+        };
+
+        const iconEl = document.createElement('span');
+        iconEl.className = 'icon-mask';
+        iconEl.style.cssText = `mask-image:url('assets/icons/svg/ai.svg');-webkit-mask-image:url('assets/icons/svg/ai.svg');width:18px;height:18px;background:${colors.iconTint};flex-shrink:0;`;
+        row.appendChild(iconEl);
+
+        const lbl = document.createElement('span');
+        lbl.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${colors.textPrimary};flex:1;`;
+        lbl.textContent = model.name;
+        row.appendChild(lbl);
+
+        const isActive = (window.MODEL_ID || MODEL_ID) === model.id;
+        if (isActive) {
+            const check = document.createElement('span');
+            check.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${colors.primary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+            row.appendChild(check);
+        }
+
+        card.appendChild(row);
+    });
+
+    content.appendChild(card);
+
+    const pad = document.createElement('div');
+    pad.style.height = '24px';
+    content.appendChild(pad);
+
+    openModalSheet();
+}
+
+/* =========================================================================
    DRAWER
    ========================================================================= */
 
@@ -1573,8 +1938,13 @@ async function sendMessage(text) {
     chatState.isStreaming = true;
 
     chatState.addUserMessage(trimmed);
-    document.getElementById('textInput').value = '';
-    updateSendButton();
+
+    const input = document.getElementById('textInput');
+    if (input) {
+        input.value = '';
+        resetInputHeight(input);
+        updateSendButton();
+    }
     scrollToBottom();
 
     const think = chatState.thinkMoreMode;
@@ -1615,6 +1985,9 @@ async function sendMessage(text) {
     chatState.isStreaming = false;
     chatState.notify();
     scrollToBottom();
+
+    // Em modo incógnito não guarda a conversa
+    if (chatState.incognitoMode) return;
 
     if (isFirstMessage && !chatState.titleGenerated) {
         chatState.titleGenerated = true;
@@ -1729,16 +2102,18 @@ function makeSheetDraggable(handleEl, sheetEl, overlayEl, closeFn) {
     handleEl.addEventListener('pointercancel', onUp);
 }
 
+/* =========================================================================
+   ADD POPUP — upload de imagens e ficheiros
+   ========================================================================= */
+
 function showAddPopup() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
+    const sheet = document.getElementById('modalSheet');
+    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(
-        document.getElementById('modalSheet'),
-        document.getElementById('modalOverlay'),
-        closeModalSheet
-    ));
+    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
 
     const fileInputImage = document.createElement('input');
     fileInputImage.type = 'file';
@@ -1750,27 +2125,40 @@ function showAddPopup() {
     };
     content.appendChild(fileInputImage);
 
-    const fileInputUpload = document.createElement('input');
-    fileInputUpload.type = 'file';
-    fileInputUpload.accept = '*/*';
-    fileInputUpload.style.display = 'none';
-    fileInputUpload.onchange = (e) => {
+    const fileInputDoc = document.createElement('input');
+    fileInputDoc.type = 'file';
+    fileInputDoc.accept = '.pdf,.doc,.docx,.txt,.csv,.xlsx,.pptx';
+    fileInputDoc.style.display = 'none';
+    fileInputDoc.onchange = (e) => {
         const file = e.target.files?.[0];
         if (file) { closeAllModals(); showToast(`Ficheiro "${file.name}" selecionado`); }
     };
-    content.appendChild(fileInputUpload);
+    content.appendChild(fileInputDoc);
+
+    const fileInputAny = document.createElement('input');
+    fileInputAny.type = 'file';
+    fileInputAny.accept = '*/*';
+    fileInputAny.style.display = 'none';
+    fileInputAny.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) { closeAllModals(); showToast(`Ficheiro "${file.name}" selecionado`); }
+    };
+    content.appendChild(fileInputAny);
+
+    const card = document.createElement('div');
+    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
 
     function buildRow(iconName, label, onClick) {
         const row = document.createElement('div');
         row.className = 'pulse-tap';
-        row.style.cssText = `display: flex; align-items: center; padding: 14px 20px; cursor: pointer;`;
+        row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;';
         row.onclick = onClick;
         const icon = document.createElement('span');
         icon.className = 'icon-mask';
-        icon.style.cssText = `mask-image: url('assets/icons/svg/${iconName}.svg'); -webkit-mask-image: url('assets/icons/svg/${iconName}.svg'); width: 22px; height: 22px; background: ${colors.iconTint}; flex-shrink: 0;`;
+        icon.style.cssText = `mask-image:url('assets/icons/svg/${iconName}.svg');-webkit-mask-image:url('assets/icons/svg/${iconName}.svg');width:20px;height:20px;background:${colors.iconTint};flex-shrink:0;`;
         row.appendChild(icon);
         const lbl = document.createElement('span');
-        lbl.style.cssText = `margin-left: 14px; font-size: 15px; font-weight: 500; color: ${colors.textPrimary};`;
+        lbl.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${colors.textPrimary};`;
         lbl.textContent = label;
         row.appendChild(lbl);
         return row;
@@ -1778,38 +2166,47 @@ function showAddPopup() {
 
     function buildSep() {
         const sep = document.createElement('div');
-        sep.style.cssText = `height: 1px; margin-left: 56px; background: ${colors.divider};`;
+        sep.style.cssText = `height:1px;margin-left:54px;background:${colors.divider};`;
         return sep;
     }
 
-    content.appendChild(buildRow('image',  'Enviar Imagem',   () => fileInputImage.click()));
-    content.appendChild(buildSep());
-    content.appendChild(buildRow('upload',  'Enviar Ficheiro', () => fileInputUpload.click()));
-    content.appendChild(buildSep());
-    content.appendChild(buildRow('extras',  'Extras',          () => { closeAllModals(); setTimeout(showExtrasSheet, 180); }));
+    card.appendChild(buildRow('image',  'Enviar Imagem',    () => fileInputImage.click()));
+    card.appendChild(buildSep());
+    card.appendChild(buildRow('folder', 'Enviar Documento', () => fileInputDoc.click()));
+    card.appendChild(buildSep());
+    card.appendChild(buildRow('upload', 'Enviar Ficheiro',  () => fileInputAny.click()));
+    card.appendChild(buildSep());
+    card.appendChild(buildRow('extras', 'Extras',           () => { closeAllModals(); setTimeout(showExtrasSheet, 180); }));
+
+    content.appendChild(card);
 
     const pad = document.createElement('div');
-    pad.style.height = '16px';
+    pad.style.height = '20px';
     content.appendChild(pad);
 
     openModalSheet();
 }
 
+/* =========================================================================
+   EXTRAS SHEET — ícones -15%
+   ========================================================================= */
+
 function showExtrasSheet() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
+    const sheet = document.getElementById('modalSheet');
+    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(
-        document.getElementById('modalSheet'),
-        document.getElementById('modalOverlay'),
-        closeModalSheet
-    ));
+    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
 
     const titleEl = document.createElement('div');
-    titleEl.style.cssText = `padding: 4px 20px 12px; font-size: 17px; font-weight: 700; color: ${colors.textPrimary};`;
+    titleEl.style.cssText = `padding:4px 20px 12px;font-size:17px;font-weight:700;color:${colors.textPrimary};`;
     titleEl.textContent = 'Extras';
     content.appendChild(titleEl);
+
+    const card = document.createElement('div');
+    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
 
     const items = [
         { title: 'Flash',      iconOff: 'flash',  iconOn: 'flash_filled',  active: chatState.flashMode,     action: () => { chatState.toggleFlashMode();     closeAllModals(); } },
@@ -1820,35 +2217,39 @@ function showExtrasSheet() {
     items.forEach((item, i) => {
         if (i > 0) {
             const div = document.createElement('div');
-            div.style.cssText = `height: 1px; margin-left: 62px; background: ${colors.divider};`;
-            content.appendChild(div);
+            div.style.cssText = `height:1px;margin-left:54px;background:${colors.divider};`;
+            card.appendChild(div);
         }
         const row = document.createElement('div');
-        row.className = 'flex items-center px-4 py-3 pulse-tap';
-        row.style.backgroundColor = item.active ? (colors.extrasCardActiveText + '14') : 'transparent';
-        row.style.cursor = 'pointer';
+        row.className = 'pulse-tap';
+        row.style.cssText = `display:flex;align-items:center;padding:14px 16px;cursor:pointer;background:${item.active ? (colors.extrasCardActiveText + '14') : 'transparent'};`;
         row.onclick = item.action;
 
+        // Ícone -15% (17px em vez de 20px)
         const icon = document.createElement('span');
         icon.className = 'icon-mask';
-        icon.style.cssText = `mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); -webkit-mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); width: 20px; height: 20px; background: ${item.active ? colors.extrasCardActiveText : colors.iconTint}; flex-shrink: 0;`;
+        icon.style.cssText = `mask-image:url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg');-webkit-mask-image:url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg');width:17px;height:17px;background:${item.active ? colors.extrasCardActiveText : colors.iconTint};flex-shrink:0;`;
         row.appendChild(icon);
 
         const span = document.createElement('span');
-        span.className = 'ml-3.5 text-sm font-medium flex-1';
+        span.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;flex:1;color:${item.active ? colors.extrasCardActiveText : colors.textPrimary};`;
         span.textContent = item.title;
-        span.style.color = item.active ? colors.extrasCardActiveText : colors.textPrimary;
         row.appendChild(span);
 
         if (item.active) {
             const dot = document.createElement('div');
-            dot.className = 'w-2 h-2 rounded-full';
-            dot.style.background = colors.extrasCardActiveText;
+            dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${colors.extrasCardActiveText};`;
             row.appendChild(dot);
         }
 
-        content.appendChild(row);
+        card.appendChild(row);
     });
+
+    content.appendChild(card);
+
+    const pad = document.createElement('div');
+    pad.style.height = '24px';
+    content.appendChild(pad);
 
     openModalSheet();
 }
@@ -1856,21 +2257,17 @@ function showExtrasSheet() {
 function showEditModal() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
+    const sheet = document.getElementById('modalSheet');
+    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(
-        document.getElementById('modalSheet'),
-        document.getElementById('modalOverlay'),
-        closeModalSheet
-    ));
+    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
 
     const titleEl = document.createElement('div');
-    titleEl.style.cssText = `padding: 4px 20px 20px; font-size: 17px; font-weight: 700; color: ${colors.textPrimary};`;
+    titleEl.style.cssText = `padding:4px 20px 20px;font-size:17px;font-weight:700;color:${colors.textPrimary};`;
     titleEl.textContent = 'Edit';
     content.appendChild(titleEl);
 
-    // Modal Edit mais alto — 88vh
-    const sheet = document.getElementById('modalSheet');
     if (sheet) sheet.style.minHeight = '88vh';
 
     openModalSheet();

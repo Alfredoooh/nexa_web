@@ -1782,7 +1782,7 @@ function showAddPopup() {
         return sep;
     }
 
-    content.appendChild(buildRow('camera',  'Enviar Imagem',   () => fileInputImage.click()));
+    content.appendChild(buildRow('image',  'Enviar Imagem',   () => fileInputImage.click()));
     content.appendChild(buildSep());
     content.appendChild(buildRow('upload',  'Enviar Ficheiro', () => fileInputUpload.click()));
     content.appendChild(buildSep());

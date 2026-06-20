@@ -4,16 +4,9 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-// ─── Firebase Service Account (injetada via env secrets) ─────────────────────
-// FIREBASE_PROJECT_ID = "nexa-app-e4bb3"
-// FIREBASE_CLIENT_EMAIL = "firebase-adminsdk-fbsvc@nexa-app-e4bb3.iam.gserviceaccount.com"
-// FIREBASE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n..."
-
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_BASE  = "https://generativelanguage.googleapis.com/v1beta/models";
 const GROQ_BASE    = "https://api.groq.com/openai/v1";
-
-// ─── Helpers gerais ──────────────────────────────────────────────────────────
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -31,8 +24,6 @@ async function hashPassword(password) {
   const hash = await crypto.subtle.digest("SHA-256", enc);
   return btoa(String.fromCharCode(...new Uint8Array(hash)));
 }
-
-// ─── JWT interno Nexa ────────────────────────────────────────────────────────
 
 async function generateToken(payload, secret) {
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
@@ -78,71 +69,25 @@ async function getAuthUser(request, env) {
   return verifyToken(auth.slice(7), env.JWT_SECRET);
 }
 
-// ─── Firebase ID Token Verification ─────────────────────────────────────────
-
-async function importFirebasePrivateKey(pemKey) {
-  const cleaned = pemKey
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\\n/g, "")
-    .replace(/\n/g, "")
-    .trim();
-  const binaryDer = Uint8Array.from(atob(cleaned), function(c) { return c.charCodeAt(0); });
-  return crypto.subtle.importKey(
-    "pkcs8", binaryDer.buffer,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false, ["sign"]
-  );
-}
-
-async function getFirebasePublicKeys() {
-  const res  = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com");
-  const keys = await res.json();
-  return keys;
-}
-
-async function importPublicKeyFromCert(certPem) {
-  // Converte o certificado X.509 PEM para CryptoKey usando SubtleCrypto
-  const cleaned = certPem
-    .replace(/-----BEGIN CERTIFICATE-----/, "")
-    .replace(/-----END CERTIFICATE-----/, "")
-    .replace(/\n/g, "")
-    .trim();
-  const der = Uint8Array.from(atob(cleaned), function(c) { return c.charCodeAt(0); });
-  return crypto.subtle.importKey(
-    "raw", der,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false, ["verify"]
-  ).catch(async function() {
-    // Cloudflare Workers suporta importar certificados via spki
-    // Usamos uma abordagem alternativa: verificar via JWT decode apenas
-    return null;
-  });
-}
-
 async function verifyFirebaseToken(idToken, projectId) {
   try {
     const parts = idToken.split(".");
     if (parts.length !== 3) return null;
 
-    // Decode header e payload (sem verificar assinatura via SubtleCrypto por limitações de cert X.509)
     const header  = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/")));
     const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
 
-    // Validações básicas do payload
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now)            return null; // expirado
-    if (payload.iat > now + 300)      return null; // emitido no futuro
-    if (payload.aud !== projectId)    return null; // audience errado
+    if (payload.exp < now)            return null;
+    if (payload.iat > now + 300)      return null;
+    if (payload.aud !== projectId)    return null;
     if (payload.iss !== "https://securetoken.google.com/" + projectId) return null;
     if (!payload.sub || payload.sub.length === 0) return null;
 
-    // Verificação da assinatura com chave pública do Google
-    const publicKeys = await getFirebasePublicKeys();
+    const publicKeys = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com").then(r => r.json());
     const certPem    = publicKeys[header.kid];
     if (!certPem) return null;
 
-    // Extrair a chave pública SPKI do certificado X.509
     const certCleaned = certPem
       .replace(/-----BEGIN CERTIFICATE-----/, "")
       .replace(/-----END CERTIFICATE-----/, "")
@@ -150,9 +95,7 @@ async function verifyFirebaseToken(idToken, projectId) {
       .trim();
     const certDer = Uint8Array.from(atob(certCleaned), function(c) { return c.charCodeAt(0); });
 
-    // Parse manual do certificado DER para extrair a SubjectPublicKeyInfo
-    // O certificado X.509 tem a chave pública a partir de um offset fixo para RSA 2048
-    const spkiKey = await extractSpkiFromCert(certDer);
+    const spkiKey = extractSpkiFromCert(certDer);
     if (!spkiKey) return null;
 
     const cryptoKey = await crypto.subtle.importKey(
@@ -166,17 +109,16 @@ async function verifyFirebaseToken(idToken, projectId) {
       atob(parts[2].replace(/-/g, "+").replace(/_/g, "/")),
       function(c) { return c.charCodeAt(0); }
     );
-    const encoder = new TextEncoder();
-    const valid   = await crypto.subtle.verify(
-      "RSASSA-PKCS1-v1_5", cryptoKey, sigBytes, encoder.encode(signingInput)
+    const valid = await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5", cryptoKey, sigBytes, new TextEncoder().encode(signingInput)
     );
     if (!valid) return null;
 
     return {
-      uid:   payload.sub,
-      email: payload.email || null,
-      name:  payload.name  || null,
-      picture: payload.picture || null,
+      uid:      payload.sub,
+      email:    payload.email   || null,
+      name:     payload.name    || null,
+      picture:  payload.picture || null,
       provider: (payload.firebase && payload.firebase.sign_in_provider) || "unknown",
     };
   } catch (e) {
@@ -187,10 +129,6 @@ async function verifyFirebaseToken(idToken, projectId) {
 
 function extractSpkiFromCert(certDer) {
   try {
-    // Parse DER/ASN.1 manual para extrair SubjectPublicKeyInfo do certificado X.509
-    // Estrutura: SEQUENCE { tbsCertificate SEQUENCE { ... subjectPublicKeyInfo SEQUENCE ... } ... }
-    let offset = 0;
-
     function readLength(buf, off) {
       if (buf[off] < 0x80) return { len: buf[off], next: off + 1 };
       const numBytes = buf[off] & 0x7f;
@@ -200,7 +138,7 @@ function extractSpkiFromCert(certDer) {
     }
 
     function skipTag(buf, off) {
-      off++; // skip tag byte
+      off++;
       const r = readLength(buf, off);
       return r.next + r.len;
     }
@@ -212,33 +150,24 @@ function extractSpkiFromCert(certDer) {
       return r.next;
     }
 
-    // Entra no Certificate SEQUENCE
     let pos = enterSequence(certDer, 0);
     if (pos === null) return null;
 
-    // Entra no TBSCertificate SEQUENCE
     pos = enterSequence(certDer, pos);
     if (pos === null) return null;
 
-    // version [0] EXPLICIT — opcional, skip se presente
     if (certDer[pos] === 0xa0) { pos = skipTag(certDer, pos); }
 
-    // serialNumber INTEGER
     pos = skipTag(certDer, pos);
-    // signature AlgorithmIdentifier
     pos = skipTag(certDer, pos);
-    // issuer Name
     pos = skipTag(certDer, pos);
-    // validity Validity
     pos = skipTag(certDer, pos);
-    // subject Name
     pos = skipTag(certDer, pos);
 
-    // subjectPublicKeyInfo SEQUENCE — é o que queremos
     if (certDer[pos] !== 0x30) return null;
     const spkiStart = pos;
     pos++;
-    const r    = readLength(certDer, pos);
+    const r       = readLength(certDer, pos);
     const spkiEnd = r.next + r.len;
 
     return certDer.slice(spkiStart, spkiEnd).buffer;
@@ -247,8 +176,6 @@ function extractSpkiFromCert(certDer) {
     return null;
   }
 }
-
-// ─── Gemini helpers ──────────────────────────────────────────────────────────
 
 function buildGeminiContents(messages) {
   return messages
@@ -312,24 +239,17 @@ async function geminiGenerateTitle(apiKey, message, language) {
   return text.trim().slice(0, 40);
 }
 
-// ─── Groq helpers ─────────────────────────────────────────────────────────────
-
 async function groqChat(apiKey, messages, model, systemPrompt, language) {
   const sysContent = systemPrompt && systemPrompt.trim().length > 0
     ? systemPrompt
     : buildSystemInstruction(language || "pt", "");
-
   const allMessages = [
     { role: "system", content: sysContent },
     ...messages.filter(function(m) { return m.role !== "system"; }),
   ];
-
-  const res = await fetch(GROQ_BASE + "/chat/completions", {
+  return fetch(GROQ_BASE + "/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + apiKey,
-    },
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
     body: JSON.stringify({
       model: model || "llama-3.3-70b-versatile",
       messages: allMessages,
@@ -338,25 +258,19 @@ async function groqChat(apiKey, messages, model, systemPrompt, language) {
       stream: false,
     }),
   });
-  return res;
 }
 
 async function groqChatStream(apiKey, messages, model, systemPrompt, language) {
   const sysContent = systemPrompt && systemPrompt.trim().length > 0
     ? systemPrompt
     : buildSystemInstruction(language || "pt", "");
-
   const allMessages = [
     { role: "system", content: sysContent },
     ...messages.filter(function(m) { return m.role !== "system"; }),
   ];
-
-  const res = await fetch(GROQ_BASE + "/chat/completions", {
+  return fetch(GROQ_BASE + "/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + apiKey,
-    },
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
     body: JSON.stringify({
       model: model || "llama-3.3-70b-versatile",
       messages: allMessages,
@@ -365,10 +279,7 @@ async function groqChatStream(apiKey, messages, model, systemPrompt, language) {
       stream: true,
     }),
   });
-  return res;
 }
-
-// ─── Router ───────────────────────────────────────────────────────────────────
 
 export default {
   async fetch(request, env) {
@@ -377,26 +288,19 @@ export default {
     const url  = new URL(request.url);
     const path = url.pathname;
 
-    // Auth
     if (path === "/auth/register"                        && request.method === "POST")   return handleRegister(request, env);
     if (path === "/auth/login"                           && request.method === "POST")   return handleLogin(request, env);
     if (path === "/auth/logout"                          && request.method === "POST")   return handleLogout(request, env);
     if (path === "/auth/firebase"                        && request.method === "POST")   return handleFirebaseAuth(request, env);
     if (path === "/auth/forgot-password"                 && request.method === "POST")   return handleForgotPassword(request, env);
     if (path === "/auth/reset-password"                  && request.method === "POST")   return handleResetPassword(request, env);
-
-    // User
     if (path === "/user/me"                              && request.method === "GET")    return handleGetMe(request, env);
     if (path === "/user/me"                              && request.method === "PUT")    return handleUpdateMe(request, env);
     if (path === "/user/avatar"                          && request.method === "PUT")    return handleUpdateAvatar(request, env);
-
-    // AI
     if (path === "/ai/chat"                              && request.method === "POST")   return handleAiChat(request, env);
     if (path === "/ai/title"                             && request.method === "POST")   return handleAiTitle(request, env);
     if (path === "/ai/summarize"                         && request.method === "POST")   return handleAiSummarize(request, env);
     if (path === "/ai/transcribe"                        && request.method === "POST")   return handleAiTranscribe(request, env);
-
-    // Conversations
     if (path === "/conversations"                        && request.method === "GET")    return handleListConversations(request, env);
     if (path === "/conversations"                        && request.method === "POST")   return handleCreateConversation(request, env);
     if (path === "/conversations/all"                    && request.method === "DELETE") return handleDeleteAllConversations(request, env);
@@ -411,8 +315,6 @@ export default {
   },
 };
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
 async function handleRegister(request, env) {
   const body = await request.json().catch(function() { return null; });
   if (!body) return error("Body inválido");
@@ -420,7 +322,7 @@ async function handleRegister(request, env) {
   if (!name || !email || !password) return error("Campos obrigatórios em falta");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return error("Email inválido");
   if (password.length < 6) return error("Password deve ter pelo menos 6 caracteres");
-  const existing = await env.NEXA_USERS.get("email:" + email.toLowerCase());
+  const existing = await env.IPC_USERS.get("email:" + email.toLowerCase());
   if (existing) return error("Este email já está registado");
   const id           = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
@@ -436,8 +338,8 @@ async function handleRegister(request, env) {
     stats:        { totalConversations: 0, totalMessages: 0 },
     createdAt:    Date.now(),
   };
-  await env.NEXA_USERS.put("user:" + id, JSON.stringify(user));
-  await env.NEXA_USERS.put("email:" + email.toLowerCase(), id);
+  await env.IPC_USERS.put("user:" + id, JSON.stringify(user));
+  await env.IPC_USERS.put("email:" + email.toLowerCase(), id);
   const token = await generateToken({ id: id, email: user.email, name: name }, env.JWT_SECRET);
   return json({ token: token, id: id, name: name, email: user.email }, 201);
 }
@@ -447,9 +349,9 @@ async function handleLogin(request, env) {
   if (!body) return error("Body inválido");
   const { email, password } = body;
   if (!email || !password) return error("Campos obrigatórios em falta");
-  const userId = await env.NEXA_USERS.get("email:" + email.toLowerCase());
+  const userId = await env.IPC_USERS.get("email:" + email.toLowerCase());
   if (!userId) return error("Email ou password incorretos", 401);
-  const userData = await env.NEXA_USERS.get("user:" + userId);
+  const userData = await env.IPC_USERS.get("user:" + userId);
   if (!userData) return error("Email ou password incorretos", 401);
   const user = JSON.parse(userData);
   if (user.passwordHash !== await hashPassword(password)) return error("Email ou password incorretos", 401);
@@ -465,23 +367,19 @@ async function handleFirebaseAuth(request, env) {
   const body = await request.json().catch(function() { return null; });
   if (!body || !body.idToken) return error("idToken obrigatório");
 
-  const projectId   = env.FIREBASE_PROJECT_ID;
+  const projectId    = env.FIREBASE_PROJECT_ID;
   const firebaseUser = await verifyFirebaseToken(body.idToken, projectId);
   if (!firebaseUser) return error("Token Firebase inválido ou expirado", 401);
 
   const uid = firebaseUser.uid;
-
-  // Verifica se o utilizador já existe pelo Firebase UID
-  let userId = await env.NEXA_USERS.get("firebase:" + uid);
+  let userId = await env.IPC_USERS.get("firebase:" + uid);
 
   if (!userId) {
-    // Verifica se existe pelo email
     if (firebaseUser.email) {
-      userId = await env.NEXA_USERS.get("email:" + firebaseUser.email.toLowerCase());
+      userId = await env.IPC_USERS.get("email:" + firebaseUser.email.toLowerCase());
     }
 
     if (!userId) {
-      // Cria novo utilizador
       userId = crypto.randomUUID();
       const user = {
         id:           userId,
@@ -495,30 +393,28 @@ async function handleFirebaseAuth(request, env) {
         stats:        { totalConversations: 0, totalMessages: 0 },
         createdAt:    Date.now(),
       };
-      await env.NEXA_USERS.put("user:" + userId, JSON.stringify(user));
+      await env.IPC_USERS.put("user:" + userId, JSON.stringify(user));
       if (firebaseUser.email) {
-        await env.NEXA_USERS.put("email:" + firebaseUser.email.toLowerCase(), userId);
+        await env.IPC_USERS.put("email:" + firebaseUser.email.toLowerCase(), userId);
       }
     } else {
-      // Actualiza utilizador existente com o Firebase UID e avatar
-      const userData = await env.NEXA_USERS.get("user:" + userId);
+      const userData = await env.IPC_USERS.get("user:" + userId);
       if (userData) {
         const user = JSON.parse(userData);
         user.firebaseUid = uid;
         user.provider    = firebaseUser.provider;
         if (!user.avatar && firebaseUser.picture) user.avatar = firebaseUser.picture;
-        if (!user.name && firebaseUser.name) user.name = firebaseUser.name;
-        await env.NEXA_USERS.put("user:" + userId, JSON.stringify(user));
+        if (!user.name   && firebaseUser.name)    user.name   = firebaseUser.name;
+        await env.IPC_USERS.put("user:" + userId, JSON.stringify(user));
       }
     }
 
-    await env.NEXA_USERS.put("firebase:" + uid, userId);
+    await env.IPC_USERS.put("firebase:" + uid, userId);
   }
 
-  const userData = await env.NEXA_USERS.get("user:" + userId);
+  const userData = await env.IPC_USERS.get("user:" + userId);
   if (!userData) return error("Erro ao carregar utilizador", 500);
-  const user = JSON.parse(userData);
-
+  const user  = JSON.parse(userData);
   const token = await generateToken({ id: user.id, email: user.email, name: user.name }, env.JWT_SECRET);
   return json({
     token:       token,
@@ -528,7 +424,6 @@ async function handleFirebaseAuth(request, env) {
     avatar:      user.avatar || null,
     provider:    user.provider,
     preferences: user.preferences || {},
-    isNewUser:   !userId,
   });
 }
 
@@ -536,10 +431,10 @@ async function handleForgotPassword(request, env) {
   const body = await request.json().catch(function() { return null; });
   if (!body || !body.email) return error("Email obrigatório");
   const email  = body.email.toLowerCase();
-  const userId = await env.NEXA_USERS.get("email:" + email);
+  const userId = await env.IPC_USERS.get("email:" + email);
   if (userId) {
     const resetToken = crypto.randomUUID().replace(/-/g, "");
-    await env.NEXA_USERS.put(
+    await env.IPC_USERS.put(
       "reset:" + resetToken,
       JSON.stringify({ userId: userId, email: email, createdAt: Date.now() }),
       { expirationTtl: 3600 }
@@ -553,24 +448,22 @@ async function handleResetPassword(request, env) {
   const body = await request.json().catch(function() { return null; });
   if (!body || !body.token || !body.password) return error("Token e password obrigatórios");
   if (body.password.length < 6) return error("Password deve ter pelo menos 6 caracteres");
-  const resetData = await env.NEXA_USERS.get("reset:" + body.token);
+  const resetData = await env.IPC_USERS.get("reset:" + body.token);
   if (!resetData) return error("Token inválido ou expirado", 400);
   const userId   = JSON.parse(resetData).userId;
-  const userData = await env.NEXA_USERS.get("user:" + userId);
+  const userData = await env.IPC_USERS.get("user:" + userId);
   if (!userData) return error("Utilizador não encontrado", 404);
   const user = JSON.parse(userData);
   user.passwordHash = await hashPassword(body.password);
-  await env.NEXA_USERS.put("user:" + userId, JSON.stringify(user));
-  await env.NEXA_USERS.delete("reset:" + body.token);
+  await env.IPC_USERS.put("user:" + userId, JSON.stringify(user));
+  await env.IPC_USERS.delete("reset:" + body.token);
   return json({ success: true, message: "Password atualizada com sucesso." });
 }
-
-// ─── User ─────────────────────────────────────────────────────────────────────
 
 async function handleGetMe(request, env) {
   const payload = await getAuthUser(request, env);
   if (!payload) return error("Não autenticado", 401);
-  const userData = await env.NEXA_USERS.get("user:" + payload.id);
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
   if (!userData) return error("Utilizador não encontrado", 404);
   const user = JSON.parse(userData);
   return json({
@@ -590,7 +483,7 @@ async function handleUpdateMe(request, env) {
   if (!payload) return error("Não autenticado", 401);
   const body = await request.json().catch(function() { return null; });
   if (!body) return error("Body inválido");
-  const userData = await env.NEXA_USERS.get("user:" + payload.id);
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
   if (!userData) return error("Utilizador não encontrado", 404);
   const user = JSON.parse(userData);
   if (body.name) user.name = body.name.trim();
@@ -601,7 +494,7 @@ async function handleUpdateMe(request, env) {
   if (body.preferences && typeof body.preferences === "object") {
     user.preferences = Object.assign({}, user.preferences || {}, body.preferences);
   }
-  await env.NEXA_USERS.put("user:" + user.id, JSON.stringify(user));
+  await env.IPC_USERS.put("user:" + user.id, JSON.stringify(user));
   return json({
     id:          user.id,
     name:        user.name,
@@ -619,25 +512,23 @@ async function handleUpdateAvatar(request, env) {
   const body = await request.json().catch(function() { return null; });
   if (!body || !body.avatar) return error("avatar obrigatório");
   if (body.avatar.length > 270000) return error("Imagem demasiado grande (máx ~200KB)");
-  const userData = await env.NEXA_USERS.get("user:" + payload.id);
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
   if (!userData) return error("Utilizador não encontrado", 404);
   const user = JSON.parse(userData);
   user.avatar = body.avatar;
-  await env.NEXA_USERS.put("user:" + user.id, JSON.stringify(user));
+  await env.IPC_USERS.put("user:" + user.id, JSON.stringify(user));
   return json({ avatar: user.avatar });
 }
-
-// ─── Conversations ────────────────────────────────────────────────────────────
 
 async function handleListConversations(request, env) {
   const payload = await getAuthUser(request, env);
   if (!payload) return error("Não autenticado", 401);
   const url      = new URL(request.url);
   const archived = url.searchParams.get("archived") === "true";
-  const raw      = await env.NEXA_USERS.get("convs:" + payload.id);
+  const raw      = await env.IPC_USERS.get("convs:" + payload.id);
   const ids      = raw ? JSON.parse(raw) : [];
   const all      = await Promise.all(ids.map(async function(id) {
-    const data = await env.NEXA_USERS.get("conv:" + id);
+    const data = await env.IPC_USERS.get("conv:" + id);
     return data ? JSON.parse(data) : null;
   }));
   const conversations = all
@@ -669,11 +560,11 @@ async function handleCreateConversation(request, env) {
     createdAt: now,
     updatedAt: now,
   };
-  await env.NEXA_USERS.put("conv:" + id, JSON.stringify(conversation));
-  const raw = await env.NEXA_USERS.get("convs:" + payload.id);
+  await env.IPC_USERS.put("conv:" + id, JSON.stringify(conversation));
+  const raw = await env.IPC_USERS.get("convs:" + payload.id);
   const ids = raw ? JSON.parse(raw) : [];
   ids.unshift(id);
-  await env.NEXA_USERS.put("convs:" + payload.id, JSON.stringify(ids));
+  await env.IPC_USERS.put("convs:" + payload.id, JSON.stringify(ids));
   await incrementUserStat(env, payload.id, "totalConversations", 1);
   return json(conversation, 201);
 }
@@ -682,7 +573,7 @@ async function handleGetConversation(request, env) {
   const payload = await getAuthUser(request, env);
   if (!payload) return error("Não autenticado", 401);
   const id   = new URL(request.url).pathname.split("/").pop();
-  const data = await env.NEXA_USERS.get("conv:" + id);
+  const data = await env.IPC_USERS.get("conv:" + id);
   if (!data) return error("Conversa não encontrada", 404);
   const conversation = JSON.parse(data);
   if (conversation.userId !== payload.id) return error("Acesso negado", 403);
@@ -693,7 +584,7 @@ async function handleUpdateConversation(request, env) {
   const payload = await getAuthUser(request, env);
   if (!payload) return error("Não autenticado", 401);
   const id   = new URL(request.url).pathname.split("/").pop();
-  const data = await env.NEXA_USERS.get("conv:" + id);
+  const data = await env.IPC_USERS.get("conv:" + id);
   if (!data) return error("Conversa não encontrada", 404);
   const conversation = JSON.parse(data);
   if (conversation.userId !== payload.id) return error("Acesso negado", 403);
@@ -708,7 +599,7 @@ async function handleUpdateConversation(request, env) {
   if (body.model !== undefined) conversation.model = body.model;
   if (body.tags  !== undefined) conversation.tags  = body.tags;
   conversation.updatedAt = Date.now();
-  await env.NEXA_USERS.put("conv:" + id, JSON.stringify(conversation));
+  await env.IPC_USERS.put("conv:" + id, JSON.stringify(conversation));
   return json(conversation);
 }
 
@@ -716,15 +607,15 @@ async function handleDeleteConversation(request, env) {
   const payload = await getAuthUser(request, env);
   if (!payload) return error("Não autenticado", 401);
   const id   = new URL(request.url).pathname.split("/").pop();
-  const data = await env.NEXA_USERS.get("conv:" + id);
+  const data = await env.IPC_USERS.get("conv:" + id);
   if (!data) return error("Conversa não encontrada", 404);
   const conversation = JSON.parse(data);
   if (conversation.userId !== payload.id) return error("Acesso negado", 403);
-  await env.NEXA_USERS.delete("conv:" + id);
-  const raw     = await env.NEXA_USERS.get("convs:" + payload.id);
+  await env.IPC_USERS.delete("conv:" + id);
+  const raw     = await env.IPC_USERS.get("convs:" + payload.id);
   const ids     = raw ? JSON.parse(raw) : [];
   const updated = ids.filter(function(i) { return i !== id; });
-  await env.NEXA_USERS.put("convs:" + payload.id, JSON.stringify(updated));
+  await env.IPC_USERS.put("convs:" + payload.id, JSON.stringify(updated));
   await incrementUserStat(env, payload.id, "totalConversations", -1);
   return json({ success: true });
 }
@@ -732,15 +623,15 @@ async function handleDeleteConversation(request, env) {
 async function handleDeleteAllConversations(request, env) {
   const payload = await getAuthUser(request, env);
   if (!payload) return error("Não autenticado", 401);
-  const raw = await env.NEXA_USERS.get("convs:" + payload.id);
+  const raw = await env.IPC_USERS.get("convs:" + payload.id);
   const ids = raw ? JSON.parse(raw) : [];
-  await Promise.all(ids.map(function(id) { return env.NEXA_USERS.delete("conv:" + id); }));
-  await env.NEXA_USERS.put("convs:" + payload.id, JSON.stringify([]));
-  const userData = await env.NEXA_USERS.get("user:" + payload.id);
+  await Promise.all(ids.map(function(id) { return env.IPC_USERS.delete("conv:" + id); }));
+  await env.IPC_USERS.put("convs:" + payload.id, JSON.stringify([]));
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
   if (userData) {
     const user = JSON.parse(userData);
     if (user.stats) user.stats.totalConversations = 0;
-    await env.NEXA_USERS.put("user:" + payload.id, JSON.stringify(user));
+    await env.IPC_USERS.put("user:" + payload.id, JSON.stringify(user));
   }
   return json({ success: true, deleted: ids.length });
 }
@@ -750,14 +641,14 @@ async function handlePinConversation(request, env) {
   if (!payload) return error("Não autenticado", 401);
   const parts = new URL(request.url).pathname.split("/");
   const id    = parts[2];
-  const data  = await env.NEXA_USERS.get("conv:" + id);
+  const data  = await env.IPC_USERS.get("conv:" + id);
   if (!data) return error("Conversa não encontrada", 404);
   const conversation = JSON.parse(data);
   if (conversation.userId !== payload.id) return error("Acesso negado", 403);
   const body = await request.json().catch(function() { return {}; });
   conversation.pinned    = body.pinned !== undefined ? body.pinned : !conversation.pinned;
   conversation.updatedAt = Date.now();
-  await env.NEXA_USERS.put("conv:" + id, JSON.stringify(conversation));
+  await env.IPC_USERS.put("conv:" + id, JSON.stringify(conversation));
   return json({ id: id, pinned: conversation.pinned });
 }
 
@@ -766,7 +657,7 @@ async function handleArchiveConversation(request, env) {
   if (!payload) return error("Não autenticado", 401);
   const parts = new URL(request.url).pathname.split("/");
   const id    = parts[2];
-  const data  = await env.NEXA_USERS.get("conv:" + id);
+  const data  = await env.IPC_USERS.get("conv:" + id);
   if (!data) return error("Conversa não encontrada", 404);
   const conversation = JSON.parse(data);
   if (conversation.userId !== payload.id) return error("Acesso negado", 403);
@@ -774,7 +665,7 @@ async function handleArchiveConversation(request, env) {
   conversation.archived  = body.archived !== undefined ? body.archived : !conversation.archived;
   conversation.pinned    = false;
   conversation.updatedAt = Date.now();
-  await env.NEXA_USERS.put("conv:" + id, JSON.stringify(conversation));
+  await env.IPC_USERS.put("conv:" + id, JSON.stringify(conversation));
   return json({ id: id, archived: conversation.archived });
 }
 
@@ -784,10 +675,10 @@ async function handleSearchConversations(request, env) {
   const url   = new URL(request.url);
   const query = (url.searchParams.get("q") || "").toLowerCase().trim();
   if (!query) return json({ conversations: [] });
-  const raw = await env.NEXA_USERS.get("convs:" + payload.id);
+  const raw = await env.IPC_USERS.get("convs:" + payload.id);
   const ids = raw ? JSON.parse(raw) : [];
   const all = await Promise.all(ids.map(async function(id) {
-    const data = await env.NEXA_USERS.get("conv:" + id);
+    const data = await env.IPC_USERS.get("conv:" + id);
     return data ? JSON.parse(data) : null;
   }));
   const results = all
@@ -801,8 +692,6 @@ async function handleSearchConversations(request, env) {
     .sort(function(a, b) { return b.updatedAt - a.updatedAt; });
   return json({ conversations: results });
 }
-
-// ─── AI ───────────────────────────────────────────────────────────────────────
 
 async function handleAiTitle(request, env) {
   const payload = await getAuthUser(request, env);
@@ -824,18 +713,14 @@ async function handleAiChat(request, env) {
   const language           = body.language || "pt";
   const thinkingBudget     = body.think ? 8000 : 0;
   const customSystemPrompt = body.systemPrompt || "";
-  const provider           = body.provider || "gemini"; // "gemini" | "groq"
+  const provider           = body.provider || "gemini";
   const groqModel          = body.model || "llama-3.3-70b-versatile";
 
-  // ── Groq ──
   if (provider === "groq") {
     if (!env.GROQ_API_KEY) return error("Groq não configurado", 500);
     if (stream) {
       const groqRes = await groqChatStream(env.GROQ_API_KEY, messages, groqModel, customSystemPrompt, language);
-      if (!groqRes.ok) {
-        const errText = await groqRes.text();
-        return error("Erro Groq API: " + errText, groqRes.status);
-      }
+      if (!groqRes.ok) return error("Erro Groq API: " + await groqRes.text(), groqRes.status);
       return new Response(groqRes.body, {
         headers: Object.assign({}, CORS_HEADERS, {
           "Content-Type": "text/event-stream",
@@ -845,16 +730,12 @@ async function handleAiChat(request, env) {
       });
     }
     const groqRes = await groqChat(env.GROQ_API_KEY, messages, groqModel, customSystemPrompt, language);
-    if (!groqRes.ok) {
-      const errText = await groqRes.text();
-      return error("Erro Groq API: " + errText, groqRes.status);
-    }
+    if (!groqRes.ok) return error("Erro Groq API: " + await groqRes.text(), groqRes.status);
     const data    = await groqRes.json();
     const content = data.choices?.[0]?.message?.content || "";
     return json({ content: content, reasoning: null, model: groqModel, usage: data.usage || null });
   }
 
-  // ── Gemini (default) ──
   const gemRes = await geminiGenerate(env.GEMINI_API_KEY, messages, language, stream, thinkingBudget, customSystemPrompt);
   if (!gemRes.ok) {
     const errText = await gemRes.text();
@@ -913,7 +794,6 @@ async function handleAiTranscribe(request, env) {
   if (!payload) return error("Não autenticado", 401);
   if (!env.GROQ_API_KEY) return error("Groq não configurado", 500);
 
-  // Aceita multipart/form-data com campo "file" (audio) e "language" (opcional)
   let formData;
   try {
     formData = await request.formData();
@@ -927,7 +807,6 @@ async function handleAiTranscribe(request, env) {
 
   if (!audioFile) return error("Campo 'file' obrigatório");
 
-  // Reenvia para Groq Whisper v3 Turbo
   const outForm = new FormData();
   outForm.append("file", audioFile);
   outForm.append("model", "whisper-large-v3-turbo");
@@ -954,17 +833,15 @@ async function handleAiTranscribe(request, env) {
   });
 }
 
-// ─── Utils ────────────────────────────────────────────────────────────────────
-
 async function incrementUserStat(env, userId, stat, delta) {
   try {
-    const userData = await env.NEXA_USERS.get("user:" + userId);
+    const userData = await env.IPC_USERS.get("user:" + userId);
     if (!userData) return;
     const user = JSON.parse(userData);
     if (!user.stats) user.stats = {};
     user.stats[stat] = (user.stats[stat] || 0) + delta;
     if (user.stats[stat] < 0) user.stats[stat] = 0;
-    await env.NEXA_USERS.put("user:" + userId, JSON.stringify(user));
+    await env.IPC_USERS.put("user:" + userId, JSON.stringify(user));
   } catch (e) {
     console.error("[NEXA STAT ERROR]", e);
   }

@@ -38,7 +38,6 @@ async function handleGoogleRedirectResult() {
     showToast('Erro ao autenticar. Tenta novamente.');
     return false;
   } catch (err) {
-    // popup-closed ou sem redirect pendente — normal
     return false;
   }
 }
@@ -57,28 +56,55 @@ async function handleGoogleSignIn(btnEl) {
     }
 
     window._googleProvider.setCustomParameters({ prompt: 'select_account' });
-    const result  = await window._firebaseAuth.signInWithPopup(window._googleProvider);
+
+    let result;
+    try {
+      result = await window._firebaseAuth.signInWithPopup(window._googleProvider);
+    } catch (firebaseErr) {
+      console.error('[Google] Firebase signInWithPopup error:', firebaseErr.code, firebaseErr.message);
+      if (firebaseErr.code === 'auth/popup-closed-by-user' || firebaseErr.code === 'auth/cancelled-popup-request') {
+        // utilizador fechou — silencioso
+      } else if (firebaseErr.code === 'auth/unauthorized-domain') {
+        showToast('Domínio não autorizado no Firebase. Verifica o Firebase Console.');
+      } else {
+        showToast('Erro Google: ' + (firebaseErr.code || firebaseErr.message || ''));
+      }
+      btnEl.disabled = false;
+      btnEl.innerHTML = original;
+      return;
+    }
+
+    if (!result || !result.user) {
+      console.error('[Google] signInWithPopup retornou sem utilizador');
+      showToast('Erro: sem utilizador. Tenta novamente.');
+      btnEl.disabled = false;
+      btnEl.innerHTML = original;
+      return;
+    }
+
+    console.log('[Google] Firebase OK, utilizador:', result.user.email);
+
     const idToken = await result.user.getIdToken(true);
+    console.log('[Google] idToken obtido, a chamar Worker…');
 
     showToast('A verificar conta…');
 
     const user = await AuthApiService.loginWithFirebase(idToken);
+    console.log('[Google] Resposta do Worker:', user);
 
     if (user && user.token) {
       authState.setUser(user);
       window.currentPage = 'chat';
       renderChatPage();
     } else {
-      showToast('Erro no servidor. Verifica a consola.');
+      console.error('[Google] Worker não devolveu token. Resposta:', user);
+      showToast('Erro no servidor. Verifica a consola (F12).');
       btnEl.disabled = false;
       btnEl.innerHTML = original;
     }
   } catch (err) {
-    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-      // utilizador fechou — não mostra erro
-    } else {
-      showToast('Erro Google: ' + (err.code || err.message || ''));
-    }
+    console.error('[Google] Erro inesperado:', err);
+    showToast('Erro inesperado: ' + (err.message || ''));
     btnEl.disabled = false;
     btnEl.innerHTML = original;
   }

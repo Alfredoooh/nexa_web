@@ -16,60 +16,77 @@
 })();
 
 /* =========================================================================
-   SPLASH SCREEN — animado, varia por tema, só na abertura do site
+   KEYBOARD-AWARE BOTTOM BAR
+   Faz o bottom-bar e o messages-container subirem suavemente quando o
+   teclado aparece, usando visualViewport (funciona em Android Chrome/WebView).
    ========================================================================= */
-function showSplashScreen() {
-    if (document.getElementById('splashScreen')) return;
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+(function setupKeyboardAwareLayout() {
+    let baseHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    let rafPending = false;
 
-    const splash = document.createElement('div');
-    splash.id = 'splashScreen';
+    function update() {
+        rafPending = false;
+        if (!window.visualViewport) return;
 
-    // Gradiente que varia por tema
-    const bg = dark
-        ? 'linear-gradient(135deg, #0d0d0d 0%, #1a1040 50%, #0d1a2e 100%)'
-        : 'linear-gradient(135deg, #ffffff 0%, #ede9ff 50%, #dceeff 100%)';
+        const vv = window.visualViewport;
+        const keyboardOffset = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
 
-    splash.style.cssText = `
-        position: fixed; inset: 0; z-index: 99999;
-        display: flex; flex-direction: column;
-        align-items: center; justify-content: center;
-        background: ${bg};
-        transition: opacity 0.5s ease;
-        gap: 20px;
-    `;
+        const bottomBar = document.getElementById('bottomBar');
+        const messagesContainer = document.getElementById('messagesContainer');
 
-    // Logo com animação de escala
-    const logoWrap = document.createElement('div');
-    logoWrap.style.cssText = `
-        transform: scale(0.7); opacity: 0;
-        transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease;
-    `;
-    logoWrap.innerHTML = `<img src="assets/icons/png/logo.png" style="width:80px;height:80px;border-radius:20px;" alt="Nexa" />`;
-    splash.appendChild(logoWrap);
+        if (bottomBar) {
+            bottomBar.style.transform = keyboardOffset > 40
+                ? `translateY(-${keyboardOffset}px)`
+                : 'translateY(0)';
+        }
+        if (messagesContainer) {
+            const baseBottomPad = 170;
+            messagesContainer.style.paddingBottom = keyboardOffset > 40
+                ? (baseBottomPad + keyboardOffset) + 'px'
+                : baseBottomPad + 'px';
+        }
+    }
 
-    // Nome da app
-    const nameEl = document.createElement('div');
-    nameEl.style.cssText = `
-        font-size: 22px; font-weight: 700; letter-spacing: 0.04em;
-        color: ${dark ? '#ffffff' : '#212730'}; opacity: 0;
-        font-family: 'TimesNewRoman', serif;
-        transition: opacity 0.4s ease 0.2s;
-    `;
-    nameEl.textContent = 'Nexa';
-    splash.appendChild(nameEl);
+    function scheduleUpdate() {
+        if (rafPending) return;
+        rafPending = true;
+        requestAnimationFrame(update);
+    }
 
-    document.body.appendChild(splash);
-
-    // Animação de entrada
-    requestAnimationFrame(() => {
-        setTimeout(() => {
-            logoWrap.style.transform = 'scale(1)';
-            logoWrap.style.opacity = '1';
-            nameEl.style.opacity = '1';
-        }, 60);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', scheduleUpdate);
+        window.visualViewport.addEventListener('scroll', scheduleUpdate);
+    }
+    window.addEventListener('focusin', (e) => {
+        if (e.target && e.target.id === 'textInput') setTimeout(scheduleUpdate, 60);
+    });
+    window.addEventListener('focusout', (e) => {
+        if (e.target && e.target.id === 'textInput') setTimeout(scheduleUpdate, 60);
     });
 
+    window._refreshKeyboardLayout = scheduleUpdate;
+})();
+
+/* =========================================================================
+   SPLASH SCREEN — usado APENAS na abertura inicial do site (ver app.js).
+   Estas funções existem só por compatibilidade; renderChatPage() NÃO as
+   chama mais a cada navegação, evitando o flash repetido entre telas.
+   ========================================================================= */
+function showSplashScreen() {
+    const splash = document.createElement('div');
+    splash.id = 'splashScreen';
+    const dark = isDarkMode;
+    const bg = dark
+        ? 'radial-gradient(circle at 30% 20%, #1d2440 0%, #121212 55%, #0a0a0a 100%)'
+        : 'radial-gradient(circle at 30% 20%, #eaf1ff 0%, #ffffff 55%, #f5f6fa 100%)';
+    splash.style.cssText = `
+        position: fixed; inset: 0; z-index: 99999;
+        display: flex; align-items: center; justify-content: center;
+        background: ${bg};
+        transition: opacity 0.4s ease;
+    `;
+    splash.innerHTML = `<img src="assets/icons/png/logo.png" style="width:88px;height:88px;border-radius:22px;" alt="Nexa" />`;
+    document.body.appendChild(splash);
     return splash;
 }
 
@@ -77,7 +94,7 @@ function hideSplashScreen() {
     const splash = document.getElementById('splashScreen');
     if (!splash) return;
     splash.style.opacity = '0';
-    setTimeout(() => splash.remove(), 520);
+    setTimeout(() => splash.remove(), 420);
 }
 
 /* =========================================================================
@@ -85,12 +102,13 @@ function hideSplashScreen() {
    ========================================================================= */
 
 class DisplayMessage {
-    constructor(role, content = '', isStreaming = false, isThinking = false, thinkingContent = '') {
+    constructor(role, content = '', isStreaming = false, isThinking = false, thinkingContent = '', attachments = []) {
         this.role = role;
         this.content = content;
         this.isStreaming = isStreaming;
         this.isThinking = isThinking;
         this.thinkingContent = thinkingContent;
+        this.attachments = attachments || [];
     }
 }
 
@@ -109,16 +127,18 @@ class ChatState {
         this.thinkMoreMode = false;
         this.sheetsEnabled = false;
         this.isStreaming = false;
-        this.incognitoMode = false;
+        this.isIncognito = false;
+        this.pendingAttachments = [];
         this.listeners = [];
     }
 
     subscribe(fn) { this.listeners.push(fn); }
     notify() { this.listeners.forEach(fn => fn(this)); }
 
-    addUserMessage(text) {
+    addUserMessage(text, attachments) {
+        const atts = attachments && attachments.length ? attachments : [];
         this.chatHistory.push({ role: 'user', content: text });
-        this.displayMessages.push(new DisplayMessage('user', text));
+        this.displayMessages.push(new DisplayMessage('user', text, false, false, '', atts));
         this.notify();
     }
 
@@ -165,22 +185,34 @@ class ChatState {
     }
 
     resetConversation() {
+        if (this.isIncognito) return; // não é possível sair/trocar de uma conversa incógnita
         this.currentConversationId = '';
         this.currentConversationTitle = 'Nova conversa';
         this.titleGenerated = false;
         this.chatHistory = [];
         this.displayMessages = [];
-        this.incognitoMode = false;
+        this.pendingAttachments = [];
+        this.notify();
+    }
+
+    startIncognito() {
+        this.currentConversationId = '';
+        this.currentConversationTitle = 'Conversa privada';
+        this.titleGenerated = true;
+        this.chatHistory = [];
+        this.displayMessages = [];
+        this.pendingAttachments = [];
+        this.isIncognito = true;
         this.notify();
     }
 
     loadConversation(conv) {
+        if (this.isIncognito) return; // bloqueado: não se pode sair do incógnito carregando outra conversa
         this.currentConversationId = conv.id;
         this.currentConversationTitle = conv.title;
         this.titleGenerated = true;
         this.chatHistory = [...conv.messages];
         this.displayMessages = conv.messages.map(m => new DisplayMessage(m.role, m.content));
-        this.incognitoMode = false;
         this.notify();
     }
 
@@ -201,14 +233,20 @@ class ChatState {
         this.notify();
     }
 
-    activateIncognito() {
-        this.incognitoMode = true;
-        this.currentConversationId = '';
-        this.currentConversationTitle = 'Conversa privada';
-        this.titleGenerated = true;
-        this.chatHistory = [];
-        this.displayMessages = [];
+    removeLastExchange() {
+        // Remove o último par (assistant + user) do histórico para permitir regenerar de forma fiel
+        const lastUserIdx = [...this.displayMessages].reverse().findIndex(m => m.role === 'user');
+        if (lastUserIdx === -1) return null;
+        const realIdx = this.displayMessages.length - 1 - lastUserIdx;
+        const userMsg = this.displayMessages[realIdx];
+        const userText = userMsg.content;
+        const userAttachments = userMsg.attachments || [];
+
+        // Remove todas as mensagens a partir do último user (inclusive) da UI e do histórico real
+        this.displayMessages = this.displayMessages.slice(0, realIdx);
+        this.chatHistory = this.chatHistory.slice(0, realIdx);
         this.notify();
+        return { text: userText, attachments: userAttachments };
     }
 }
 
@@ -278,6 +316,118 @@ function escapeAttr(str) {
         .replace(/>/g, '&gt;');
 }
 
+/* =========================================================================
+   MOTOR DE MATEMÁTICA (sem dependências externas)
+   Suporta: $...$ e $$...$$, \sqrt{}, \frac{}{}, expoentes ^, subscritos _,
+   símbolos gregos \alpha \beta etc, somatórios \sum, integrais \int,
+   infinito \infty, mais/menos \pm, comparação \leq \geq \neq \approx,
+   setas \to \rightarrow, e operadores comuns.
+   ========================================================================= */
+
+const GREEK_MAP = {
+    alpha:'α', beta:'β', gamma:'γ', delta:'δ', epsilon:'ε', zeta:'ζ', eta:'η',
+    theta:'θ', iota:'ι', kappa:'κ', lambda:'λ', mu:'μ', nu:'ν', xi:'ξ',
+    omicron:'ο', pi:'π', rho:'ρ', sigma:'σ', tau:'τ', upsilon:'υ', phi:'φ',
+    chi:'χ', psi:'ψ', omega:'ω',
+    Alpha:'Α', Beta:'Β', Gamma:'Γ', Delta:'Δ', Epsilon:'Ε', Zeta:'Ζ', Eta:'Η',
+    Theta:'Θ', Iota:'Ι', Kappa:'Κ', Lambda:'Λ', Mu:'Μ', Nu:'Ν', Xi:'Ξ',
+    Omicron:'Ο', Pi:'Π', Rho:'Ρ', Sigma:'Σ', Tau:'Τ', Upsilon:'Υ', Phi:'Φ',
+    Chi:'Χ', Psi:'Ψ', Omega:'Ω'
+};
+
+function renderMathToken(expr) {
+    let out = String(expr).trim();
+
+    // \sqrt{x} ou \sqrt[n]{x}
+    out = out.replace(/\\sqrt\[(.+?)\]\{(.+?)\}/g,
+        '<span class="math-root"><sup class="math-root-index">$1</sup><span class="math-radical">√</span><span class="math-radicand">$2</span></span>');
+    out = out.replace(/\\sqrt\{(.+?)\}/g,
+        '<span class="math-root"><span class="math-radical">√</span><span class="math-radicand">$1</span></span>');
+
+    // \frac{a}{b}
+    out = out.replace(/\\frac\{(.+?)\}\{(.+?)\}/g,
+        '<span class="math-frac"><span class="math-frac-num">$1</span><span class="math-frac-den">$2</span></span>');
+
+    // símbolos gregos \alpha
+    out = out.replace(/\\([A-Za-z]+)/g, (m, name) => {
+        if (GREEK_MAP[name]) return GREEK_MAP[name];
+        const symbolMap = {
+            sum: '∑', int: '∫', infty: '∞', infin: '∞',
+            pm: '±', mp: '∓', times: '×', div: '÷', cdot: '·',
+            leq: '≤', geq: '≥', neq: '≠', approx: '≈', equiv: '≡',
+            to: '→', rightarrow: '→', leftarrow: '←', Rightarrow: '⇒',
+            partial: '∂', nabla: '∇', forall: '∀', exists: '∃',
+            in: '∈', notin: '∉', subset: '⊂', subseteq: '⊆',
+            cup: '∪', cap: '∩', emptyset: '∅', therefore: '∴',
+            cdots: '⋯', ldots: '…', degree: '°', sim: '∼'
+        };
+        return symbolMap[name] || m;
+    });
+
+    // expoentes x^2, x^{10}
+    out = out.replace(/\^\{(.+?)\}/g, '<sup>$1</sup>');
+    out = out.replace(/\^(-?[A-Za-z0-9]+)/g, '<sup>$1</sup>');
+
+    // subscritos x_2, x_{ij}
+    out = out.replace(/_\{(.+?)\}/g, '<sub>$1</sub>');
+    out = out.replace(/_(-?[A-Za-z0-9]+)/g, '<sub>$1</sub>');
+
+    return out;
+}
+
+function renderMathBlocks(text) {
+    // Blocos $$...$$ (display, centrados)
+    text = text.replace(/\$\$([\s\S]+?)\$\$/g, (m, inner) =>
+        `<div class="math-display">${renderMathToken(inner)}</div>`);
+    // Inline $...$
+    text = text.replace(/\$([^\$\n]+?)\$/g, (m, inner) =>
+        `<span class="math-inline">${renderMathToken(inner)}</span>`);
+    return text;
+}
+
+/* =========================================================================
+   TABELAS GFM (| col | col |)
+   ========================================================================= */
+
+function tryParseTable(lines, startIdx) {
+    if (startIdx + 1 >= lines.length) return null;
+    const headerLine = lines[startIdx];
+    const sepLine = lines[startIdx + 1];
+    if (!/^\s*\|?.+\|.+\|?\s*$/.test(headerLine)) return null;
+    if (!/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(sepLine)) return null;
+
+    const splitRow = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    const headers = splitRow(headerLine);
+    const aligns = splitRow(sepLine).map(c => {
+        const left = c.startsWith(':');
+        const right = c.endsWith(':');
+        if (left && right) return 'center';
+        if (right) return 'right';
+        if (left) return 'left';
+        return '';
+    });
+
+    let i = startIdx + 2;
+    const rows = [];
+    while (i < lines.length && /^\s*\|?.+\|.+\|?\s*$/.test(lines[i]) && lines[i].trim() !== '') {
+        rows.push(splitRow(lines[i]));
+        i++;
+    }
+
+    return { headers, aligns, rows, nextIdx: i };
+}
+
+function buildTableHtml(table) {
+    const alignStyle = (a) => a ? `text-align:${a};` : '';
+    const thead = `<thead><tr>${table.headers.map((h, idx) =>
+        `<th style="${alignStyle(table.aligns[idx])}">${applyInline(escapeHtml(h))}</th>`).join('')}</tr></thead>`;
+    const tbody = `<tbody>${table.rows.map(row =>
+        `<tr>${row.map((cell, idx) =>
+            `<td style="${alignStyle(table.aligns[idx])}">${applyInline(escapeHtml(cell))}</td>`).join('')}</tr>`
+    ).join('')}</tbody>`;
+    return `<div class="md-table-wrapper"><table class="md-table">${thead}${tbody}</table></div>`;
+}
+
 function renderMarkdown(rawText) {
     if (!rawText) return '';
 
@@ -286,6 +436,20 @@ function renderMarkdown(rawText) {
         const index = codeBlocks.length;
         codeBlocks.push({ lang: lang.trim(), code: code.replace(/\n$/, '') });
         return `\u0000CODEBLOCK${index}\u0000`;
+    });
+
+    // Protege blocos de matemática $$...$$ e $...$ ANTES do escape de HTML,
+    // para que símbolos como \, {, } não sejam destruídos pelo parser de markdown.
+    const mathBlocks = [];
+    text = text.replace(/\$\$([\s\S]+?)\$\$/g, (m, inner) => {
+        const idx = mathBlocks.length;
+        mathBlocks.push({ display: true, content: inner });
+        return `\u0000MATHBLOCK${idx}\u0000`;
+    });
+    text = text.replace(/\$([^\$\n]+?)\$/g, (m, inner) => {
+        const idx = mathBlocks.length;
+        mathBlocks.push({ display: false, content: inner });
+        return `\u0000MATHBLOCK${idx}\u0000`;
     });
 
     const lines = text.split('\n');
@@ -335,6 +499,16 @@ function renderMarkdown(rawText) {
             resultParts.push(raw.trim());
             continue;
         }
+
+        // Tabela GFM
+        const tableTry = tryParseTable(lines, i);
+        if (tableTry) {
+            flushList(); flushOrdered(); flushBlockquote(); flushPara();
+            resultParts.push(buildTableHtml(tableTry));
+            i = tableTry.nextIdx - 1;
+            continue;
+        }
+
         const h4 = raw.match(/^####\s+(.+)/);
         const h3 = raw.match(/^###\s+(.+)/);
         const h2 = raw.match(/^##\s+(.+)/);
@@ -343,8 +517,8 @@ function renderMarkdown(rawText) {
             flushList(); flushOrdered(); flushBlockquote(); flushPara();
             if (h4) { resultParts.push(`<h4 class="md-h4">${applyInline(escapeHtml(h4[1]))}</h4>`); continue; }
             if (h3) { resultParts.push(`<h3 class="md-h3">${applyInline(escapeHtml(h3[1]))}</h3>`); continue; }
-            if (h2) { resultParts.push(`<h2 class="md-h2">${applyInline(escapeHtml(h2[1]))}</h2>`); continue; }
-            if (h1) { resultParts.push(`<h1 class="md-h1">${applyInline(escapeHtml(h1[1]))}</h1>`); continue; }
+            if (h2) { resultParts.push(`<h2 class="md-h2 md-serif">${applyInline(escapeHtml(h2[1]))}</h2>`); continue; }
+            if (h1) { resultParts.push(`<h1 class="md-h1 md-serif">${applyInline(escapeHtml(h1[1]))}</h1>`); continue; }
         }
         if (/^(\*{3,}|-{3,}|_{3,})\s*$/.test(raw.trim())) {
             flushList(); flushOrdered(); flushBlockquote(); flushPara();
@@ -378,6 +552,7 @@ function renderMarkdown(rawText) {
     flushList(); flushOrdered(); flushBlockquote(); flushPara();
 
     text = resultParts.join('');
+
     text = text.replace(/\u0000CODEBLOCK(\d+)\u0000/g, (match, idx) => {
         const block = codeBlocks[Number(idx)];
         const lang = block.lang;
@@ -388,7 +563,15 @@ function renderMarkdown(rawText) {
         const langLabel = lang
             ? `<div class="code-block-header"><span class="code-lang-label">${escapeHtml(lang)}</span><button class="code-copy-btn pulse-tap" onclick="copyCodeBlock(this)" title="Copiar código"><span class="icon-mask" style="mask-image:url('assets/icons/svg/copy.svg');-webkit-mask-image:url('assets/icons/svg/copy.svg');width:13px;height:13px;background:currentColor;"></span></button></div>`
             : '';
-        return `<div class="code-block-wrapper">${langLabel}<pre class="code-block"><code>${safeCode}</code></pre></div>`;
+        return `<div class="code-block-wrapper"><div class="code-block-header-pad"></div>${langLabel}<pre class="code-block"><code>${safeCode}</code></pre></div>`;
+    });
+
+    text = text.replace(/\u0000MATHBLOCK(\d+)\u0000/g, (match, idx) => {
+        const block = mathBlocks[Number(idx)];
+        const rendered = renderMathToken(block.content);
+        return block.display
+            ? `<div class="math-display">${rendered}</div>`
+            : `<span class="math-inline">${rendered}</span>`;
     });
 
     return text;
@@ -402,10 +585,15 @@ function applyInline(text) {
     text = text.replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>');
     text = text.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
     text = text.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
+    // Links em formato markdown [texto](url) — sempre sublinhados e clicáveis
     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
         '<a class="md-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    text = text.replace(/(?<!["'>])(https?:\/\/[^\s<>"']+)/g,
+    // URLs nuas — também viram link sublinhado clicável
+    text = text.replace(/(?<![">])(https?:\/\/[^\s<>"']+)/g,
         '<a class="md-link" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    // E-mails — viram link mailto sublinhado
+    text = text.replace(/(?<![">@\w])([\w.+-]+@[\w-]+\.[\w.-]+)(?![\w])/g,
+        '<a class="md-link" href="mailto:$1">$1</a>');
     text = text.replace(/==([^=\n]+)==/g, '<mark class="md-mark">$1</mark>');
     return text;
 }
@@ -703,6 +891,7 @@ async function handleRecordingStop() {
     const blob = new Blob(audioChunks, { type: 'audio/webm' });
     audioChunks = [];
 
+    // Mostra Lottie enquanto transcreve
     showLottieLoader('A transcrever…');
 
     try {
@@ -726,7 +915,8 @@ async function handleRecordingStop() {
             const input = document.getElementById('textInput');
             if (input) {
                 input.value = (input.value ? input.value + ' ' : '') + text;
-                autoResizeInput(input);
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 150) + 'px';
                 updateSendButton();
                 input.focus();
             }
@@ -740,7 +930,7 @@ async function handleRecordingStop() {
 }
 
 /* =========================================================================
-   LOTTIE LOADER
+   LOTTIE LOADER (para resposta da IA e transcrição)
    ========================================================================= */
 
 let _lottieInstance = null;
@@ -753,7 +943,7 @@ function showLottieLoader(label) {
         position: fixed; inset: 0; z-index: 9000;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
         gap: 14px;
     `;
 
@@ -774,11 +964,11 @@ function showLottieLoader(label) {
     function initLottie() {
         if (typeof lottie === 'undefined') return;
         _lottieInstance = lottie.loadAnimation({
-            container:  animDiv,
-            renderer:   'svg',
-            loop:       true,
-            autoplay:   true,
-            path:       'assets/icons/lottie/loader.json',
+            container:     animDiv,
+            renderer:      'svg',
+            loop:          true,
+            autoplay:      true,
+            path:          'assets/icons/lottie/loader.json',
         });
     }
 
@@ -802,34 +992,43 @@ function hideLottieLoader() {
    ========================================================================= */
 
 function renderChatPage() {
-    // NÃO mostra splash ao navegar entre telas — só app.js faz isso na abertura
+    // O splash NÃO aparece aqui — só na abertura inicial do site (app.js).
+    // Isto evita flash em cada navegação para o chat.
+
     const colors = getThemeColors();
+    const hasMessages = chatState.displayMessages.length > 0;
+
     document.getElementById('app').innerHTML = `
     <div id="chatApp" class="h-full w-full flex flex-col relative overflow-hidden">
 
         <div class="app-bar-gradient ${isDarkMode ? 'dark' : 'light'}"></div>
 
-        <!-- AppBar fixo — sempre visível -->
-        <div class="app-bar" style="position:sticky;top:0;z-index:50;flex-shrink:0;">
-            <button id="menuBtn" class="pulse-tap circular w-10 h-10 ml-2 flex items-center justify-center" style="color:${colors.iconTint}">
-                <span class="icon-mask" style="mask-image:url('assets/icons/svg/menu.svg');-webkit-mask-image:url('assets/icons/svg/menu.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
+        <div class="app-bar">
+            <button id="menuBtn" class="pulse-tap circular w-10 h-10 ml-2 flex items-center justify-center" style="color: ${colors.iconTint}">
+                <span class="icon-mask" style="mask-image: url('assets/icons/svg/menu.svg'); -webkit-mask-image: url('assets/icons/svg/menu.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
             </button>
-            <!-- Modelo sempre visível no centro/esquerda -->
-            <button id="modelPillBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full ml-2 pulse-tap" style="background:${colors.appbarBtnBg};max-width:180px;">
-                <span class="icon-mask" style="mask-image:url('assets/icons/svg/ai.svg');-webkit-mask-image:url('assets/icons/svg/ai.svg');width:13px;height:13px;background:${colors.iconTint};flex-shrink:0;"></span>
-                <span id="modelPillLabel" class="text-xs font-semibold truncate" style="color:${colors.textPrimary};max-width:130px;">${MODEL_NAME}</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${colors.iconTintSecondary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+
+            <button id="modelSelectorBtn" class="model-selector-btn pulse-tap" style="margin-left:6px;">
+                <span id="appBarTitle" class="text-sm font-semibold truncate" style="color: ${colors.textSecondary}; max-width: 150px; letter-spacing: 0.01em;">${getCurrentModelName()}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${colors.textSecondary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
+
             <div class="flex-1"></div>
-            <!-- Incógnito: só visível sem chat -->
-            <button id="incognitoBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center" style="color:${colors.iconTint};display:flex;">
-                <span class="icon-mask" style="mask-image:url('assets/icons/svg/incognito.svg');-webkit-mask-image:url('assets/icons/svg/incognito.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
+
+            <div id="incognitoPill" class="incognito-pill ${chatState.isIncognito ? '' : 'hidden'}" style="background:${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}; color:${colors.textPrimary}; margin-right:4px;">
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/incognito.svg'); -webkit-mask-image:url('assets/icons/svg/incognito.svg'); width:14px; height:14px; background:${colors.textPrimary};"></span>
+                <span>Privada</span>
+            </div>
+
+            <button id="incognitoStartBtn" class="pulse-tap circular w-10 h-10 px-2 ${hasMessages || chatState.isIncognito ? 'hidden' : ''}" style="color: ${colors.iconTint}" title="Iniciar conversa privada">
+                <span class="icon-mask" style="mask-image: url('assets/icons/svg/incognito.svg'); -webkit-mask-image: url('assets/icons/svg/incognito.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
             </button>
-            <button id="newChatBtn" class="pulse-tap circular w-10 h-10 px-2" style="color:${colors.iconTint};display:none;">
-                <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:17px;height:17px;background:${colors.iconTint};"></span>
+
+            <button id="newChatBtn" class="pulse-tap circular w-10 h-10 px-2 ${hasMessages ? '' : 'hidden'}" style="color: ${colors.iconTint}">
+                <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 17px; height: 17px; background: ${colors.iconTint};"></span>
             </button>
-            <button id="moreBtn" class="pulse-tap circular w-10 h-10 px-2" style="color:${colors.iconTint};display:none;">
-                <span class="icon-mask" style="mask-image:url('assets/icons/svg/more_vertical.svg');-webkit-mask-image:url('assets/icons/svg/more_vertical.svg');width:16px;height:16px;background:${colors.iconTint};"></span>
+            <button id="moreBtn" class="pulse-tap circular w-10 h-10 px-2 ${hasMessages ? '' : 'hidden'}" style="color: ${colors.iconTint}">
+                <span class="icon-mask" style="mask-image: url('assets/icons/svg/more_vertical.svg'); -webkit-mask-image: url('assets/icons/svg/more_vertical.svg'); width: 16px; height: 16px; background: ${colors.iconTint};"></span>
             </button>
         </div>
 
@@ -839,38 +1038,38 @@ function renderChatPage() {
             <div class="drawer-header">
                 <div class="drawer-header-left">
                     <img src="assets/icons/png/logo.png" class="drawer-logo" alt="Logo" />
-                    <div class="drawer-app-name" style="color:${colors.drawerText}">Nexa</div>
+                    <div class="drawer-app-name" style="color: ${colors.drawerText}">Nexa</div>
                 </div>
-                <button id="newChatDrawerBtn" class="pulse-tap circular w-9 h-9 flex items-center justify-center" style="color:${colors.iconTint}" title="Nova conversa">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:17px;height:17px;background:${colors.iconTint};"></span>
+                <button id="newChatDrawerBtn" class="pulse-tap circular w-9 h-9 flex items-center justify-center" style="color: ${colors.iconTint}" title="Nova conversa">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 17px; height: 17px; background: ${colors.iconTint};"></span>
                 </button>
             </div>
 
             <div class="drawer-menu-section" id="drawerMenuSection">
-                <div class="drawer-menu-item pulse-tap" id="profileTile" style="color:${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/user.svg');-webkit-mask-image:url('assets/icons/svg/user.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="profileTile" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/user.svg'); -webkit-mask-image: url('assets/icons/svg/user.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">${authState.user?.name || 'Perfil'}</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="projectsDrawerBtn" style="color:${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/folder.svg');-webkit-mask-image:url('assets/icons/svg/folder.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="projectsDrawerBtn" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/folder.svg'); -webkit-mask-image: url('assets/icons/svg/folder.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Projetos</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="extrasDrawerBtn" style="color:${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/extras.svg');-webkit-mask-image:url('assets/icons/svg/extras.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="extrasDrawerBtn" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/extras.svg'); -webkit-mask-image: url('assets/icons/svg/extras.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Extras</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="settingsDrawerBtn" style="color:${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/settings.svg');-webkit-mask-image:url('assets/icons/svg/settings.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
+                <div class="drawer-menu-item pulse-tap" id="settingsDrawerBtn" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/settings.svg'); -webkit-mask-image: url('assets/icons/svg/settings.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Definições</span>
                 </div>
             </div>
 
-            <div class="drawer-section-divider" style="background:${colors.divider}"></div>
+            <div class="drawer-section-divider" style="background: ${colors.divider}"></div>
 
             <div class="drawer-conv-section-header pulse-tap" id="convSectionToggle">
-                <span class="icon-mask" style="mask-image:url('assets/icons/svg/meassage.svg');-webkit-mask-image:url('assets/icons/svg/meassage.svg');width:16px;height:16px;background:${colors.settings_section_label};"></span>
-                <span class="drawer-conv-section-label" style="color:${colors.settings_section_label}">CONVERSAS</span>
-                <span class="icon-mask drawer-conv-chevron" id="convSectionChevron" style="mask-image:url('assets/icons/svg/chevron_right.svg');-webkit-mask-image:url('assets/icons/svg/chevron_right.svg');width:11px;height:11px;background:${colors.settings_section_label};transform:rotate(90deg);"></span>
+                <span class="icon-mask" style="mask-image: url('assets/icons/svg/meassage.svg'); -webkit-mask-image: url('assets/icons/svg/meassage.svg'); width: 16px; height: 16px; background: ${colors.settings_section_label};"></span>
+                <span class="drawer-conv-section-label" style="color: ${colors.settings_section_label}">CONVERSAS</span>
+                <span class="icon-mask drawer-conv-chevron" id="convSectionChevron" style="mask-image: url('assets/icons/svg/chevron_right.svg'); -webkit-mask-image: url('assets/icons/svg/chevron_right.svg'); width: 11px; height: 11px; background: ${colors.settings_section_label}; transform: rotate(90deg);"></span>
             </div>
 
             <div class="drawer-conv-list-outer" id="conversationsListOuter">
@@ -881,29 +1080,30 @@ function renderChatPage() {
         <div class="messages-container" id="messagesContainer">
             <div id="emptyState" class="flex flex-col items-center justify-start pt-20 min-h-full">
                 <img src="assets/icons/png/logo.png" class="w-[72px] h-[72px] mb-4" alt="Logo" />
-                <h1 id="greetingText" class="text-5xl font-bold text-center mb-2" style="font-family:'TimesNewRoman',serif;color:${colors.textPrimary}"></h1>
-                <p class="text-base text-center" style="color:${colors.textSecondary}">Em que estás a pensar?</p>
+                <h1 id="greetingText" class="text-5xl font-bold text-center mb-2" style="font-family: 'TimesNewRoman', serif; color: ${colors.textPrimary}"></h1>
+                <p class="text-base text-center" style="color: ${colors.textSecondary}">Em que estás a pensar?</p>
             </div>
             <div id="chatMessages" class="hidden"></div>
         </div>
 
         <div class="bottom-bar ${isDarkMode ? 'dark' : 'light'}" id="bottomBar">
+            <div id="attachmentsPreview" class="hidden" style="display:flex; gap:8px; padding:10px 14px 0; flex-wrap:wrap;"></div>
             <textarea id="textInput" class="chat-input ${isDarkMode ? 'dark' : 'light'}" placeholder="Escreve aqui..." rows="1"></textarea>
             <div class="flex items-center h-[52px] px-[10px]">
-                <button id="addBtn" class="pulse-tap circular w-10 h-10 ml-1 flex items-center justify-center rounded-full" style="background:${colors.addCircleBg};color:${colors.iconTint}">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/add.svg');-webkit-mask-image:url('assets/icons/svg/add.svg');width:18px;height:18px;background:${colors.iconTint};"></span>
+                <button id="addBtn" class="pulse-tap circular w-10 h-10 ml-1 flex items-center justify-center rounded-full" style="background: ${colors.addCircleBg}; color: ${colors.iconTint}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/add.svg'); -webkit-mask-image: url('assets/icons/svg/add.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                 </button>
                 <div class="flex-1"></div>
-                <button id="editBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-full pulse-tap" style="background:${colors.tabPreviewPillBg};color:${colors.textPrimary}">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/preview_filled.svg');-webkit-mask-image:url('assets/icons/svg/preview_filled.svg');width:20px;height:20px;background:${colors.textPrimary};"></span>
-                    <span class="text-sm font-bold" style="color:${colors.textPrimary}">Edit</span>
+                <button id="editBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-full pulse-tap" style="background: ${colors.tabPreviewPillBg}; color: ${colors.textPrimary}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/preview_filled.svg'); -webkit-mask-image: url('assets/icons/svg/preview_filled.svg'); width: 20px; height: 20px; background: ${colors.textPrimary};"></span>
+                    <span class="text-sm font-bold" style="color: ${colors.textPrimary}">Edit</span>
                 </button>
                 <div class="w-2"></div>
-                <button id="sendBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full" style="background:${colors.sendBtnColor};color:${colors.sendIconColor};display:none;">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/ic_send_arrow.svg');-webkit-mask-image:url('assets/icons/svg/ic_send_arrow.svg');width:15px;height:15px;background:${colors.sendIconColor};"></span>
+                <button id="sendBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full hidden" style="background: ${colors.sendBtnColor}; color: ${colors.sendIconColor}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/ic_send_arrow.svg'); -webkit-mask-image: url('assets/icons/svg/ic_send_arrow.svg'); width: 15px; height: 15px; background: ${colors.sendIconColor};"></span>
                 </button>
-                <button id="micBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full" style="background:${colors.sendBtnColor};color:${colors.sendIconColor};">
-                    <span class="icon-mask" style="mask-image:url('assets/icons/svg/record.svg');-webkit-mask-image:url('assets/icons/svg/record.svg');width:18px;height:18px;background:${colors.sendIconColor};"></span>
+                <button id="micBtn" class="pulse-tap circular w-10 h-10 flex items-center justify-center rounded-full" style="background: ${colors.sendBtnColor}; color: ${colors.sendIconColor}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/record.svg'); -webkit-mask-image: url('assets/icons/svg/record.svg'); width: 18px; height: 18px; background: ${colors.sendIconColor};"></span>
                 </button>
             </div>
         </div>
@@ -920,6 +1120,7 @@ function renderChatPage() {
     bindChatEvents();
     setupDrawerScrollCollapse();
     updateChatUI();
+    if (window._refreshKeyboardLayout) window._refreshKeyboardLayout();
 }
 
 /* =========================================================================
@@ -929,6 +1130,7 @@ function renderChatPage() {
 function setupDrawerScrollCollapse() {
     const drawer = document.getElementById('drawer');
     const menuSection = document.getElementById('drawerMenuSection');
+    const profileTile = document.getElementById('profileTile');
     if (!drawer || !menuSection) return;
 
     const collapseItems = ['projectsDrawerBtn', 'extrasDrawerBtn', 'settingsDrawerBtn'];
@@ -981,57 +1183,44 @@ function bindChatEvents() {
     document.getElementById('drawerOverlay').onclick = () => closeDrawer();
 
     document.getElementById('profileTile').onclick = () => { closeDrawer(); renderSettingsPage(); };
-    document.getElementById('newChatDrawerBtn').onclick = () => { chatState.resetConversation(); closeDrawer(); };
+    document.getElementById('newChatDrawerBtn').onclick = () => {
+        if (chatState.isIncognito) { showToast('Termina a conversa privada para criar uma nova'); closeDrawer(); return; }
+        chatState.resetConversation();
+        closeDrawer();
+    };
     document.getElementById('projectsDrawerBtn').onclick = () => { closeDrawer(); showToast('Projetos em breve'); };
     document.getElementById('extrasDrawerBtn').onclick = () => { closeDrawer(); setTimeout(() => showExtrasSheet(), 300); };
     document.getElementById('settingsDrawerBtn').onclick = () => { closeDrawer(); renderSettingsPage(); };
     document.getElementById('convSectionToggle').onclick = () => toggleConversationsSection();
 
-    document.getElementById('modelPillBtn').onclick = () => showModelPickerSheet();
+    document.getElementById('modelSelectorBtn').onclick = () => showModelPicker();
 
-    // Incógnito — ativar conversa privada
-    document.getElementById('incognitoBtn').onclick = () => {
-        if (chatState.incognitoMode) return; // já ativo, não faz nada
-        showIncognitoConfirmSheet();
+    document.getElementById('incognitoStartBtn').onclick = () => {
+        chatState.startIncognito();
+        renderChatPage();
+        showToast('Conversa privada ativada');
     };
 
-    document.getElementById('newChatBtn').onclick = () => chatState.resetConversation();
-
-    // moreBtn agora mostra opções da conversa atual
-    document.getElementById('moreBtn').onclick = () => {
-        const conv = conversations.find(c => c.id === chatState.currentConversationId);
-        if (conv) {
-            showConvOptionsSheet(conv);
-        } else {
-            showToast('Sem conversa ativa');
-        }
+    document.getElementById('newChatBtn').onclick = () => {
+        if (chatState.isIncognito) { showToast('Não é possível sair da conversa privada'); return; }
+        chatState.resetConversation();
     };
+
+    // moreBtn agora mostra as opções DESTA conversa (não o popup de "+")
+    document.getElementById('moreBtn').onclick = () => showCurrentConversationOptions();
 
     document.getElementById('addBtn').onclick = () => showAddPopup();
     document.getElementById('editBtn').onclick = () => showEditModal();
-
     document.getElementById('sendBtn').onclick = () => {
-        const input = document.getElementById('textInput');
-        const text = input.value;
-        if (text.trim() && !chatState.isStreaming) sendMessage(text);
+        const text = document.getElementById('textInput').value;
+        if ((text.trim() || chatState.pendingAttachments.length) && !chatState.isStreaming) sendMessage(text);
     };
     document.getElementById('micBtn').onclick = () => startRecording();
 
     const textInput = document.getElementById('textInput');
-
-    // Keyboard padding — visualViewport
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', () => {
-            const bottomBar = document.getElementById('bottomBar');
-            if (!bottomBar) return;
-            const keyboardHeight = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-            bottomBar.style.paddingBottom = keyboardHeight > 0 ? keyboardHeight + 'px' : '';
-        });
-    }
-
     textInput.oninput = () => {
         updateSendButton();
-        autoResizeInput(textInput);
+        autoResizeTextarea(textInput);
     };
 
     textInput.onkeydown = (e) => {
@@ -1040,23 +1229,23 @@ function bindChatEvents() {
             if (isMobile) return;
             if (!e.shiftKey) {
                 e.preventDefault();
-                if (textInput.value.trim() && !chatState.isStreaming) sendMessage(textInput.value);
+                if ((textInput.value.trim() || chatState.pendingAttachments.length) && !chatState.isStreaming) {
+                    sendMessage(textInput.value);
+                }
             }
         }
     };
 
     document.getElementById('modalOverlay').onclick = closeAllModals;
     chatState.subscribe(() => updateChatUI());
+
+    renderAttachmentsPreview();
 }
 
-function autoResizeInput(input) {
-    input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 150) + 'px';
-}
-
-function resetInputHeight(input) {
-    input.style.height = 'auto';
-    input.style.height = '';
+function autoResizeTextarea(textInput) {
+    textInput.style.height = 'auto';
+    const newHeight = Math.min(textInput.scrollHeight, 150);
+    textInput.style.height = newHeight + 'px';
 }
 
 /* =========================================================================
@@ -1079,40 +1268,33 @@ function toggleConversationsSection() {
 
 function updateChatUI() {
     const hasMessages = chatState.displayMessages.length > 0;
-    const isIncognito = chatState.incognitoMode;
 
-    // Incógnito só aparece quando não há conversa ativa
-    const incognitoBtn = document.getElementById('incognitoBtn');
-    if (incognitoBtn) incognitoBtn.style.display = hasMessages ? 'none' : 'flex';
-
-    // newChatBtn e moreBtn só com mensagens e fora de incógnito
+    // O seletor de modelo fica SEMPRE visível (com ou sem conversa).
     const newChatBtn = document.getElementById('newChatBtn');
     const moreBtn = document.getElementById('moreBtn');
-    if (newChatBtn) newChatBtn.style.display = hasMessages ? 'flex' : 'none';
-    // moreBtn não aparece em incógnito (sem opções de conversa)
-    if (moreBtn) moreBtn.style.display = (hasMessages && !isIncognito) ? 'flex' : 'none';
+    const incognitoStartBtn = document.getElementById('incognitoStartBtn');
+    const incognitoPill = document.getElementById('incognitoPill');
+
+    if (newChatBtn) newChatBtn.classList.toggle('hidden', !hasMessages);
+    if (moreBtn) moreBtn.classList.toggle('hidden', !hasMessages);
+    if (incognitoStartBtn) incognitoStartBtn.classList.toggle('hidden', hasMessages || chatState.isIncognito);
+    if (incognitoPill) incognitoPill.classList.toggle('hidden', !chatState.isIncognito);
 
     document.getElementById('emptyState').style.display = hasMessages ? 'none' : 'flex';
     document.getElementById('chatMessages').classList.toggle('hidden', !hasMessages);
 
-    // Badge incógnito no model pill
-    const modelPillLabel = document.getElementById('modelPillLabel');
-    if (modelPillLabel) {
-        modelPillLabel.textContent = isIncognito ? '🕵️ ' + MODEL_NAME : MODEL_NAME;
-    }
-
     renderMessages();
     renderConversationsList();
     updateSendButton();
+    renderAttachmentsPreview();
     scrollToBottom();
 }
 
 function updateSendButton() {
     const hasText = document.getElementById('textInput')?.value.trim().length > 0;
-    const sendBtn = document.getElementById('sendBtn');
-    const micBtn = document.getElementById('micBtn');
-    if (sendBtn) sendBtn.style.display = hasText ? 'flex' : 'none';
-    if (micBtn) micBtn.style.display = hasText ? 'none' : 'flex';
+    const hasAttachments = chatState.pendingAttachments.length > 0;
+    document.getElementById('sendBtn')?.classList.toggle('hidden', !hasText && !hasAttachments);
+    document.getElementById('micBtn')?.classList.toggle('hidden', hasText || hasAttachments);
 }
 
 function scrollToBottom() {
@@ -1190,40 +1372,47 @@ function createMessageBubble(msg, idx, colors) {
 
     if (msg.role === 'user') {
         wrapper.className = 'px-4 py-2 flex justify-end';
-        wrapper.setAttribute('data-msg-idx', idx);
-
         const bubble = document.createElement('div');
-        // Todas as bordas curvas na mensagem do utilizador
-        bubble.className = 'max-w-[82%] px-4 py-3';
-        bubble.style.cssText = `
-            background-color: ${colors.userBubbleBg};
-            color: ${colors.textPrimary};
-            border-radius: 20px;
-            cursor: pointer;
-        `;
-        const p = document.createElement('p');
-        p.className = 'text-sm leading-relaxed whitespace-pre-wrap';
-        p.style.margin = '0';
-        p.textContent = msg.content;
-        bubble.appendChild(p);
+        bubble.className = 'max-w-[82%] rounded-2xl px-4 py-3 user-msg-bubble pulse-tap';
+        bubble.style.cssText = `background-color: ${colors.userBubbleBg}; color: ${colors.textPrimary};`;
 
-        // Long-press / click-hold para mostrar opções
+        if (msg.attachments && msg.attachments.length) {
+            const attWrap = document.createElement('div');
+            attWrap.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;';
+            msg.attachments.forEach(att => {
+                if (att.kind === 'image' && att.dataUrl) {
+                    const img = document.createElement('img');
+                    img.src = att.dataUrl;
+                    img.style.cssText = 'width:84px; height:84px; object-fit:cover; border-radius:12px;';
+                    attWrap.appendChild(img);
+                } else {
+                    const chip = document.createElement('div');
+                    chip.style.cssText = `display:flex; align-items:center; gap:6px; padding:7px 10px; border-radius:10px; background:${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'};`;
+                    chip.innerHTML = `<span class="icon-mask" style="mask-image:url('assets/icons/svg/upload.svg'); -webkit-mask-image:url('assets/icons/svg/upload.svg'); width:14px; height:14px; background:${colors.textPrimary};"></span><span style="font-size:12px; color:${colors.textPrimary}; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(att.name || 'Ficheiro')}</span>`;
+                    attWrap.appendChild(chip);
+                }
+            });
+            bubble.appendChild(attWrap);
+        }
+
+        if (msg.content) {
+            const p = document.createElement('p');
+            p.className = 'text-sm leading-relaxed whitespace-pre-wrap';
+            p.style.margin = '0';
+            p.textContent = msg.content;
+            bubble.appendChild(p);
+        }
+
+        // Long-press → modal de opções (copiar / editar / eliminar)
         let pressTimer = null;
         let didLongPress = false;
-
         bubble.addEventListener('pointerdown', () => {
             didLongPress = false;
-            pressTimer = setTimeout(() => {
-                didLongPress = true;
-                showUserMessageOptions(msg.content, idx);
-            }, 500);
+            pressTimer = setTimeout(() => { didLongPress = true; showUserMessageOptions(msg, idx); }, 480);
         });
         bubble.addEventListener('pointerup', () => { if (pressTimer) clearTimeout(pressTimer); });
         bubble.addEventListener('pointercancel', () => { if (pressTimer) clearTimeout(pressTimer); });
         bubble.addEventListener('pointermove', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
-        bubble.addEventListener('click', (e) => {
-            if (didLongPress) { e.stopImmediatePropagation(); didLongPress = false; }
-        }, true);
 
         wrapper.appendChild(bubble);
 
@@ -1247,7 +1436,7 @@ function createMessageBubble(msg, idx, colors) {
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'assistant-content';
-        contentDiv.style.cssText = `font-size:15px;line-height:1.65;color:${isDarkMode ? colors.textPrimary : '#212730'};`;
+        contentDiv.style.cssText = `font-size: 15px; line-height: 1.65; color: ${isDarkMode ? colors.textPrimary : '#212730'};`;
         contentDiv.innerHTML = renderMarkdown(msg.content);
         if (msg.isStreaming && msg.content) contentDiv.classList.add('cursor-blink');
         wrapper.appendChild(contentDiv);
@@ -1260,123 +1449,43 @@ function createMessageBubble(msg, idx, colors) {
     return wrapper;
 }
 
-/* =========================================================================
-   MODAL DE OPÇÕES DA MENSAGEM DO UTILIZADOR
-   ========================================================================= */
-
-function showUserMessageOptions(content, idx) {
-    const colors = getThemeColors();
-    const sheet = document.getElementById('modalSheet');
-    const sheetContent = document.getElementById('modalSheetContent');
-    const overlay = document.getElementById('modalOverlay');
-    sheetContent.innerHTML = '';
-
-    sheetContent.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
-
-    const card = document.createElement('div');
-    card.style.cssText = `
-        margin: 8px 12px 4px;
-        border-radius: 16px;
-        overflow: hidden;
-        background: ${isDarkMode ? '#1C1C1E' : '#F2F2F7'};
-    `;
-
-    const opts = [
-        {
-            icon: 'copy', label: 'Copiar mensagem',
-            action: () => {
-                navigator.clipboard.writeText(content).then(() => showToast('Copiado!')).catch(() => {});
-                closeModalSheet();
-            }
-        },
-        {
-            icon: 'pen', label: 'Editar e reenviar',
-            action: () => {
-                closeModalSheet();
-                const input = document.getElementById('textInput');
-                if (input) {
-                    input.value = content;
-                    autoResizeInput(input);
-                    updateSendButton();
-                    input.focus();
-                }
-            }
-        },
-        {
-            icon: 'trash', label: 'Eliminar mensagem', danger: true,
-            action: () => {
-                closeModalSheet();
-                // Remove a mensagem do utilizador e a resposta do assistente seguinte
-                const msgs = chatState.displayMessages;
-                const hist = chatState.chatHistory;
-                // Encontra o índice real
-                const displayIdx = idx;
-                if (displayIdx >= 0 && displayIdx < msgs.length) {
-                    msgs.splice(displayIdx, msgs.length - displayIdx); // remove essa e todas seguintes
-                    hist.splice(displayIdx, hist.length - displayIdx);
-                    chatState.notify();
-                }
-            }
-        }
-    ];
-
-    opts.forEach((opt, i) => {
-        if (i > 0) {
-            const sep = document.createElement('div');
-            sep.style.cssText = `height:1px;margin-left:52px;background:${colors.divider};`;
-            card.appendChild(sep);
-        }
-        const row = document.createElement('div');
-        row.className = 'pulse-tap';
-        row.style.cssText = `display:flex;align-items:center;padding:14px 16px;cursor:pointer;`;
-        row.onclick = opt.action;
-
-        const icon = document.createElement('span');
-        icon.className = 'icon-mask';
-        const tint = opt.danger ? '#EF4444' : colors.iconTint;
-        icon.style.cssText = `mask-image:url('assets/icons/svg/${opt.icon}.svg');-webkit-mask-image:url('assets/icons/svg/${opt.icon}.svg');width:18px;height:18px;background:${tint};flex-shrink:0;`;
-        row.appendChild(icon);
-
-        const lbl = document.createElement('span');
-        lbl.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${opt.danger ? '#EF4444' : colors.textPrimary};`;
-        lbl.textContent = opt.label;
-        row.appendChild(lbl);
-
-        card.appendChild(row);
-    });
-
-    sheetContent.appendChild(card);
-
-    const pad = document.createElement('div');
-    pad.style.height = '20px';
-    sheetContent.appendChild(pad);
-
-    openModalSheet();
-}
-
 /* Lottie inline como placeholder de "a pensar" */
 function buildLottieThinkingPlaceholder(colors) {
     const container = document.createElement('div');
     container.className = 'lottie-thinking-wrap';
-    container.style.cssText = 'display:flex;align-items:center;gap:10px;padding:4px 0 8px;';
+    container.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 4px 0 8px;';
 
     const animDiv = document.createElement('div');
     animDiv.className = 'lottie-thinking-anim';
-    animDiv.style.cssText = 'width:40px;height:40px;flex-shrink:0;';
+    animDiv.style.cssText = 'width: 40px; height: 40px; flex-shrink: 0;';
     container.appendChild(animDiv);
 
     const lbl = document.createElement('span');
-    lbl.style.cssText = `font-size:14px;color:${colors.textSecondary};`;
+    lbl.style.cssText = `font-size: 14px; color: ${colors.textSecondary};`;
     lbl.textContent = 'A processar…';
     container.appendChild(lbl);
 
     requestAnimationFrame(() => {
         if (typeof lottie !== 'undefined') {
-            lottie.loadAnimation({ container: animDiv, renderer: 'svg', loop: true, autoplay: true, path: 'assets/icons/lottie/loader.json' });
+            lottie.loadAnimation({
+                container:  animDiv,
+                renderer:   'svg',
+                loop:       true,
+                autoplay:   true,
+                path:       'assets/icons/lottie/loader.json',
+            });
         } else {
             const s = document.createElement('script');
             s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
-            s.onload = () => lottie.loadAnimation({ container: animDiv, renderer: 'svg', loop: true, autoplay: true, path: 'assets/icons/lottie/loader.json' });
+            s.onload = () => {
+                lottie.loadAnimation({
+                    container:  animDiv,
+                    renderer:   'svg',
+                    loop:       true,
+                    autoplay:   true,
+                    path:       'assets/icons/lottie/loader.json',
+                });
+            };
             document.head.appendChild(s);
         }
     });
@@ -1387,14 +1496,14 @@ function buildLottieThinkingPlaceholder(colors) {
 function buildThinkingBadge(thinkingContent, colors) {
     const div = document.createElement('div');
     div.className = 'thinking-badge';
-    div.style.cssText = `font-size:12px;font-style:italic;opacity:0.6;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed ${colors.divider};color:${colors.textSecondary};`;
+    div.style.cssText = `font-size: 12px; font-style: italic; opacity: 0.6; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed ${colors.divider}; color: ${colors.textSecondary};`;
     div.textContent = '💭 ' + thinkingContent;
     return div;
 }
 
 function buildActionButtons(content, colors) {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:2px;margin-top:8px;padding-top:2px;';
+    row.style.cssText = 'display: flex; align-items: center; gap: 2px; margin-top: 8px; padding-top: 2px;';
 
     const actions = [
         { icon: 'copy',        title: 'Copiar',    fn: () => copyMessageToClipboard(content) },
@@ -1408,8 +1517,8 @@ function buildActionButtons(content, colors) {
         const btn = document.createElement('button');
         btn.className = 'pulse-tap circular';
         btn.title = title;
-        btn.style.cssText = `width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:transparent;border:none;cursor:pointer;color:${colors.iconTintSecondary};opacity:0.65;padding:0;flex-shrink:0;`;
-        btn.innerHTML = `<span class="icon-mask" style="mask-image:url('assets/icons/svg/${icon}.svg');-webkit-mask-image:url('assets/icons/svg/${icon}.svg');width:17px;height:17px;background:${colors.iconTintSecondary};"></span>`;
+        btn.style.cssText = `width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; border: none; cursor: pointer; color: ${colors.iconTintSecondary}; opacity: 0.65; padding: 0; flex-shrink: 0;`;
+        btn.innerHTML = `<span class="icon-mask" style="mask-image: url('assets/icons/svg/${icon}.svg'); -webkit-mask-image: url('assets/icons/svg/${icon}.svg'); width: 17px; height: 17px; background: ${colors.iconTintSecondary};"></span>`;
         btn.onmouseenter = () => { btn.style.opacity = '1'; };
         btn.onmouseleave = () => { btn.style.opacity = '0.65'; };
         btn.onclick = fn;
@@ -1442,31 +1551,200 @@ function shareMessage(content) {
     }
 }
 
+/* Regenerar: reenvia EXATAMENTE a mesma mensagem do user, sem duplicar
+   histórico — remove a resposta anterior (e a mensagem do user) e
+   reenvia o texto/anexos originais como uma nova chamada. */
 function regenerateLastResponse() {
     if (chatState.isStreaming) return;
-    // Reenvia a última mensagem do utilizador exatamente como estava
-    const lastUserMsg = [...chatState.chatHistory].reverse().find(m => m.role === 'user');
-    if (!lastUserMsg) return;
+    const removed = chatState.removeLastExchange();
+    if (!removed) return;
+    sendMessage(removed.text, removed.attachments, true);
+}
 
-    // Remove a última resposta do assistente do display e do histórico
-    const msgs = chatState.displayMessages;
-    const hist = chatState.chatHistory;
+/* =========================================================================
+   OPÇÕES DA MENSAGEM DO USER (long-press) — copiar / editar / eliminar
+   ========================================================================= */
 
-    // Remove última mensagem do assistente
-    if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
-        msgs.pop();
-        if (hist.length > 0 && hist[hist.length - 1].role === 'assistant') hist.pop();
-    }
-    // Remove última mensagem do utilizador
-    if (msgs.length > 0 && msgs[msgs.length - 1].role === 'user') {
-        msgs.pop();
-        if (hist.length > 0 && hist[hist.length - 1].role === 'user') hist.pop();
-    }
+function showUserMessageOptions(msg, idx) {
+    const colors = getThemeColors();
+    const content = document.getElementById('modalSheetContent');
+    content.innerHTML = '';
 
+    content.appendChild(buildSheetHandle(
+        document.getElementById('modalSheet'),
+        document.getElementById('modalOverlay'),
+        closeModalSheet
+    ));
+
+    const card = document.createElement('div');
+    card.className = 'conv-options-card';
+    card.style.background = isDarkMode ? '#1C1C1E' : '#F2F2F7';
+    card.style.margin = '4px 16px 20px';
+
+    const options = [
+        {
+            icon: 'copy', label: 'Copiar', danger: false,
+            action: () => { closeAllModals(); copyMessageToClipboard(msg.content); }
+        },
+        {
+            icon: 'customise', label: 'Editar', danger: false,
+            action: () => { closeAllModals(); setTimeout(() => showEditUserMessageDialog(msg, idx), 200); }
+        },
+        {
+            icon: 'trash', label: 'Eliminar mensagem', danger: true,
+            action: () => { closeAllModals(); deleteUserMessage(idx); }
+        }
+    ];
+
+    options.forEach((opt, i) => {
+        if (i > 0) {
+            const div = document.createElement('div');
+            div.style.cssText = `height:1px; margin-left:60px; background:${colors.divider};`;
+            card.appendChild(div);
+        }
+        const row = document.createElement('div');
+        row.className = 'conv-options-row pulse-tap';
+        row.onclick = opt.action;
+
+        const iconCircle = document.createElement('span');
+        iconCircle.className = 'conv-options-icon-circle';
+        const tint = opt.danger ? '#EF4444' : colors.textPrimary;
+        iconCircle.style.background = (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)');
+        const icon = document.createElement('span');
+        icon.className = 'icon-mask';
+        icon.style.cssText = `mask-image:url('assets/icons/svg/${opt.icon}.svg'); -webkit-mask-image:url('assets/icons/svg/${opt.icon}.svg'); width:16px; height:16px; background:${tint};`;
+        iconCircle.appendChild(icon);
+
+        const label = document.createElement('span');
+        label.className = 'conv-options-label';
+        label.style.color = tint;
+        label.textContent = opt.label;
+
+        row.appendChild(iconCircle);
+        row.appendChild(label);
+        card.appendChild(row);
+    });
+
+    content.appendChild(card);
+
+    const pad = document.createElement('div');
+    pad.style.height = '8px';
+    content.appendChild(pad);
+
+    openModalSheet();
+}
+
+function showEditUserMessageDialog(msg, idx) {
+    document.getElementById('editMsgOverlay')?.remove();
+
+    const colors = getThemeColors();
+    const dialogBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
+    const inputBg  = isDarkMode ? '#2C2C2E' : '#F2F2F7';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'editMsgOverlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'center-dialog';
+    dialog.id = 'editMsgBox';
+    dialog.style.background = dialogBg;
+    dialog.style.width = 'min(92vw, 380px)';
+
+    const title = document.createElement('div');
+    title.className = 'center-dialog-title';
+    title.style.color = colors.textPrimary;
+    title.textContent = 'Editar mensagem';
+    dialog.appendChild(title);
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'center-dialog-input';
+    textarea.value = msg.content;
+    textarea.rows = 4;
+    textarea.style.color = colors.textPrimary;
+    textarea.style.background = inputBg;
+    textarea.style.borderColor = colors.divider;
+    textarea.style.resize = 'vertical';
+    textarea.style.fontFamily = 'inherit';
+    dialog.appendChild(textarea);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'center-dialog-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'center-dialog-btn cancel pulse-tap';
+    cancelBtn.style.color = colors.textPrimary;
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.onclick = closeEditMsgDialog;
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'center-dialog-btn confirm pulse-tap';
+    saveBtn.style.background = colors.primary;
+    saveBtn.style.color = '#fff';
+    saveBtn.textContent = 'Guardar e reenviar';
+    saveBtn.onclick = () => confirmEditUserMessage(idx, textarea.value);
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(saveBtn);
+    dialog.appendChild(btnRow);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+        overlay.classList.add('open');
+        dialog.classList.add('open');
+    });
+
+    overlay.onclick = (e) => { if (e.target === overlay) closeEditMsgDialog(); };
+    setTimeout(() => { textarea.focus(); }, 260);
+}
+
+function closeEditMsgDialog() {
+    const overlay = document.getElementById('editMsgOverlay');
+    const dialog  = document.getElementById('editMsgBox');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    dialog?.classList.remove('open');
+    setTimeout(() => overlay.remove(), 240);
+}
+
+function confirmEditUserMessage(idx, newTextRaw) {
+    const newText = (newTextRaw || '').trim();
+    if (!newText) { showToast('A mensagem não pode estar vazia'); return; }
+    closeEditMsgDialog();
+
+    if (chatState.isStreaming) return;
+
+    const msg = chatState.displayMessages[idx];
+    if (!msg) return;
+    const attachments = msg.attachments || [];
+
+    // Remove esta mensagem e tudo o que vem depois (a resposta antiga)
+    chatState.displayMessages = chatState.displayMessages.slice(0, idx);
+    chatState.chatHistory = chatState.chatHistory.slice(0, idx);
     chatState.notify();
 
-    // Reenvia a mesma mensagem
-    setTimeout(() => sendMessage(lastUserMsg.content), 100);
+    setTimeout(() => sendMessage(newText, attachments, true), 150);
+}
+
+function deleteUserMessage(idx) {
+    const msg = chatState.displayMessages[idx];
+    if (!msg) return;
+    // Elimina a mensagem do user e a resposta seguinte associada (se existir e ainda não tiver outro user entre elas)
+    let endIdx = idx + 1;
+    if (chatState.displayMessages[endIdx] && chatState.displayMessages[endIdx].role === 'assistant') {
+        endIdx++;
+    }
+    chatState.displayMessages = [
+        ...chatState.displayMessages.slice(0, idx),
+        ...chatState.displayMessages.slice(endIdx)
+    ];
+    chatState.chatHistory = [
+        ...chatState.chatHistory.slice(0, idx),
+        ...chatState.chatHistory.slice(endIdx)
+    ];
+    chatState.notify();
+    showToast('Mensagem eliminada');
 }
 
 /* =========================================================================
@@ -1481,10 +1759,10 @@ function renderConversationsList() {
 
     if (conversations.length === 0) {
         const empty = document.createElement('div');
-        empty.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:10px;opacity:0.45;';
+        empty.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 10px; opacity: 0.45;';
         empty.innerHTML = `
-            <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:28px;height:28px;background:${colors.textHint};"></span>
-            <span style="font-size:13px;color:${colors.textHint};text-align:center;">Ainda não há conversas</span>`;
+            <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 28px; height: 28px; background: ${colors.textHint};"></span>
+            <span style="font-size:13px; color:${colors.textHint}; text-align:center;">Ainda não há conversas</span>`;
         list.appendChild(empty);
         return;
     }
@@ -1512,7 +1790,7 @@ function renderConversationsList() {
             const pinIcon = document.createElement('span');
             pinIcon.className = 'icon-mask drawer-conv-pin-icon';
             const pinColor = isActive ? colors.extrasCardActiveText : colors.iconTintSecondary;
-            pinIcon.style.cssText = `mask-image:url('assets/icons/svg/pin_filled.svg');-webkit-mask-image:url('assets/icons/svg/pin_filled.svg');background:${pinColor};`;
+            pinIcon.style.cssText = `mask-image: url('assets/icons/svg/pin_filled.svg'); -webkit-mask-image: url('assets/icons/svg/pin_filled.svg'); background: ${pinColor};`;
             item.appendChild(pinIcon);
         }
 
@@ -1526,50 +1804,72 @@ function renderConversationsList() {
     });
 }
 
-/* =========================================================================
-   OPÇÕES DA CONVERSA — cores neutras, sem azul
-   ========================================================================= */
-
+/* Opções da conversa a partir do drawer (long-press num item da lista) */
 function showConvOptionsSheet(conv) {
     closeDrawer();
+    buildConvOptionsModal(conv, true);
+}
+
+/* Opções da conversa ATUAL, a partir do botão "moreBtn" da appbar
+   (substitui o antigo popup de "+" nesse botão) */
+function showCurrentConversationOptions() {
+    if (!chatState.currentConversationId) {
+        showToast('Esta conversa ainda não foi guardada');
+        return;
+    }
+    const conv = conversations.find(c => c.id === chatState.currentConversationId) || {
+        id: chatState.currentConversationId,
+        title: chatState.currentConversationTitle,
+        messages: chatState.chatHistory,
+        updatedAt: Date.now(),
+        pinned: false
+    };
+    buildConvOptionsModal(conv, false);
+}
+
+function buildConvOptionsModal(conv, fromDrawer) {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
-    const sheet = document.getElementById('modalSheet');
-    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
+    content.appendChild(buildSheetHandle(
+        document.getElementById('modalSheet'),
+        document.getElementById('modalOverlay'),
+        closeModalSheet
+    ));
 
     const dt = new Date(conv.updatedAt);
     const dateStr = dt.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
     const timeStr = dt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 
-    // Cabeçalho sem cores azuis
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;padding:4px 16px 16px;gap:12px;';
+    header.className = 'conv-options-header';
     header.innerHTML = `
-        <div style="width:40px;height:40px;border-radius:12px;background:${isDarkMode ? '#2C2C2E' : '#E5E5EA'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg');-webkit-mask-image:url('assets/icons/svg/new_chat.svg');width:16px;height:16px;background:${colors.iconTint};"></span>
+        <div class="conv-options-avatar" style="background:${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};">
+            <span class="icon-mask" style="mask-image:url('assets/icons/svg/new_chat.svg'); -webkit-mask-image:url('assets/icons/svg/new_chat.svg'); width:16px; height:16px; background:${colors.textPrimary};"></span>
         </div>
-        <div>
-            <div style="font-size:15px;font-weight:600;color:${colors.textPrimary};line-height:1.3;">${escapeHtml(conv.title)}</div>
-            <div style="font-size:12px;color:${colors.textSecondary};margin-top:2px;">${dateStr} · ${timeStr}</div>
+        <div class="conv-options-header-text">
+            <div class="conv-options-title" style="color:${colors.textPrimary};">${escapeHtml(conv.title)}</div>
+            <div class="conv-options-subtitle" style="color:${colors.textSecondary};">${dateStr} · ${timeStr}</div>
         </div>`;
     content.appendChild(header);
 
     const card = document.createElement('div');
-    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
+    card.className = 'conv-options-card';
+    card.style.background = isDarkMode ? '#1C1C1E' : '#F2F2F7';
     content.appendChild(card);
+
+    const neutralTint = colors.textPrimary;
 
     const options = [
         {
-            icon: 'external', label: 'Abrir conversa', danger: false,
+            icon: 'external', label: 'Abrir conversa', tint: neutralTint, danger: false,
             action: () => { closeAllModals(); setTimeout(() => chatState.loadConversation(conv), 200); }
         },
         {
             icon: conv.pinned ? 'pin_filled' : 'pin',
             label: conv.pinned ? 'Desafixar conversa' : 'Fixar conversa',
-            danger: false,
+            tint: neutralTint, danger: false,
             action: async () => {
                 closeAllModals();
                 const previous = conv.pinned;
@@ -1588,15 +1888,15 @@ function showConvOptionsSheet(conv) {
             }
         },
         {
-            icon: 'pen', label: 'Renomear', danger: false,
+            icon: 'customise', label: 'Renomear', tint: neutralTint, danger: false,
             action: () => showRenameDialog(conv)
         },
         {
-            icon: 'share', label: 'Partilhar conversa', danger: false,
+            icon: 'share', label: 'Partilhar conversa', tint: neutralTint, danger: false,
             action: () => { closeAllModals(); shareConversationText(conv); }
         },
         {
-            icon: 'trash', label: 'Eliminar conversa', danger: true,
+            icon: 'trash', label: 'Eliminar conversa', tint: '#EF4444', danger: true,
             action: () => { closeAllModals(); deleteConversation(conv); }
         }
     ];
@@ -1604,30 +1904,33 @@ function showConvOptionsSheet(conv) {
     options.forEach((opt, i) => {
         if (i > 0) {
             const div = document.createElement('div');
-            div.style.cssText = `height:1px;margin-left:52px;background:${colors.divider};`;
+            div.style.cssText = `height:1px; margin-left:60px; background:${colors.divider};`;
             card.appendChild(div);
         }
         const row = document.createElement('div');
-        row.className = 'pulse-tap';
-        row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;';
+        row.className = 'conv-options-row pulse-tap';
         row.onclick = opt.action;
 
-        const iconEl = document.createElement('span');
-        iconEl.className = 'icon-mask';
-        const tint = opt.danger ? '#EF4444' : colors.iconTint;
-        iconEl.style.cssText = `mask-image:url('assets/icons/svg/${opt.icon}.svg');-webkit-mask-image:url('assets/icons/svg/${opt.icon}.svg');width:18px;height:18px;background:${tint};flex-shrink:0;`;
-        row.appendChild(iconEl);
+        const iconCircle = document.createElement('span');
+        iconCircle.className = 'conv-options-icon-circle';
+        iconCircle.style.background = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+        const icon = document.createElement('span');
+        icon.className = 'icon-mask';
+        icon.style.cssText = `mask-image:url('assets/icons/svg/${opt.icon}.svg'); -webkit-mask-image:url('assets/icons/svg/${opt.icon}.svg'); width:16px; height:16px; background:${opt.tint};`;
+        iconCircle.appendChild(icon);
 
         const label = document.createElement('span');
-        label.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${opt.danger ? '#EF4444' : colors.textPrimary};`;
+        label.className = 'conv-options-label';
+        label.style.color = opt.danger ? '#EF4444' : colors.textPrimary;
         label.textContent = opt.label;
-        row.appendChild(label);
 
+        row.appendChild(iconCircle);
+        row.appendChild(label);
         card.appendChild(row);
     });
 
     const pad = document.createElement('div');
-    pad.style.height = '24px';
+    pad.style.height = '20px';
     content.appendChild(pad);
 
     openModalSheet();
@@ -1763,132 +2066,6 @@ async function deleteConversation(conv) {
 }
 
 /* =========================================================================
-   INCÓGNITO
-   ========================================================================= */
-
-function showIncognitoConfirmSheet() {
-    const colors = getThemeColors();
-    const content = document.getElementById('modalSheetContent');
-    const sheet = document.getElementById('modalSheet');
-    const overlay = document.getElementById('modalOverlay');
-    content.innerHTML = '';
-
-    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
-
-    const body = document.createElement('div');
-    body.style.cssText = 'padding:8px 20px 8px;text-align:center;';
-    body.innerHTML = `
-        <span class="icon-mask" style="mask-image:url('assets/icons/svg/incognito.svg');-webkit-mask-image:url('assets/icons/svg/incognito.svg');width:36px;height:36px;background:${colors.iconTint};display:block;margin:0 auto 12px;"></span>
-        <div style="font-size:17px;font-weight:700;color:${colors.textPrimary};margin-bottom:8px;">Conversa Privada</div>
-        <div style="font-size:14px;color:${colors.textSecondary};line-height:1.5;margin-bottom:20px;">Esta conversa não será guardada.<br>Não será possível desativar o modo incógnito durante a conversa.</div>
-    `;
-    content.appendChild(body);
-
-    const btnWrap = document.createElement('div');
-    btnWrap.style.cssText = 'padding:0 16px 8px;display:flex;flex-direction:column;gap:10px;';
-
-    const confirmBtn = document.createElement('button');
-    confirmBtn.className = 'pulse-tap';
-    confirmBtn.style.cssText = `width:100%;height:50px;border-radius:25px;border:none;cursor:pointer;font-size:15px;font-weight:700;background:${colors.textPrimary};color:${colors.background};`;
-    confirmBtn.textContent = 'Ativar modo incógnito';
-    confirmBtn.onclick = () => {
-        closeModalSheet();
-        chatState.activateIncognito();
-    };
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'pulse-tap';
-    cancelBtn.style.cssText = `width:100%;height:50px;border-radius:25px;border:none;cursor:pointer;font-size:15px;font-weight:500;background:${isDarkMode ? '#2C2C2E' : '#E5E5EA'};color:${colors.textPrimary};`;
-    cancelBtn.textContent = 'Cancelar';
-    cancelBtn.onclick = () => closeModalSheet();
-
-    btnWrap.appendChild(confirmBtn);
-    btnWrap.appendChild(cancelBtn);
-    content.appendChild(btnWrap);
-
-    const pad = document.createElement('div');
-    pad.style.height = '16px';
-    content.appendChild(pad);
-
-    openModalSheet();
-}
-
-/* =========================================================================
-   MODEL PICKER
-   ========================================================================= */
-
-const AVAILABLE_MODELS = [
-    { name: 'Gemini 2.5 Flash', id: 'gemini-2.5-flash' },
-    { name: 'Gemini 2.5 Pro',   id: 'gemini-2.5-pro' },
-    { name: 'Gemini 2.0 Flash', id: 'gemini-2.0-flash' },
-];
-
-function showModelPickerSheet() {
-    const colors = getThemeColors();
-    const content = document.getElementById('modalSheetContent');
-    const sheet = document.getElementById('modalSheet');
-    const overlay = document.getElementById('modalOverlay');
-    content.innerHTML = '';
-
-    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
-
-    const titleEl = document.createElement('div');
-    titleEl.style.cssText = `padding:4px 20px 12px;font-size:17px;font-weight:700;color:${colors.textPrimary};`;
-    titleEl.textContent = 'Modelo';
-    content.appendChild(titleEl);
-
-    const card = document.createElement('div');
-    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
-
-    AVAILABLE_MODELS.forEach((model, i) => {
-        if (i > 0) {
-            const sep = document.createElement('div');
-            sep.style.cssText = `height:1px;margin-left:52px;background:${colors.divider};`;
-            card.appendChild(sep);
-        }
-        const row = document.createElement('div');
-        row.className = 'pulse-tap';
-        row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;';
-        row.onclick = () => {
-            // Atualiza o modelo (apenas visual por agora — adaptar ao worker se necessário)
-            window.MODEL_NAME = model.name;
-            window.MODEL_ID = model.id;
-            const label = document.getElementById('modelPillLabel');
-            if (label) label.textContent = chatState.incognitoMode ? '🕵️ ' + model.name : model.name;
-            closeModalSheet();
-            showToast('Modelo: ' + model.name);
-        };
-
-        const iconEl = document.createElement('span');
-        iconEl.className = 'icon-mask';
-        iconEl.style.cssText = `mask-image:url('assets/icons/svg/ai.svg');-webkit-mask-image:url('assets/icons/svg/ai.svg');width:18px;height:18px;background:${colors.iconTint};flex-shrink:0;`;
-        row.appendChild(iconEl);
-
-        const lbl = document.createElement('span');
-        lbl.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${colors.textPrimary};flex:1;`;
-        lbl.textContent = model.name;
-        row.appendChild(lbl);
-
-        const isActive = (window.MODEL_ID || MODEL_ID) === model.id;
-        if (isActive) {
-            const check = document.createElement('span');
-            check.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${colors.primary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-            row.appendChild(check);
-        }
-
-        card.appendChild(row);
-    });
-
-    content.appendChild(card);
-
-    const pad = document.createElement('div');
-    pad.style.height = '24px';
-    content.appendChild(pad);
-
-    openModalSheet();
-}
-
-/* =========================================================================
    DRAWER
    ========================================================================= */
 
@@ -1922,29 +2099,177 @@ function closeDrawer() {
 
 function openConversation(conv) {
     if (chatState.isStreaming) return;
+    if (chatState.isIncognito) { showToast('Não é possível sair da conversa privada'); return; }
     chatState.loadConversation(conv);
     closeDrawer();
+}
+
+/* =========================================================================
+   SELETOR DE MODELO (sempre presente na appbar, mesmo sem conversa)
+   ========================================================================= */
+
+function showModelPicker() {
+    document.getElementById('modelPickerOverlay')?.remove();
+
+    const colors = getThemeColors();
+    const dialogBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
+    const dividerColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-card-overlay';
+    overlay.id = 'modelPickerOverlay';
+    overlay.style.zIndex = '230';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'center-dialog';
+    dialog.id = 'modelPickerBox';
+    dialog.style.background = dialogBg;
+    dialog.style.padding = '8px 0 12px';
+    dialog.style.zIndex = '231';
+
+    let rowsHtml = `<div style="padding:10px 20px 12px;"><span style="font-size:16px;font-weight:700;color:${colors.textPrimary};">Modelo de IA</span></div>`;
+
+    AVAILABLE_MODELS.forEach((model) => {
+        const isActive = model.id === currentModelId;
+        rowsHtml += `
+        <button class="pulse-tap model-pick-row" data-model-id="${model.id}" style="width:100%;display:flex;align-items:center;padding:13px 20px;background:none;border:none;cursor:pointer;border-top:1px solid ${dividerColor};text-align:left;">
+            <span style="flex:1;min-width:0;">
+                <span style="display:block;font-size:15px;font-weight:600;color:${isActive ? colors.primary : colors.textPrimary};">${model.name}</span>
+                <span style="display:block;font-size:12.5px;color:${colors.textSecondary};margin-top:1px;">${model.description}</span>
+            </span>
+            ${isActive ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${colors.primary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+        </button>`;
+    });
+
+    dialog.innerHTML = rowsHtml;
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+        overlay.classList.add('open');
+        dialog.classList.add('open');
+    });
+
+    function close() {
+        overlay.classList.remove('open');
+        dialog.classList.remove('open');
+        setTimeout(() => overlay.remove(), 240);
+    }
+
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+    dialog.querySelectorAll('.model-pick-row').forEach(row => {
+        row.onclick = () => {
+            currentModelId = row.getAttribute('data-model-id');
+            close();
+            const titleEl = document.getElementById('appBarTitle');
+            if (titleEl) titleEl.textContent = getCurrentModelName();
+            showToast(`Modelo: ${getCurrentModelName()}`);
+        };
+    });
+}
+
+/* =========================================================================
+   ANEXOS (imagens / ficheiros) — leitura real e pré-visualização
+   ========================================================================= */
+
+function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function addAttachmentFromFile(file, kind) {
+    try {
+        const dataUrl = await readFileAsDataUrl(file);
+        chatState.pendingAttachments.push({
+            kind: kind,
+            name: file.name,
+            size: file.size,
+            mime: file.type,
+            dataUrl: kind === 'image' ? dataUrl : null,
+            rawDataUrl: dataUrl
+        });
+        updateSendButton();
+        renderAttachmentsPreview();
+        showToast(kind === 'image' ? `Imagem "${file.name}" anexada` : `Ficheiro "${file.name}" anexado`);
+    } catch (err) {
+        showToast('Não foi possível ler o ficheiro');
+    }
+}
+
+function removeAttachment(index) {
+    chatState.pendingAttachments.splice(index, 1);
+    updateSendButton();
+    renderAttachmentsPreview();
+}
+
+function renderAttachmentsPreview() {
+    const wrap = document.getElementById('attachmentsPreview');
+    if (!wrap) return;
+    const colors = getThemeColors();
+
+    if (chatState.pendingAttachments.length === 0) {
+        wrap.classList.add('hidden');
+        wrap.innerHTML = '';
+        return;
+    }
+
+    wrap.classList.remove('hidden');
+    wrap.innerHTML = '';
+
+    chatState.pendingAttachments.forEach((att, idx) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'position:relative; flex-shrink:0;';
+
+        if (att.kind === 'image' && att.dataUrl) {
+            item.innerHTML = `<img src="${att.dataUrl}" style="width:56px;height:56px;object-fit:cover;border-radius:10px;" />`;
+        } else {
+            item.innerHTML = `<div style="width:56px;height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};">
+                <span class="icon-mask" style="mask-image:url('assets/icons/svg/upload.svg'); -webkit-mask-image:url('assets/icons/svg/upload.svg'); width:20px; height:20px; background:${colors.textPrimary};"></span>
+            </div>`;
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'pulse-tap';
+        removeBtn.style.cssText = 'position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:#000; color:#fff; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;';
+        removeBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        removeBtn.onclick = () => removeAttachment(idx);
+        item.appendChild(removeBtn);
+
+        wrap.appendChild(item);
+    });
 }
 
 /* =========================================================================
    ENVIO DE MENSAGENS
    ========================================================================= */
 
-async function sendMessage(text) {
-    const trimmed = text.trim();
-    if (!trimmed || chatState.isStreaming) return;
+async function sendMessage(text, attachmentsOverride, skipClearInput) {
+    const trimmed = (text || '').trim();
+    const attachments = attachmentsOverride !== undefined ? attachmentsOverride : chatState.pendingAttachments.slice();
+    if (!trimmed && attachments.length === 0) return;
+    if (chatState.isStreaming) return;
 
     const isFirstMessage = chatState.chatHistory.length === 0;
     chatState.isStreaming = true;
 
-    chatState.addUserMessage(trimmed);
+    chatState.addUserMessage(trimmed, attachments);
 
-    const input = document.getElementById('textInput');
-    if (input) {
-        input.value = '';
-        resetInputHeight(input);
-        updateSendButton();
+    if (!skipClearInput) {
+        const input = document.getElementById('textInput');
+        if (input) {
+            input.value = '';
+            autoResizeTextarea(input);
+        }
     }
+    if (attachmentsOverride === undefined) {
+        chatState.pendingAttachments = [];
+        renderAttachmentsPreview();
+    }
+    updateSendButton();
     scrollToBottom();
 
     const think = chatState.thinkMoreMode;
@@ -1986,14 +2311,14 @@ async function sendMessage(text) {
     chatState.notify();
     scrollToBottom();
 
-    // Em modo incógnito não guarda a conversa
-    if (chatState.incognitoMode) return;
-
     if (isFirstMessage && !chatState.titleGenerated) {
         chatState.titleGenerated = true;
         const title = await GeminiApiService.generateTitle(trimmed, token);
         chatState.currentConversationTitle = title;
     }
+
+    // Conversas incógnito NUNCA são guardadas (nem localmente nem no servidor)
+    if (chatState.isIncognito) return;
 
     if (!chatState.currentConversationId) {
         const newId = await AuthApiService.createConversation(token, chatState.currentConversationTitle, chatState.chatHistory);
@@ -2102,63 +2427,56 @@ function makeSheetDraggable(handleEl, sheetEl, overlayEl, closeFn) {
     handleEl.addEventListener('pointercancel', onUp);
 }
 
-/* =========================================================================
-   ADD POPUP — upload de imagens e ficheiros
-   ========================================================================= */
-
 function showAddPopup() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
-    const sheet = document.getElementById('modalSheet');
-    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
+    content.appendChild(buildSheetHandle(
+        document.getElementById('modalSheet'),
+        document.getElementById('modalOverlay'),
+        closeModalSheet
+    ));
 
+    // Upload real de imagem
     const fileInputImage = document.createElement('input');
     fileInputImage.type = 'file';
     fileInputImage.accept = 'image/*';
     fileInputImage.style.display = 'none';
-    fileInputImage.onchange = (e) => {
+    fileInputImage.onchange = async (e) => {
         const file = e.target.files?.[0];
-        if (file) { closeAllModals(); showToast(`Imagem "${file.name}" selecionada`); }
+        if (file) {
+            closeAllModals();
+            await addAttachmentFromFile(file, 'image');
+        }
     };
     content.appendChild(fileInputImage);
 
-    const fileInputDoc = document.createElement('input');
-    fileInputDoc.type = 'file';
-    fileInputDoc.accept = '.pdf,.doc,.docx,.txt,.csv,.xlsx,.pptx';
-    fileInputDoc.style.display = 'none';
-    fileInputDoc.onchange = (e) => {
+    // Upload real de qualquer ficheiro
+    const fileInputUpload = document.createElement('input');
+    fileInputUpload.type = 'file';
+    fileInputUpload.accept = '*/*';
+    fileInputUpload.style.display = 'none';
+    fileInputUpload.onchange = async (e) => {
         const file = e.target.files?.[0];
-        if (file) { closeAllModals(); showToast(`Ficheiro "${file.name}" selecionado`); }
+        if (file) {
+            closeAllModals();
+            await addAttachmentFromFile(file, 'file');
+        }
     };
-    content.appendChild(fileInputDoc);
-
-    const fileInputAny = document.createElement('input');
-    fileInputAny.type = 'file';
-    fileInputAny.accept = '*/*';
-    fileInputAny.style.display = 'none';
-    fileInputAny.onchange = (e) => {
-        const file = e.target.files?.[0];
-        if (file) { closeAllModals(); showToast(`Ficheiro "${file.name}" selecionado`); }
-    };
-    content.appendChild(fileInputAny);
-
-    const card = document.createElement('div');
-    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
+    content.appendChild(fileInputUpload);
 
     function buildRow(iconName, label, onClick) {
         const row = document.createElement('div');
         row.className = 'pulse-tap';
-        row.style.cssText = 'display:flex;align-items:center;padding:14px 16px;cursor:pointer;';
+        row.style.cssText = `display: flex; align-items: center; padding: 14px 20px; cursor: pointer;`;
         row.onclick = onClick;
         const icon = document.createElement('span');
         icon.className = 'icon-mask';
-        icon.style.cssText = `mask-image:url('assets/icons/svg/${iconName}.svg');-webkit-mask-image:url('assets/icons/svg/${iconName}.svg');width:20px;height:20px;background:${colors.iconTint};flex-shrink:0;`;
+        icon.style.cssText = `mask-image: url('assets/icons/svg/${iconName}.svg'); -webkit-mask-image: url('assets/icons/svg/${iconName}.svg'); width: 22px; height: 22px; background: ${colors.iconTint}; flex-shrink: 0;`;
         row.appendChild(icon);
         const lbl = document.createElement('span');
-        lbl.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;color:${colors.textPrimary};`;
+        lbl.style.cssText = `margin-left: 14px; font-size: 15px; font-weight: 500; color: ${colors.textPrimary};`;
         lbl.textContent = label;
         row.appendChild(lbl);
         return row;
@@ -2166,47 +2484,42 @@ function showAddPopup() {
 
     function buildSep() {
         const sep = document.createElement('div');
-        sep.style.cssText = `height:1px;margin-left:54px;background:${colors.divider};`;
+        sep.style.cssText = `height: 1px; margin-left: 56px; background: ${colors.divider};`;
         return sep;
     }
 
-    card.appendChild(buildRow('image',  'Enviar Imagem',    () => fileInputImage.click()));
-    card.appendChild(buildSep());
-    card.appendChild(buildRow('folder', 'Enviar Documento', () => fileInputDoc.click()));
-    card.appendChild(buildSep());
-    card.appendChild(buildRow('upload', 'Enviar Ficheiro',  () => fileInputAny.click()));
-    card.appendChild(buildSep());
-    card.appendChild(buildRow('extras', 'Extras',           () => { closeAllModals(); setTimeout(showExtrasSheet, 180); }));
-
-    content.appendChild(card);
+    content.appendChild(buildRow('image',  'Enviar Imagem',   () => fileInputImage.click()));
+    content.appendChild(buildSep());
+    content.appendChild(buildRow('upload',  'Enviar Ficheiro', () => fileInputUpload.click()));
+    content.appendChild(buildSep());
+    content.appendChild(buildRow('extras',  'Extras',          () => { closeAllModals(); setTimeout(showExtrasSheet, 180); }));
 
     const pad = document.createElement('div');
-    pad.style.height = '20px';
+    pad.style.height = '16px';
     content.appendChild(pad);
 
     openModalSheet();
 }
 
-/* =========================================================================
-   EXTRAS SHEET — ícones -15%
-   ========================================================================= */
-
+/* Extras: ícones reduzidos -15% (20px → 17px) e sem cor azul, igual ao
+   resto dos modals neutros do app. */
 function showExtrasSheet() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
-    const sheet = document.getElementById('modalSheet');
-    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
+    content.appendChild(buildSheetHandle(
+        document.getElementById('modalSheet'),
+        document.getElementById('modalOverlay'),
+        closeModalSheet
+    ));
 
     const titleEl = document.createElement('div');
-    titleEl.style.cssText = `padding:4px 20px 12px;font-size:17px;font-weight:700;color:${colors.textPrimary};`;
+    titleEl.style.cssText = `padding: 4px 20px 12px; font-size: 17px; font-weight: 700; color: ${colors.textPrimary};`;
     titleEl.textContent = 'Extras';
     content.appendChild(titleEl);
 
-    const card = document.createElement('div');
-    card.style.cssText = `margin:0 12px;border-radius:16px;overflow:hidden;background:${isDarkMode ? '#1C1C1E' : '#F2F2F7'};`;
+    const neutralActiveBg = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
 
     const items = [
         { title: 'Flash',      iconOff: 'flash',  iconOn: 'flash_filled',  active: chatState.flashMode,     action: () => { chatState.toggleFlashMode();     closeAllModals(); } },
@@ -2217,39 +2530,36 @@ function showExtrasSheet() {
     items.forEach((item, i) => {
         if (i > 0) {
             const div = document.createElement('div');
-            div.style.cssText = `height:1px;margin-left:54px;background:${colors.divider};`;
-            card.appendChild(div);
+            div.style.cssText = `height: 1px; margin-left: 60px; background: ${colors.divider};`;
+            content.appendChild(div);
         }
         const row = document.createElement('div');
-        row.className = 'pulse-tap';
-        row.style.cssText = `display:flex;align-items:center;padding:14px 16px;cursor:pointer;background:${item.active ? (colors.extrasCardActiveText + '14') : 'transparent'};`;
+        row.className = 'flex items-center px-4 py-3 pulse-tap';
+        row.style.backgroundColor = item.active ? neutralActiveBg : 'transparent';
+        row.style.cursor = 'pointer';
         row.onclick = item.action;
 
-        // Ícone -15% (17px em vez de 20px)
+        // -15%: 20px -> 17px
         const icon = document.createElement('span');
         icon.className = 'icon-mask';
-        icon.style.cssText = `mask-image:url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg');-webkit-mask-image:url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg');width:17px;height:17px;background:${item.active ? colors.extrasCardActiveText : colors.iconTint};flex-shrink:0;`;
+        icon.style.cssText = `mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); -webkit-mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); width: 17px; height: 17px; background: ${colors.textPrimary}; flex-shrink: 0;`;
         row.appendChild(icon);
 
         const span = document.createElement('span');
-        span.style.cssText = `margin-left:14px;font-size:15px;font-weight:500;flex:1;color:${item.active ? colors.extrasCardActiveText : colors.textPrimary};`;
+        span.className = 'ml-3.5 text-sm font-medium flex-1';
         span.textContent = item.title;
+        span.style.color = colors.textPrimary;
         row.appendChild(span);
 
         if (item.active) {
             const dot = document.createElement('div');
-            dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${colors.extrasCardActiveText};`;
+            dot.className = 'w-2 h-2 rounded-full';
+            dot.style.background = colors.textPrimary;
             row.appendChild(dot);
         }
 
-        card.appendChild(row);
+        content.appendChild(row);
     });
-
-    content.appendChild(card);
-
-    const pad = document.createElement('div');
-    pad.style.height = '24px';
-    content.appendChild(pad);
 
     openModalSheet();
 }
@@ -2257,17 +2567,20 @@ function showExtrasSheet() {
 function showEditModal() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
-    const sheet = document.getElementById('modalSheet');
-    const overlay = document.getElementById('modalOverlay');
     content.innerHTML = '';
 
-    content.appendChild(buildSheetHandle(sheet, overlay, closeModalSheet));
+    content.appendChild(buildSheetHandle(
+        document.getElementById('modalSheet'),
+        document.getElementById('modalOverlay'),
+        closeModalSheet
+    ));
 
     const titleEl = document.createElement('div');
-    titleEl.style.cssText = `padding:4px 20px 20px;font-size:17px;font-weight:700;color:${colors.textPrimary};`;
+    titleEl.style.cssText = `padding: 4px 20px 20px; font-size: 17px; font-weight: 700; color: ${colors.textPrimary};`;
     titleEl.textContent = 'Edit';
     content.appendChild(titleEl);
 
+    const sheet = document.getElementById('modalSheet');
     if (sheet) sheet.style.minHeight = '88vh';
 
     openModalSheet();

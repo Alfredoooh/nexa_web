@@ -80,12 +80,14 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
     position: relative; overflow: hidden;
 }
 
-/* ── AppBar ─────────────────────────────────────────────────────────────── */
+/* ── AppBar (sempre fixo, nunca esconde/sobe) ─────────────────────────────── */
 .app-bar {
     position: absolute; top: 0; left: 0; right: 0;
     z-index: 40; height: 60px;
     display: flex; align-items: center; padding: 0 8px;
     background: transparent;
+    transform: translateY(0) !important;
+    transition: none;
 }
 .app-bar-gradient {
     position: absolute; top: 0; left: 0; right: 0;
@@ -104,14 +106,33 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
         rgba(15,15,15,0.00) 100%);
 }
 
+/* ── Seletor de modelo (appbar) — sempre presente ─────────────────────────── */
+.model-selector-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: none; border: none; cursor: pointer;
+    padding: 6px 10px; border-radius: 14px;
+    max-width: 200px;
+}
+
+/* ── Pílula de modo incógnito (appbar) ────────────────────────────────────── */
+.incognito-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px 5px 10px; border-radius: 16px;
+    font-size: 12px; font-weight: 600;
+}
+
 /* ── Drawer ─────────────────────────────────────────────────────────────── */
 .drawer-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.45);
+    background: rgba(0,0,0,0.32);
     z-index: 100; opacity: 0; pointer-events: none;
-    transition: opacity 0.28s ease;
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: opacity 0.28s ease, backdrop-filter 0.28s ease;
 }
-.drawer-overlay.open { opacity: 1; pointer-events: auto; }
+.drawer-overlay.open {
+    opacity: 1; pointer-events: auto;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
 
 .drawer {
     position: fixed; top: 0; left: 0; bottom: 0;
@@ -166,6 +187,9 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 .drawer-menu-item:hover,
 .drawer-menu-item:active {
     background: rgba(127,127,127,0.08);
+}
+.drawer-menu-item.disabled {
+    opacity: 0.4; pointer-events: none;
 }
 .drawer-menu-label { flex: 1; }
 
@@ -235,24 +259,27 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
     flex: 1; overflow-y: auto; overflow-x: hidden;
     padding-top: 68px; padding-bottom: 170px;
     -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
+    transition: padding-bottom 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 
-/* ── Bottom bar ─────────────────────────────────────────────────────────── */
+/* ── Bottom bar (sobe suavemente com o teclado) ───────────────────────────── */
 .bottom-bar {
     position: absolute; bottom: 0; left: 16px; right: 16px;
     z-index: 50; margin-bottom: 20px; border-radius: 22px;
     display: flex; flex-direction: column;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.22s cubic-bezier(0.4,0,0.2,1);
+    will-change: transform;
 }
 .bottom-bar.light { background-color: var(--bottom-bar-light); box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
 .bottom-bar.dark  { background-color: var(--bottom-bar-dark);  box-shadow: 0 4px 24px rgba(0,0,0,0.30); }
 
-/* ── Textarea ───────────────────────────────────────────────────────────── */
+/* ── Textarea (altura reduz ao enviar, respeita limite) ───────────────────── */
 .chat-input {
     resize: none; outline: none; border: none; background: transparent;
     font-size: 15px; line-height: 1.5; padding: 12px 18px 0; width: 100%;
-    font-family: inherit; transition: color 0.3s ease;
+    font-family: inherit; transition: color 0.3s ease, height 0.15s ease;
     -webkit-user-select: text; user-select: text;
+    max-height: 150px; overflow-y: auto;
 }
 .chat-input.light { color: #1F2937; }
 .chat-input.dark  { color: #F3F4F6; }
@@ -268,13 +295,18 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 .pulse-tap:active   { transform: scale(0.97); opacity: 0.86; }
 .pulse-tap.circular { border-radius: 50%; overflow: hidden; }
 
-/* ── Modal overlay ──────────────────────────────────────────────────────── */
+/* ── Modal overlay (blur suave em vez de overlay simples) ─────────────────── */
 .modal-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5); z-index: 200;
-    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    background: rgba(0,0,0,0.32); z-index: 200;
+    opacity: 0; pointer-events: none;
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
 }
-.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal-overlay.open {
+    opacity: 1; pointer-events: auto;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
 
 /* ── Modal sheet ─────────────────────────────────────────────────────────── */
 .modal-sheet {
@@ -445,7 +477,7 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 .center-dialog-btn.cancel { background: rgba(127,127,127,0.14); }
 
-/* ── Modal de opções de conversa ─────────────────────────────────────────── */
+/* ── Modal de opções de conversa / mensagem ──────────────────────────────── */
 .conv-options-header {
     display: flex; align-items: center; gap: 12px;
     padding: 6px 20px 16px;
@@ -480,6 +512,75 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
     display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 12px; border-radius: 20px;
     font-size: 12px; font-weight: 600;
+}
+
+/* ── Settings: ecrã em "card" flutuante centrado (estilo ChatGPT) ─────────── */
+.settings-backdrop {
+    position: fixed; inset: 0; z-index: 150;
+    background: rgba(0,0,0,0.4);
+    opacity: 0; pointer-events: none;
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: opacity 0.28s ease, backdrop-filter 0.28s ease;
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px 14px;
+}
+.settings-backdrop.open {
+    opacity: 1; pointer-events: auto;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.settings-card {
+    width: 100%; max-width: 460px;
+    max-height: 100%;
+    border-radius: 26px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transform: scale(0.92) translateY(10px);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.34,1.2,0.64,1), opacity 0.22s ease;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.30);
+}
+.settings-backdrop.open .settings-card {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+.settings-card-scroll {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Popup card ancorado (usado por menus de contexto rápidos) ───────────── */
+.popup-card-overlay {
+    position: fixed; inset: 0; z-index: 220;
+    background: rgba(0,0,0,0.18);
+    opacity: 0; pointer-events: none;
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: opacity 0.22s ease, backdrop-filter 0.22s ease;
+}
+.popup-card-overlay.open {
+    opacity: 1; pointer-events: auto;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.popup-card {
+    position: fixed; z-index: 221;
+    min-width: 220px; max-width: min(320px, 88vw);
+    border-radius: 16px;
+    overflow: hidden;
+    transform-origin: top right;
+    transform: scale(0.85);
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.10);
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), opacity 0.16s ease;
+}
+.popup-card.open {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ── Bolha de mensagem do utilizador — todas as bordas curvas ────────────── */
+.user-msg-bubble {
+    border-radius: 20px !important;
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
@@ -628,86 +729,4 @@ body.dark .rec-timer { color: #F3F4F6; }
     display: block;
     width: 100%;
     height: 100%;
-}
-
-/* =====================================================
-   OVERLAYS COM BLUR SUAVE
-   ===================================================== */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 190;
-    background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-}
-.modal-overlay.open {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.drawer-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 98;
-    background: rgba(0,0,0,0.3);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-}
-.drawer-overlay.open {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-/* =====================================================
-   APP BAR — sempre fixo
-   ===================================================== */
-.app-bar {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 50 !important;
-    flex-shrink: 0 !important;
-}
-
-/* =====================================================
-   TEXTAREA — reset correto após envio
-   ===================================================== */
-.chat-input {
-    resize: none;
-    overflow-y: hidden;
-    transition: height 0.15s ease;
-    min-height: 24px;
-    max-height: 150px;
-    box-sizing: border-box;
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    padding: 12px 14px;
-    font-size: 15px;
-    line-height: 1.5;
-}
-.chat-input.light { color: #212730; }
-.chat-input.dark  { color: #F2F2F2; }
-
-/* =====================================================
-   BOTTOM BAR — keyboard safe area
-   ===================================================== */
-.bottom-bar {
-    flex-shrink: 0;
-    transition: padding-bottom 0.15s ease;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* =====================================================
-   MENSAGEM UTILIZADOR — todas bordas curvas
-   ===================================================== */
-.user-bubble {
-    border-radius: 20px !important;
 }

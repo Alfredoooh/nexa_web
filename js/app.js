@@ -4,6 +4,18 @@ let conversations = [];
 const MODEL_NAME = 'Gemini 2.5 Flash';
 const MODEL_ID   = 'gemini-2.5-flash';
 
+const AVAILABLE_MODELS = [
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash',  description: 'Rápido e equilibrado' },
+    { id: 'gemini-2.5-pro',   name: 'Gemini 2.5 Pro',    description: 'Mais capaz para tarefas complexas' }
+];
+
+let currentModelId = MODEL_ID;
+
+function getCurrentModelName() {
+    const m = AVAILABLE_MODELS.find(m => m.id === currentModelId);
+    return m ? m.name : MODEL_NAME;
+}
+
 const lightColors = {
     background:             '#FFFFFF',
     textPrimary:            '#212730',
@@ -82,6 +94,37 @@ function toggleDarkMode() {
     showToast(isDarkMode ? '🌙 Modo escuro' : '☀️ Modo claro');
 }
 
+/* =========================================================================
+   SPLASH SCREEN — só na abertura do site (DOMContentLoaded), nunca entre telas
+   ========================================================================= */
+function buildInitialSplashHTML() {
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const bg = dark
+        ? 'radial-gradient(circle at 30% 20%, #1d2440 0%, #121212 55%, #0a0a0a 100%)'
+        : 'radial-gradient(circle at 30% 20%, #eaf1ff 0%, #ffffff 55%, #f5f6fa 100%)';
+    return `
+        <div id="initialSplash" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:${bg};transition:opacity 0.45s ease;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+                <img src="assets/icons/png/logo.png" style="width:80px;height:80px;border-radius:20px;box-shadow:0 8px 30px rgba(47,123,246,0.25);" />
+                <div style="display:flex;gap:6px;">
+                    <span class="splash-dot" style="width:7px;height:7px;border-radius:50%;background:#2F7BF6;animation:splashDotPulse 1.1s ease-in-out infinite;"></span>
+                    <span class="splash-dot" style="width:7px;height:7px;border-radius:50%;background:#2F7BF6;animation:splashDotPulse 1.1s ease-in-out 0.15s infinite;"></span>
+                    <span class="splash-dot" style="width:7px;height:7px;border-radius:50%;background:#2F7BF6;animation:splashDotPulse 1.1s ease-in-out 0.3s infinite;"></span>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes splashDotPulse { 0%,100% { opacity:0.25; transform:scale(0.8);} 50% { opacity:1; transform:scale(1);} }
+        </style>`;
+}
+
+function hideInitialSplash() {
+    const splash = document.getElementById('initialSplash');
+    if (!splash) return;
+    splash.style.opacity = '0';
+    setTimeout(() => splash.remove(), 460);
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
     const savedTheme = localStorage.getItem('nexa_theme');
     if (savedTheme === 'dark')       isDarkMode = true;
@@ -91,31 +134,36 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.toggle('light', !isDarkMode);
     document.body.classList.toggle('dark', isDarkMode);
 
-    // Mostra splash enquanto verifica estado
-    document.getElementById('app').innerHTML = `
-        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:${isDarkMode ? '#121212' : '#fff'};">
-            <img src="assets/icons/png/logo.png" style="width:72px;height:72px;opacity:0.8;" />
-        </div>`;
+    // Splash inicial — aparece UMA vez, só ao abrir o site
+    document.getElementById('app').innerHTML = buildInitialSplashHTML();
 
     // 1. Primeiro verifica se já há sessão guardada
     const savedUser =
         JSON.parse(localStorage.getItem('nexa_user') || 'null') ||
         JSON.parse(localStorage.getItem('ipc_user')  || 'null');
 
+    let renderedPage = false;
+
     if (savedUser && savedUser.token) {
         localStorage.removeItem('ipc_user');
         authState.setUser(savedUser);
         window.currentPage = 'chat';
         renderChatPage();
+        renderedPage = true;
     } else {
         // 2. Sem sessão — verifica se vem de redirect Google
         const redirectHandled = await handleGoogleRedirectResult();
-        // Se o redirect tratou o login, handleGoogleRedirectResult já chamou renderChatPage
-        // Se não, mostra o login
         if (!redirectHandled) {
             window.currentPage = 'login';
             renderLoginPage();
         }
+        renderedPage = true;
+    }
+
+    if (renderedPage) {
+        setTimeout(() => hideInitialSplash(), 650);
+    } else {
+        hideInitialSplash();
     }
 
     document.addEventListener('keydown', (e) => {

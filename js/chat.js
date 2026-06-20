@@ -16,6 +16,30 @@
 })();
 
 /* =========================================================================
+   SPLASH SCREEN
+   ========================================================================= */
+function showSplashScreen() {
+    const splash = document.createElement('div');
+    splash.id = 'splashScreen';
+    splash.style.cssText = `
+        position: fixed; inset: 0; z-index: 99999;
+        display: flex; align-items: center; justify-content: center;
+        background: ${window.matchMedia('(prefers-color-scheme: dark)').matches ? '#121212' : '#ffffff'};
+        transition: opacity 0.4s ease;
+    `;
+    splash.innerHTML = `<img src="assets/icons/png/logo.png" style="width:88px;height:88px;border-radius:22px;" alt="Nexa" />`;
+    document.body.appendChild(splash);
+    return splash;
+}
+
+function hideSplashScreen() {
+    const splash = document.getElementById('splashScreen');
+    if (!splash) return;
+    splash.style.opacity = '0';
+    setTimeout(() => splash.remove(), 420);
+}
+
+/* =========================================================================
    MODELO DE DADOS
    ========================================================================= */
 
@@ -273,7 +297,7 @@ function renderMarkdown(rawText) {
             resultParts.push(`<hr class="md-hr">`);
             continue;
         }
-        const bqMatch = raw.match(/^>\s*((.*))/);
+        const bqMatch = raw.match(/^>\s*(.*)/);
         if (bqMatch) {
             flushList(); flushOrdered(); flushPara();
             blockquoteLines.push(applyInline(escapeHtml(bqMatch[1])));
@@ -324,8 +348,12 @@ function applyInline(text) {
     text = text.replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>');
     text = text.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
     text = text.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
+    // Links clicáveis com cor primária
     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
         '<a class="md-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    // URLs nuas clicáveis
+    text = text.replace(/(?<![">])(https?:\/\/[^\s<>"']+)/g,
+        '<a class="md-link" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
     text = text.replace(/==([^=\n]+)==/g, '<mark class="md-mark">$1</mark>');
     return text;
 }
@@ -355,8 +383,6 @@ let waveSmoothAmp   = 6;
 let waveSmoothBoost = 0;
 let waveSmoothScale = 1;
 
-/* ── Overlay ────────────────────────────────────────────────────────────── */
-
 function showWaveformUI() {
     const overlay = document.createElement('div');
     overlay.id = 'recordOverlay';
@@ -371,9 +397,6 @@ function showWaveformUI() {
                         <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
                         <polygon points="25,25 75,25 50,75" fill="white"></polygon>
                         <polygon points="50,25 75,75 25,75" fill="white"></polygon>
-                        <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                        <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                        <polygon points="35,35 65,35 50,65" fill="white"></polygon>
                         <polygon points="35,35 65,35 50,65" fill="white"></polygon>
                     </mask>
                 </defs>
@@ -451,8 +474,6 @@ function hideWaveformUI() {
     if (overlay._resizeListener) window.removeEventListener('resize', overlay._resizeListener);
     overlay.remove();
 }
-
-/* ── Animação da onda ────────────────────────────────────────────────────── */
 
 function waveAvg(arr, start, end) {
     let s = 0;
@@ -575,8 +596,6 @@ function stopWaveOverlayAnimation() {
     waveOverlayAnalyser = null;
 }
 
-/* ── Gravação ────────────────────────────────────────────────────────────── */
-
 async function startRecording() {
     if (isRecording) return;
     try {
@@ -632,7 +651,8 @@ async function handleRecordingStop() {
     const blob = new Blob(audioChunks, { type: 'audio/webm' });
     audioChunks = [];
 
-    showToast('A transcrever…');
+    // Mostra Lottie enquanto transcreve
+    showLottieLoader('A transcrever…');
 
     try {
         const token = authState.user?.token || '';
@@ -646,6 +666,7 @@ async function handleRecordingStop() {
             body: formData
         });
 
+        hideLottieLoader();
         if (!res.ok) throw new Error('Erro na transcrição');
         const data = await res.json();
         const text = (data.text || '').trim();
@@ -663,8 +684,68 @@ async function handleRecordingStop() {
             showToast('Nenhum texto reconhecido');
         }
     } catch (err) {
+        hideLottieLoader();
         showToast('Erro ao transcrever áudio');
     }
+}
+
+/* =========================================================================
+   LOTTIE LOADER (para resposta da IA e transcrição)
+   ========================================================================= */
+
+let _lottieInstance = null;
+
+function showLottieLoader(label) {
+    hideLottieLoader();
+    const wrap = document.createElement('div');
+    wrap.id = 'lottieLoaderWrap';
+    wrap.style.cssText = `
+        position: fixed; inset: 0; z-index: 9000;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+        gap: 14px;
+    `;
+
+    const animDiv = document.createElement('div');
+    animDiv.id = 'lottieAnimDiv';
+    animDiv.style.cssText = 'width: 120px; height: 120px;';
+    wrap.appendChild(animDiv);
+
+    if (label) {
+        const lbl = document.createElement('span');
+        lbl.style.cssText = 'color:#fff; font-size:14px; font-weight:600; opacity:0.85;';
+        lbl.textContent = label;
+        wrap.appendChild(lbl);
+    }
+
+    document.body.appendChild(wrap);
+
+    // Carrega Lottie via CDN se não estiver carregado
+    function initLottie() {
+        if (typeof lottie === 'undefined') return;
+        _lottieInstance = lottie.loadAnimation({
+            container:     animDiv,
+            renderer:      'svg',
+            loop:          true,
+            autoplay:      true,
+            path:          'assets/icons/lottie/loader.json',
+        });
+    }
+
+    if (typeof lottie !== 'undefined') {
+        initLottie();
+    } else {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
+        s.onload = initLottie;
+        document.head.appendChild(s);
+    }
+}
+
+function hideLottieLoader() {
+    if (_lottieInstance) { try { _lottieInstance.destroy(); } catch (e) {} _lottieInstance = null; }
+    document.getElementById('lottieLoaderWrap')?.remove();
 }
 
 /* =========================================================================
@@ -672,6 +753,10 @@ async function handleRecordingStop() {
    ========================================================================= */
 
 function renderChatPage() {
+    // Splash screen ao entrar no chat
+    const splash = showSplashScreen();
+    setTimeout(() => hideSplashScreen(), 900);
+
     const colors = getThemeColors();
     document.getElementById('app').innerHTML = `
     <div id="chatApp" class="h-full w-full flex flex-col relative overflow-hidden">
@@ -705,13 +790,13 @@ function renderChatPage() {
                 </button>
             </div>
 
-            <div class="drawer-menu-section">
+            <div class="drawer-menu-section" id="drawerMenuSection">
                 <div class="drawer-menu-item pulse-tap" id="profileTile" style="color: ${colors.drawerText}">
                     <span class="icon-mask" style="mask-image: url('assets/icons/svg/user.svg'); -webkit-mask-image: url('assets/icons/svg/user.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">${authState.user?.name || 'Perfil'}</span>
                 </div>
                 <div class="drawer-menu-item pulse-tap" id="projectsDrawerBtn" style="color: ${colors.drawerText}">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/bookmark.svg'); -webkit-mask-image: url('assets/icons/svg/bookmark.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/folder.svg'); -webkit-mask-image: url('assets/icons/svg/folder.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Projetos</span>
                 </div>
                 <div class="drawer-menu-item pulse-tap" id="extrasDrawerBtn" style="color: ${colors.drawerText}">
@@ -727,7 +812,7 @@ function renderChatPage() {
             <div class="drawer-section-divider" style="background: ${colors.divider}"></div>
 
             <div class="drawer-conv-section-header pulse-tap" id="convSectionToggle">
-                <img src="assets/icons/png/chat.png" class="drawer-conv-section-icon" alt="" />
+                <span class="icon-mask" style="mask-image: url('assets/icons/svg/meassage.svg'); -webkit-mask-image: url('assets/icons/svg/meassage.svg'); width: 16px; height: 16px; background: ${colors.settings_section_label};"></span>
                 <span class="drawer-conv-section-label" style="color: ${colors.settings_section_label}">CONVERSAS</span>
                 <span class="icon-mask drawer-conv-chevron" id="convSectionChevron" style="mask-image: url('assets/icons/svg/chevron_right.svg'); -webkit-mask-image: url('assets/icons/svg/chevron_right.svg'); width: 11px; height: 11px; background: ${colors.settings_section_label}; transform: rotate(90deg);"></span>
             </div>
@@ -777,7 +862,60 @@ function renderChatPage() {
         hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
     bindChatEvents();
+    setupDrawerScrollCollapse();
     updateChatUI();
+}
+
+/* =========================================================================
+   COLLAPSE DOS ÍCONES DO DRAWER AO SCROLL
+   ========================================================================= */
+
+function setupDrawerScrollCollapse() {
+    const drawer = document.getElementById('drawer');
+    const menuSection = document.getElementById('drawerMenuSection');
+    const profileTile = document.getElementById('profileTile');
+    if (!drawer || !menuSection) return;
+
+    // Itens que sobem e desaparecem (todos menos perfil e secção conversas)
+    const collapseItems = ['projectsDrawerBtn', 'extrasDrawerBtn', 'settingsDrawerBtn'];
+
+    let lastScrollY = 0;
+    let collapsed = false;
+
+    drawer.addEventListener('scroll', () => {
+        const sy = drawer.scrollTop;
+        const goingDown = sy > lastScrollY;
+        lastScrollY = sy;
+
+        if (goingDown && sy > 40 && !collapsed) {
+            collapsed = true;
+            collapseItems.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.transition = 'max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease';
+                    el.style.maxHeight = '0px';
+                    el.style.opacity = '0';
+                    el.style.paddingTop = '0';
+                    el.style.paddingBottom = '0';
+                    el.style.overflow = 'hidden';
+                    el.style.pointerEvents = 'none';
+                }
+            });
+        } else if (!goingDown && sy < 20 && collapsed) {
+            collapsed = false;
+            collapseItems.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.maxHeight = '60px';
+                    el.style.opacity = '1';
+                    el.style.paddingTop = '';
+                    el.style.paddingBottom = '';
+                    el.style.overflow = '';
+                    el.style.pointerEvents = '';
+                }
+            });
+        }
+    }, { passive: true });
 }
 
 /* =========================================================================
@@ -803,7 +941,6 @@ function bindChatEvents() {
         const text = document.getElementById('textInput').value;
         if (text.trim() && !chatState.isStreaming) sendMessage(text);
     };
-
     document.getElementById('micBtn').onclick = () => startRecording();
 
     const textInput = document.getElementById('textInput');
@@ -936,18 +1073,6 @@ function mountNativeWidgets(container) {
     });
 }
 
-function rerenderAllAssistantContent() {
-    const chatDiv = document.getElementById('chatMessages');
-    if (!chatDiv) return;
-    const colors = getThemeColors();
-    chatDiv.innerHTML = '';
-    chatState.displayMessages.forEach((msg, idx) => {
-        const bubble = createMessageBubble(msg, idx, colors);
-        chatDiv.appendChild(bubble);
-        mountNativeWidgets(bubble);
-    });
-}
-
 function createMessageBubble(msg, idx, colors) {
     const wrapper = document.createElement('div');
 
@@ -969,12 +1094,12 @@ function createMessageBubble(msg, idx, colors) {
         if (msg.isStreaming) wrapper.setAttribute('data-streaming', 'true');
 
         if (msg.isStreaming && msg.isThinking && !msg.content && !msg.thinkingContent) {
-            wrapper.appendChild(buildThinkingSkeleton(colors));
+            wrapper.appendChild(buildLottieThinkingPlaceholder(colors));
             return wrapper;
         }
         if (msg.isStreaming && msg.isThinking && msg.thinkingContent && !msg.content) {
             wrapper.appendChild(buildThinkingBadge(msg.thinkingContent, colors));
-            wrapper.appendChild(buildThinkingSkeleton(colors));
+            wrapper.appendChild(buildLottieThinkingPlaceholder(colors));
             return wrapper;
         }
         if (msg.thinkingContent && !msg.isThinking) {
@@ -996,19 +1121,48 @@ function createMessageBubble(msg, idx, colors) {
     return wrapper;
 }
 
-function buildThinkingSkeleton(colors) {
+/* Lottie inline como placeholder de "a pensar" */
+function buildLottieThinkingPlaceholder(colors) {
     const container = document.createElement('div');
-    container.style.cssText = 'padding: 4px 0;';
-    const label = document.createElement('div');
-    label.style.cssText = `font-size: 14px; color: ${colors.textSecondary}; margin-bottom: 8px;`;
-    label.textContent = '🧠 A pensar…';
-    container.appendChild(label);
-    [0.85, 0.70, 0.55].forEach(fraction => {
-        const bar = document.createElement('div');
-        bar.className = 'thinking-bar';
-        bar.style.cssText = `height: 12px; width: ${fraction * 100}%; max-width: ${fraction * 260}px; background: ${isDarkMode ? '#2a2a2e' : '#e5e7eb'}; border-radius: 6px; margin-bottom: 6px;`;
-        container.appendChild(bar);
+    container.className = 'lottie-thinking-wrap';
+    container.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 4px 0 8px;';
+
+    const animDiv = document.createElement('div');
+    animDiv.className = 'lottie-thinking-anim';
+    animDiv.style.cssText = 'width: 40px; height: 40px; flex-shrink: 0;';
+    container.appendChild(animDiv);
+
+    const lbl = document.createElement('span');
+    lbl.style.cssText = `font-size: 14px; color: ${colors.textSecondary};`;
+    lbl.textContent = 'A processar…';
+    container.appendChild(lbl);
+
+    // Inicia animação Lottie inline
+    requestAnimationFrame(() => {
+        if (typeof lottie !== 'undefined') {
+            lottie.loadAnimation({
+                container:  animDiv,
+                renderer:   'svg',
+                loop:       true,
+                autoplay:   true,
+                path:       'assets/icons/lottie/loader.json',
+            });
+        } else {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
+            s.onload = () => {
+                lottie.loadAnimation({
+                    container:  animDiv,
+                    renderer:   'svg',
+                    loop:       true,
+                    autoplay:   true,
+                    path:       'assets/icons/lottie/loader.json',
+                });
+            };
+            document.head.appendChild(s);
+        }
     });
+
     return container;
 }
 
@@ -1132,7 +1286,6 @@ function renderConversationsList() {
     });
 }
 
-/* ── Modal de opções de conversa ─────────────────────────────────────────── */
 function showConvOptionsSheet(conv) {
     closeDrawer();
     const colors = getThemeColors();
@@ -1242,23 +1395,21 @@ function showConvOptionsSheet(conv) {
 }
 
 function shareConversationText(conv) {
-    const intentText = conv.title;
     if (navigator.share) {
-        navigator.share({ title: conv.title, text: intentText }).catch(() => {});
+        navigator.share({ title: conv.title, text: conv.title }).catch(() => {});
     } else {
-        navigator.clipboard.writeText(intentText).catch(() => {});
-        showToast('Título copiado para partilha!');
+        navigator.clipboard.writeText(conv.title).catch(() => {});
+        showToast('Título copiado!');
     }
 }
 
-/* ── Renomear conversa ────────────────────────────────────────────────────── */
 function showRenameDialog(conv) {
     closeAllModals();
     document.getElementById('renameDialogOverlay')?.remove();
 
     const colors = getThemeColors();
     const dialogBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
-    const inputBg = isDarkMode ? '#2C2C2E' : '#F2F2F7';
+    const inputBg  = isDarkMode ? '#2C2C2E' : '#F2F2F7';
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -1304,7 +1455,6 @@ function showRenameDialog(conv) {
     btnRow.appendChild(cancelBtn);
     btnRow.appendChild(saveBtn);
     dialog.appendChild(btnRow);
-
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
 
@@ -1324,7 +1474,7 @@ function showRenameDialog(conv) {
 
 function closeRenameDialog() {
     const overlay = document.getElementById('renameDialogOverlay');
-    const dialog = document.getElementById('renameDialogBox');
+    const dialog  = document.getElementById('renameDialogBox');
     if (!overlay) return;
     overlay.classList.remove('open');
     dialog?.classList.remove('open');
@@ -1349,11 +1499,10 @@ async function confirmRenameConversation(conv, newTitleRaw) {
         conv.title = previousTitle;
         if (chatState.currentConversationId === conv.id) chatState.currentConversationTitle = previousTitle;
         renderConversationsList();
-        showToast('Não foi possível renomear a conversa');
+        showToast('Não foi possível renomear');
     }
 }
 
-/* ── Eliminar conversa ──────────────────────────────────────────────────── */
 async function deleteConversation(conv) {
     const token = authState.user?.token || '';
     const previousList = conversations.slice();
@@ -1370,7 +1519,7 @@ async function deleteConversation(conv) {
     } catch (err) {
         conversations = previousList;
         renderConversationsList();
-        showToast('Não foi possível eliminar a conversa');
+        showToast('Não foi possível eliminar');
     }
 }
 
@@ -1432,7 +1581,7 @@ async function sendMessage(text) {
     const assistantIndex = chatState.addAssistantPlaceholder(think);
     scrollToBottom();
 
-    const token = authState.user?.token || '';
+    const token        = authState.user?.token || '';
     const systemPrompt = GeminiApiService.buildSystemPrompt('pt', chatState.sheetsEnabled);
 
     try {
@@ -1498,27 +1647,26 @@ async function sendMessage(text) {
 
 function openModalSheet() {
     const overlay = document.getElementById('modalOverlay');
-    const sheet = document.getElementById('modalSheet');
+    const sheet   = document.getElementById('modalSheet');
     sheet.style.transition = '';
-    sheet.style.transform = '';
-    overlay.style.opacity = '';
+    sheet.style.transform  = '';
+    overlay.style.opacity  = '';
     overlay.classList.add('open');
     sheet.classList.add('open');
 }
 
 function closeModalSheet() {
     const overlay = document.getElementById('modalOverlay');
-    const sheet = document.getElementById('modalSheet');
+    const sheet   = document.getElementById('modalSheet');
     if (!overlay || !sheet) return;
     overlay.classList.remove('open');
     sheet.classList.remove('open');
-    sheet.style.transform = '';
+    sheet.style.transform  = '';
     sheet.style.transition = '';
-    overlay.style.opacity = '';
-    sheet.style.minHeight = '';
+    overlay.style.opacity  = '';
+    sheet.style.minHeight  = '';
 }
 
-/* ── Handle de arrastar ───────────────────────────────────────────────────── */
 function buildSheetHandle(sheetEl, overlayEl, closeFn) {
     const wrap = document.createElement('div');
     wrap.className = 'sheet-handle-wrap';
@@ -1581,7 +1729,6 @@ function makeSheetDraggable(handleEl, sheetEl, overlayEl, closeFn) {
     handleEl.addEventListener('pointercancel', onUp);
 }
 
-/* ── Modal "Adicionar" ──────────────────────────────────────────────────── */
 function showAddPopup() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
@@ -1635,11 +1782,11 @@ function showAddPopup() {
         return sep;
     }
 
-    content.appendChild(buildRow('camera', 'Enviar Imagem', () => fileInputImage.click()));
+    content.appendChild(buildRow('camera',  'Enviar Imagem',   () => fileInputImage.click()));
     content.appendChild(buildSep());
-    content.appendChild(buildRow('upload', 'Enviar Ficheiro', () => fileInputUpload.click()));
+    content.appendChild(buildRow('upload',  'Enviar Ficheiro', () => fileInputUpload.click()));
     content.appendChild(buildSep());
-    content.appendChild(buildRow('extras', 'Extras', () => { closeAllModals(); setTimeout(showExtrasSheet, 180); }));
+    content.appendChild(buildRow('extras',  'Extras',          () => { closeAllModals(); setTimeout(showExtrasSheet, 180); }));
 
     const pad = document.createElement('div');
     pad.style.height = '16px';
@@ -1648,7 +1795,6 @@ function showAddPopup() {
     openModalSheet();
 }
 
-/* ── Extras sheet ───────────────────────────────────────────────────────── */
 function showExtrasSheet() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
@@ -1672,16 +1818,20 @@ function showExtrasSheet() {
     ];
 
     items.forEach((item, i) => {
-        if (i > 0) appendDividerRow(content, 62);
+        if (i > 0) {
+            const div = document.createElement('div');
+            div.style.cssText = `height: 1px; margin-left: 62px; background: ${colors.divider};`;
+            content.appendChild(div);
+        }
         const row = document.createElement('div');
         row.className = 'flex items-center px-4 py-3 pulse-tap';
         row.style.backgroundColor = item.active ? (colors.extrasCardActiveText + '14') : 'transparent';
         row.style.cursor = 'pointer';
         row.onclick = item.action;
 
-        const icon = createIconElement(
-            `assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg`, 20,
-            item.active ? colors.extrasCardActiveText : colors.iconTint);
+        const icon = document.createElement('span');
+        icon.className = 'icon-mask';
+        icon.style.cssText = `mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); -webkit-mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); width: 20px; height: 20px; background: ${item.active ? colors.extrasCardActiveText : colors.iconTint}; flex-shrink: 0;`;
         row.appendChild(icon);
 
         const span = document.createElement('span');
@@ -1703,29 +1853,6 @@ function showExtrasSheet() {
     openModalSheet();
 }
 
-function appendDividerRow(container, marginLeftPx) {
-    const colors = getThemeColors();
-    const div = document.createElement('div');
-    div.style.cssText = `height: 1px; margin-left: ${marginLeftPx}px; margin-right: 0; background: ${colors.divider};`;
-    container.appendChild(div);
-}
-
-function buildSwitch(initialValue, onChange) {
-    let value = !!initialValue;
-    const track = document.createElement('div');
-    track.className = 'native-switch-track' + (value ? ' on' : '');
-    const thumb = document.createElement('div');
-    thumb.className = 'native-switch-thumb';
-    track.appendChild(thumb);
-    track.onclick = () => {
-        value = !value;
-        track.classList.toggle('on', value);
-        onChange(value);
-    };
-    return track;
-}
-
-/* ── Modal "Edit" ────────────────────────────────────────────────────────── */
 function showEditModal() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
@@ -1742,8 +1869,9 @@ function showEditModal() {
     titleEl.textContent = 'Edit';
     content.appendChild(titleEl);
 
+    // Modal Edit mais alto — 88vh
     const sheet = document.getElementById('modalSheet');
-    if (sheet) sheet.style.minHeight = '75vh';
+    if (sheet) sheet.style.minHeight = '88vh';
 
     openModalSheet();
 }
@@ -1751,6 +1879,8 @@ function showEditModal() {
 function closeAllModals() {
     closeModalSheet();
     const overlay = document.getElementById('modalOverlay');
-    overlay.classList.remove('open');
-    overlay.style.opacity = '';
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.style.opacity = '';
+    }
 }

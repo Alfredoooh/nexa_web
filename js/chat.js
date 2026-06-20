@@ -273,7 +273,7 @@ function renderMarkdown(rawText) {
             resultParts.push(`<hr class="md-hr">`);
             continue;
         }
-        const bqMatch = raw.match(/^>\s*(.*)/);
+        const bqMatch = raw.match(/^>\s*((.*))/);
         if (bqMatch) {
             flushList(); flushOrdered(); flushPara();
             blockquoteLines.push(applyInline(escapeHtml(bqMatch[1])));
@@ -337,101 +337,273 @@ function copyCodeBlock(btn) {
 }
 
 /* =========================================================================
-   GRAVAÇÃO DE VOZ (MediaRecorder → Groq Whisper v3 Turbo)
+   GRAVAÇÃO DE VOZ — OVERLAY COM ONDA
    ========================================================================= */
 
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
-let waveAnimFrame = null;
-let waveAnalyser = null;
-let waveAudioCtx = null;
-let waveSource = null;
 
-function startWaveAnimation(analyser) {
-    const bar = document.getElementById('waveformBar');
-    if (!bar) return;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+let waveOverlayCtx = null;
+let waveOverlayAnalyser = null;
+let waveOverlaySource = null;
+let waveOverlayStream = null;
+let waveOverlayAnimFrame = null;
 
-    function draw() {
-        if (!isRecording) return;
-        waveAnimFrame = requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
+let wavePhase       = 0;
+let waveSmoothAmp   = 6;
+let waveSmoothBoost = 0;
+let waveSmoothScale = 1;
 
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-        const avg = sum / bufferLength;
-        const level = Math.min(1, avg / 80);
+/* ── Overlay ────────────────────────────────────────────────────────────── */
 
-        // Atualiza barrinhas
-        const bars = bar.querySelectorAll('.wave-bar');
-        bars.forEach((b, i) => {
-            const noise = Math.random() * 0.4 + 0.6;
-            const height = Math.max(4, level * 28 * noise + (i % 3 === 1 ? 6 : 0));
-            b.style.height = height + 'px';
-        });
+function showWaveformUI() {
+    const overlay = document.createElement('div');
+    overlay.id = 'recordOverlay';
+
+    const loaderWrap = document.createElement('div');
+    loaderWrap.className = 'rec-loader-wrap';
+    loaderWrap.innerHTML = `
+        <div class="rec-loader" id="recLoader">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+                <defs>
+                    <mask id="recClipping">
+                        <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                        <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                        <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                        <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                        <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                        <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                        <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                    </mask>
+                </defs>
+            </svg>
+            <div class="rec-loader-box"></div>
+        </div>`;
+    overlay.appendChild(loaderWrap);
+
+    const waveWrap = document.createElement('div');
+    waveWrap.className = 'rec-wave-wrap';
+    const canvas = document.createElement('canvas');
+    canvas.id = 'recWaveCanvas';
+    waveWrap.appendChild(canvas);
+    overlay.appendChild(waveWrap);
+
+    const topBar = document.createElement('div');
+    topBar.className = 'rec-top-bar';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'rec-top-btn pulse-tap';
+    cancelBtn.innerHTML = `<span class="icon-mask" style="mask-image:url('assets/icons/svg/close.svg');-webkit-mask-image:url('assets/icons/svg/close.svg');width:20px;height:20px;background:#fff;"></span>`;
+    cancelBtn.onclick = cancelRecording;
+
+    const timerEl = document.createElement('span');
+    timerEl.id = 'recTimer';
+    timerEl.className = 'rec-timer';
+    timerEl.textContent = '0:00';
+
+    const okBtn = document.createElement('button');
+    okBtn.className = 'rec-top-btn pulse-tap';
+    okBtn.innerHTML = `<span class="icon-mask" style="mask-image:url('assets/icons/svg/checkmark.svg');-webkit-mask-image:url('assets/icons/svg/checkmark.svg');width:22px;height:22px;background:#fff;"></span>`;
+    okBtn.onclick = stopRecording;
+
+    topBar.appendChild(cancelBtn);
+    topBar.appendChild(timerEl);
+    topBar.appendChild(okBtn);
+    overlay.appendChild(topBar);
+
+    document.body.appendChild(overlay);
+
+    let seconds = 0;
+    const timerInterval = setInterval(() => {
+        if (!isRecording) { clearInterval(timerInterval); return; }
+        seconds++;
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        const el = document.getElementById('recTimer');
+        if (el) el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+    }, 1000);
+
+    const resizeCanvas = () => {
+        const c = document.getElementById('recWaveCanvas');
+        if (!c) return;
+        const dpr  = Math.max(1, window.devicePixelRatio || 1);
+        const rect = c.getBoundingClientRect();
+        c.width  = Math.floor(rect.width  * dpr);
+        c.height = Math.floor(rect.height * dpr);
+        c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    window.addEventListener('resize', resizeCanvas);
+    overlay._resizeListener = resizeCanvas;
+    requestAnimationFrame(resizeCanvas);
+
+    wavePhase       = 0;
+    waveSmoothAmp   = 6;
+    waveSmoothBoost = 0;
+    waveSmoothScale = 1;
+    startWaveOverlayAnimation();
+}
+
+function hideWaveformUI() {
+    stopWaveOverlayAnimation();
+    const overlay = document.getElementById('recordOverlay');
+    if (!overlay) return;
+    if (overlay._resizeListener) window.removeEventListener('resize', overlay._resizeListener);
+    overlay.remove();
+}
+
+/* ── Animação da onda ────────────────────────────────────────────────────── */
+
+function waveAvg(arr, start, end) {
+    let s = 0;
+    for (let i = start; i < end; i++) s += arr[i];
+    return s / (end - start);
+}
+
+function drawWaveLayer(ctx2d, w, h, amp, boost, baseYRatio, opacity, phaseOffset) {
+    const baseY  = h * baseYRatio - boost * 0.5;
+    const points = 180;
+    const step   = w / (points - 1);
+    const ys     = [];
+
+    for (let i = 0; i < points; i++) {
+        const t  = i / (points - 1);
+        const w1 = Math.sin(t * 5.8  + wavePhase + phaseOffset)        * amp;
+        const w2 = Math.sin(t * 11.5 + wavePhase * 1.4 + phaseOffset)  * (amp * 0.35);
+        const w3 = Math.sin(t * 3.2  - wavePhase * 0.7 + phaseOffset)  * (amp * 0.18);
+        const w4 = Math.sin(t * 22.0 + wavePhase * 2.5 + phaseOffset)  * (boost * 0.18);
+        ys.push(baseY + w1 + w2 + w3 + w4);
     }
-    draw();
-}
 
-function stopWaveAnimation() {
-    if (waveAnimFrame) { cancelAnimationFrame(waveAnimFrame); waveAnimFrame = null; }
-    if (waveSource) { try { waveSource.disconnect(); } catch (e) {} waveSource = null; }
-    if (waveAudioCtx) { try { waveAudioCtx.close(); } catch (e) {} waveAudioCtx = null; }
-    waveAnalyser = null;
-}
+    const topY = Math.min(...ys);
+    const grad = ctx2d.createLinearGradient(0, topY, 0, h);
+    grad.addColorStop(0.00, `rgba(66,165,245,0.000)`);
+    grad.addColorStop(0.18, `rgba(66,165,245,${0.000 * opacity})`);
+    grad.addColorStop(0.45, `rgba(55,150,235,${0.080 * opacity})`);
+    grad.addColorStop(0.70, `rgba(40,130,220,${0.220 * opacity})`);
+    grad.addColorStop(0.88, `rgba(30,115,210,${0.400 * opacity})`);
+    grad.addColorStop(1.00, `rgba(25,100,200,${0.560 * opacity})`);
 
-function buildWaveformBar() {
-    const wrap = document.createElement('div');
-    wrap.id = 'waveformBar';
-    wrap.style.cssText = `
-        display: flex; align-items: center; justify-content: center;
-        gap: 3px; height: 40px; padding: 0 18px;
-        background: linear-gradient(90deg, #6F5AF6, #A78BFA, #6F5AF6);
-        background-size: 200% 100%;
-        animation: waveGradientShift 1.8s linear infinite;
-        border-radius: 14px 14px 0 0;
-        flex-shrink: 0;
-    `;
-    const NUM_BARS = 18;
-    for (let i = 0; i < NUM_BARS; i++) {
-        const b = document.createElement('div');
-        b.className = 'wave-bar';
-        b.style.cssText = `
-            width: 3px; height: 4px; border-radius: 2px;
-            background: rgba(255,255,255,0.85);
-            transition: height 0.08s ease;
-            flex-shrink: 0;
-        `;
-        wrap.appendChild(b);
+    ctx2d.beginPath();
+    ctx2d.moveTo(0, h);
+    ctx2d.lineTo(0, ys[0]);
+    for (let i = 1; i < points; i++) {
+        const px = (i - 1) * step;
+        const x  = i * step;
+        const cx = (px + x) / 2;
+        const cy = (ys[i - 1] + ys[i]) / 2;
+        ctx2d.quadraticCurveTo(px, ys[i - 1], cx, cy);
     }
-    return wrap;
+    ctx2d.lineTo(w, ys[points - 1]);
+    ctx2d.lineTo(w, h);
+    ctx2d.closePath();
+    ctx2d.fillStyle = grad;
+    ctx2d.fill();
 }
+
+function updateRecLoader(totalEnergy, bass) {
+    const loader = document.getElementById('recLoader');
+    if (!loader) return;
+    const targetScale = 1 + bass * 0.45 + totalEnergy * 0.20;
+    const a = targetScale > waveSmoothScale ? 0.70 : 0.06;
+    waveSmoothScale += (targetScale - waveSmoothScale) * a;
+    loader.style.transform = `scale(${waveSmoothScale.toFixed(4)})`;
+}
+
+function startWaveOverlayAnimation() {
+    let frequencyData = null;
+    if (waveOverlayAnalyser) {
+        frequencyData = new Uint8Array(waveOverlayAnalyser.frequencyBinCount);
+    }
+
+    function frame() {
+        if (!document.getElementById('recordOverlay')) return;
+        waveOverlayAnimFrame = requestAnimationFrame(frame);
+
+        const canvas = document.getElementById('recWaveCanvas');
+        if (!canvas) return;
+        const ctx2d = canvas.getContext('2d');
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        ctx2d.clearRect(0, 0, w, h);
+
+        let targetAmp = 6, targetBoost = 0, totalEnergy = 0, bass = 0;
+
+        if (waveOverlayAnalyser && frequencyData) {
+            waveOverlayAnalyser.getByteFrequencyData(frequencyData);
+            const len     = frequencyData.length;
+            const bassEnd = Math.floor(len * 0.12);
+            const midEnd  = Math.floor(len * 0.50);
+
+            const bassRaw  = waveAvg(frequencyData, 0, bassEnd) / 255;
+            const midRaw   = waveAvg(frequencyData, bassEnd, midEnd) / 255;
+            const totalRaw = waveAvg(frequencyData, 0, len) / 255;
+
+            bass        = Math.pow(bassRaw,  0.4);
+            const mid   = Math.pow(midRaw,   0.4);
+            totalEnergy = Math.pow(totalRaw, 0.4);
+
+            targetAmp   = 5  + bass * 80 + mid * 45 + totalEnergy * 30;
+            targetBoost = bass * 75 + mid * 35 + totalEnergy * 20;
+        } else {
+            targetAmp   = 6 + Math.sin(wavePhase * 1.1) * 1.5;
+            targetBoost = 1 + Math.cos(wavePhase * 0.9) * 0.8;
+        }
+
+        const attack = targetAmp   > waveSmoothAmp   ? 0.70 : 0.06;
+        const decayB = targetBoost > waveSmoothBoost ? 0.70 : 0.06;
+        waveSmoothAmp   += (targetAmp   - waveSmoothAmp)   * attack;
+        waveSmoothBoost += (targetBoost - waveSmoothBoost) * decayB;
+
+        drawWaveLayer(ctx2d, w, h, waveSmoothAmp * 0.55, waveSmoothBoost * 0.4, 0.30, 0.15, 0.0);
+        drawWaveLayer(ctx2d, w, h, waveSmoothAmp * 0.70, waveSmoothBoost * 0.6, 0.42, 0.30, 1.1);
+        drawWaveLayer(ctx2d, w, h, waveSmoothAmp * 0.85, waveSmoothBoost * 0.8, 0.54, 0.55, 2.3);
+        drawWaveLayer(ctx2d, w, h, waveSmoothAmp * 0.95, waveSmoothBoost * 0.9, 0.64, 0.80, 3.7);
+        drawWaveLayer(ctx2d, w, h, waveSmoothAmp * 1.00, waveSmoothBoost * 1.0, 0.72, 1.00, 5.2);
+
+        updateRecLoader(totalEnergy, bass);
+        wavePhase += 0.020;
+    }
+
+    frame();
+}
+
+function stopWaveOverlayAnimation() {
+    if (waveOverlayAnimFrame) { cancelAnimationFrame(waveOverlayAnimFrame); waveOverlayAnimFrame = null; }
+    if (waveOverlaySource)    { try { waveOverlaySource.disconnect(); } catch (e) {} waveOverlaySource = null; }
+    if (waveOverlayCtx)       { try { waveOverlayCtx.close(); } catch (e) {} waveOverlayCtx = null; }
+    waveOverlayAnalyser = null;
+}
+
+/* ── Gravação ────────────────────────────────────────────────────────────── */
 
 async function startRecording() {
     if (isRecording) return;
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        waveOverlayStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        // Analisador de áudio para waveform
-        waveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        waveAnalyser = waveAudioCtx.createAnalyser();
-        waveAnalyser.fftSize = 64;
-        waveSource = waveAudioCtx.createMediaStreamSource(stream);
-        waveSource.connect(waveAnalyser);
+        waveOverlayCtx      = new (window.AudioContext || window.webkitAudioContext)();
+        waveOverlayAnalyser = waveOverlayCtx.createAnalyser();
+        waveOverlayAnalyser.fftSize               = 1024;
+        waveOverlayAnalyser.smoothingTimeConstant = 0.25;
+        waveOverlayAnalyser.minDecibels           = -110;
+        waveOverlayAnalyser.maxDecibels           = -5;
 
-        audioChunks = [];
-        mediaRecorder = new MediaRecorder(stream);
+        const gainNode = waveOverlayCtx.createGain();
+        gainNode.gain.value = 6.0;
+
+        waveOverlaySource = waveOverlayCtx.createMediaStreamSource(waveOverlayStream);
+        waveOverlaySource.connect(gainNode);
+        gainNode.connect(waveOverlayAnalyser);
+
+        audioChunks   = [];
+        mediaRecorder = new MediaRecorder(waveOverlayStream);
         mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = handleRecordingStop;
         mediaRecorder.start();
         isRecording = true;
 
-        // Substitui a bottom bar pelo waveform
         showWaveformUI();
-        startWaveAnimation(waveAnalyser);
-
     } catch (err) {
         showToast('Sem acesso ao microfone');
     }
@@ -441,19 +613,17 @@ function stopRecording() {
     if (!isRecording || !mediaRecorder) return;
     isRecording = false;
     mediaRecorder.stop();
-    mediaRecorder.stream?.getTracks().forEach(t => t.stop());
-    stopWaveAnimation();
+    waveOverlayStream?.getTracks().forEach(t => t.stop());
     hideWaveformUI();
 }
 
 function cancelRecording() {
     if (!isRecording || !mediaRecorder) return;
     isRecording = false;
-    mediaRecorder.onstop = null; // cancela o handler
+    mediaRecorder.onstop = null;
     mediaRecorder.stop();
-    mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+    waveOverlayStream?.getTracks().forEach(t => t.stop());
     audioChunks = [];
-    stopWaveAnimation();
     hideWaveformUI();
 }
 
@@ -497,83 +667,6 @@ async function handleRecordingStop() {
     }
 }
 
-function showWaveformUI() {
-    const bottomBar = document.getElementById('bottomBar');
-    if (!bottomBar) return;
-
-    // Esconde o conteúdo normal
-    const textarea = document.getElementById('textInput');
-    const btnRow = bottomBar.querySelector('.flex.items-center.h-\\[52px\\]');
-    if (textarea) textarea.style.display = 'none';
-    if (btnRow) btnRow.style.display = 'none';
-
-    // Insere waveform no topo da bottomBar
-    const wave = buildWaveformBar();
-    bottomBar.insertBefore(wave, bottomBar.firstChild);
-
-    // Linha de controlos: cancelar | timer | parar
-    const controls = document.createElement('div');
-    controls.id = 'recordControls';
-    controls.style.cssText = `
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 10px 20px; gap: 12px;
-    `;
-
-    // Botão cancelar
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'pulse-tap';
-    cancelBtn.style.cssText = `background: transparent; border: none; font-size: 14px; font-weight: 600; color: #EF4444; cursor: pointer; padding: 6px 10px;`;
-    cancelBtn.textContent = 'Cancelar';
-    cancelBtn.onclick = cancelRecording;
-
-    // Timer
-    const timer = document.createElement('span');
-    timer.id = 'recordTimer';
-    timer.style.cssText = `font-size: 14px; font-weight: 600; color: #6F5AF6; font-variant-numeric: tabular-nums;`;
-    timer.textContent = '0:00';
-
-    let seconds = 0;
-    const timerInterval = setInterval(() => {
-        if (!isRecording) { clearInterval(timerInterval); return; }
-        seconds++;
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        const el = document.getElementById('recordTimer');
-        if (el) el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
-    }, 1000);
-
-    // Botão parar/enviar
-    const stopBtn = document.createElement('button');
-    stopBtn.className = 'pulse-tap';
-    stopBtn.style.cssText = `
-        width: 44px; height: 44px; border-radius: 50%; border: none;
-        background: #6F5AF6; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; flex-shrink: 0;
-    `;
-    stopBtn.innerHTML = `<span class="icon-mask" style="mask-image:url('assets/icons/svg/record.svg');-webkit-mask-image:url('assets/icons/svg/record.svg');width:18px;height:18px;background:#fff;"></span>`;
-    stopBtn.onclick = stopRecording;
-
-    controls.appendChild(cancelBtn);
-    controls.appendChild(timer);
-    controls.appendChild(stopBtn);
-    bottomBar.appendChild(controls);
-}
-
-function hideWaveformUI() {
-    const bottomBar = document.getElementById('bottomBar');
-    if (!bottomBar) return;
-
-    // Remove waveform e controlos
-    document.getElementById('waveformBar')?.remove();
-    document.getElementById('recordControls')?.remove();
-
-    // Mostra conteúdo normal
-    const textarea = document.getElementById('textInput');
-    const btnRow = bottomBar.querySelector('.flex.items-center.h-\\[52px\\]');
-    if (textarea) textarea.style.display = '';
-    if (btnRow) btnRow.style.display = '';
-}
-
 /* =========================================================================
    PÁGINA DE CHAT
    ========================================================================= */
@@ -581,12 +674,6 @@ function hideWaveformUI() {
 function renderChatPage() {
     const colors = getThemeColors();
     document.getElementById('app').innerHTML = `
-    <style>
-        @keyframes waveGradientShift {
-            0%   { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
-    </style>
     <div id="chatApp" class="h-full w-full flex flex-col relative overflow-hidden">
 
         <div class="app-bar-gradient ${isDarkMode ? 'dark' : 'light'}"></div>
@@ -717,7 +804,6 @@ function bindChatEvents() {
         if (text.trim() && !chatState.isStreaming) sendMessage(text);
     };
 
-    // Mic: toque inicia gravação
     document.getElementById('micBtn').onclick = () => startRecording();
 
     const textInput = document.getElementById('textInput');
@@ -727,15 +813,10 @@ function bindChatEvents() {
         textInput.style.height = Math.min(textInput.scrollHeight, 150) + 'px';
     };
 
-    // Enter só envia em desktop (sem touchscreen); em mobile faz nova linha
     textInput.onkeydown = (e) => {
         if (e.key === 'Enter') {
             const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-            if (isMobile) {
-                // Em mobile: Enter = nova linha — não faz nada especial, deixa o comportamento padrão
-                return;
-            }
-            // Desktop: Enter sem Shift envia
+            if (isMobile) return;
             if (!e.shiftKey) {
                 e.preventDefault();
                 if (textInput.value.trim() && !chatState.isStreaming) sendMessage(textInput.value);
@@ -1512,7 +1593,6 @@ function showAddPopup() {
         closeModalSheet
     ));
 
-    // Input imagem escondido
     const fileInputImage = document.createElement('input');
     fileInputImage.type = 'file';
     fileInputImage.accept = 'image/*';
@@ -1523,7 +1603,6 @@ function showAddPopup() {
     };
     content.appendChild(fileInputImage);
 
-    // Input upload qualquer ficheiro escondido
     const fileInputUpload = document.createElement('input');
     fileInputUpload.type = 'file';
     fileInputUpload.accept = '*/*';
@@ -1663,7 +1742,6 @@ function showEditModal() {
     titleEl.textContent = 'Edit';
     content.appendChild(titleEl);
 
-    // Modal Edit sobe mais: minHeight aumentado de 58vh para 75vh
     const sheet = document.getElementById('modalSheet');
     if (sheet) sheet.style.minHeight = '75vh';
 

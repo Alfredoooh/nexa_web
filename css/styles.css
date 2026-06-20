@@ -63,7 +63,6 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     margin: 0; padding: 0; overflow: hidden;
     width: 100vw; position: fixed;
-    /* ── Fix de altura dinâmica ── */
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
     height: 100dvh;
@@ -277,7 +276,7 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 }
 .modal-overlay.open { opacity: 1; pointer-events: auto; }
 
-/* ── Modal sheet (substitui bottom-sheet e preview-modal) ────────────────── */
+/* ── Modal sheet ─────────────────────────────────────────────────────────── */
 .modal-sheet {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
     transform: translateY(100%);
@@ -289,7 +288,7 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 .modal-sheet.open { transform: translateY(0); }
 
-/* ── Handle de arrastar (drag-to-dismiss nativo) ──────────────────────────── */
+/* ── Handle de arrastar ───────────────────────────────────────────────────── */
 .sheet-handle-wrap {
     display: flex; justify-content: center;
     padding-top: 12px; padding-bottom: 4px;
@@ -389,14 +388,14 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* ── Animated switch (transição genérica de troca de página) ─────────────── */
+/* ── Animated switch ─────────────────────────────────────────────────────── */
 @keyframes fadeScaleIn {
     from { opacity: 0; transform: scale(0.8); }
     to   { opacity: 1; transform: scale(1);   }
 }
 .animated-switch-enter { animation: fadeScaleIn 0.2s ease-out; }
 
-/* ── Interruptor nativo (switch iOS-like) ───────────────────────────────── */
+/* ── Native switch ───────────────────────────────────────────────────────── */
 .native-switch-track {
     width: 44px; height: 26px; border-radius: 13px;
     background: rgba(127,127,127,0.35);
@@ -412,7 +411,7 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 .native-switch-track.on .native-switch-thumb { transform: translateX(18px); }
 
-/* ── Diálogo central nativo (ex: renomear conversa) ───────────────────────── */
+/* ── Diálogo central ─────────────────────────────────────────────────────── */
 .center-dialog {
     position: fixed; top: 50%; left: 50%;
     width: min(86vw, 340px);
@@ -446,7 +445,7 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 .center-dialog-btn.cancel { background: rgba(127,127,127,0.14); }
 
-/* ── Modal de opções de conversa (cartão agrupado) ────────────────────────── */
+/* ── Modal de opções de conversa ─────────────────────────────────────────── */
 .conv-options-header {
     display: flex; align-items: center; gap: 12px;
     padding: 6px 20px 16px;
@@ -476,7 +475,7 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 .conv-options-label { font-size: 14.5px; font-weight: 500; }
 
-/* ── Widget chips (legado, mantido por compatibilidade) ───────────────────── */
+/* ── Widget chips ─────────────────────────────────────────────────────────── */
 .widget-chip {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 12px; border-radius: 20px;
@@ -494,4 +493,139 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
         transform: translateX(-50%) translateY(100%);
     }
     .modal-sheet.open { transform: translateX(-50%) translateY(0); }
+}
+
+/* =========================================================================
+   RECORD OVERLAY (onda fullscreen)
+   ========================================================================= */
+
+#recordOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+body.dark #recordOverlay { background: #0F0F0F; }
+
+/* Botões topo */
+.rec-top-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 10;
+}
+
+.rec-top-btn {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.18);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+body.dark .rec-top-btn { background: rgba(255,255,255,0.12); }
+
+.rec-timer {
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #1F2937;
+    letter-spacing: 0.04em;
+}
+body.dark .rec-timer { color: #F3F4F6; }
+
+/* Bolha */
+.rec-loader-wrap {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 28vh;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.rec-loader {
+    --color-one:   #42a5f5;
+    --color-two:   #1565c0;
+    --color-three: #42a5f580;
+    --color-four:  #1565c080;
+    --color-five:  #42a5f540;
+    --time-animation: 2s;
+    position: relative;
+    border-radius: 50%;
+    box-shadow: 0 0 25px 0 var(--color-three), 0 20px 50px 0 var(--color-four);
+    animation: recColorize calc(var(--time-animation) * 3) ease-in-out infinite;
+    transition: transform 0.05s ease-out;
+}
+.rec-loader::before {
+    content: "";
+    position: absolute; top: 0; left: 0;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    border-top: solid 1px var(--color-one);
+    border-bottom: solid 1px var(--color-two);
+    background: linear-gradient(180deg, var(--color-five), var(--color-four));
+    box-shadow:
+        inset 0 10px 10px 0 var(--color-three),
+        inset 0 -10px 10px 0 var(--color-four);
+}
+.rec-loader-box {
+    width: 100px; height: 100px;
+    background: linear-gradient(180deg, var(--color-one) 30%, var(--color-two) 70%);
+    mask: url(#recClipping);
+    -webkit-mask: url(#recClipping);
+}
+.rec-loader svg { position: absolute; }
+.rec-loader svg #recClipping {
+    filter: contrast(15);
+    animation: recRoundness calc(var(--time-animation) / 2) linear infinite;
+}
+.rec-loader svg #recClipping polygon { filter: blur(7px); }
+.rec-loader svg #recClipping polygon:nth-child(1) { transform-origin: 75% 25%; transform: rotate(90deg); }
+.rec-loader svg #recClipping polygon:nth-child(2) { transform-origin: 50% 50%; animation: recRotation var(--time-animation) linear infinite reverse; }
+.rec-loader svg #recClipping polygon:nth-child(3) { transform-origin: 50% 60%; animation: recRotation var(--time-animation) linear infinite; animation-delay: calc(var(--time-animation) / -3); }
+.rec-loader svg #recClipping polygon:nth-child(4) { transform-origin: 40% 40%; animation: recRotation var(--time-animation) linear infinite reverse; }
+.rec-loader svg #recClipping polygon:nth-child(5) { transform-origin: 40% 40%; animation: recRotation var(--time-animation) linear infinite reverse; animation-delay: calc(var(--time-animation) / -2); }
+.rec-loader svg #recClipping polygon:nth-child(6) { transform-origin: 60% 40%; animation: recRotation var(--time-animation) linear infinite; }
+.rec-loader svg #recClipping polygon:nth-child(7) { transform-origin: 60% 40%; animation: recRotation var(--time-animation) linear infinite; animation-delay: calc(var(--time-animation) / -1.5); }
+
+@keyframes recRotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes recRoundness {
+    0%   { filter: contrast(15); }
+    20%  { filter: contrast(3);  }
+    40%  { filter: contrast(3);  }
+    60%  { filter: contrast(15); }
+    100% { filter: contrast(15); }
+}
+@keyframes recColorize {
+    0%   { filter: hue-rotate(0deg);   }
+    20%  { filter: hue-rotate(-10deg); }
+    40%  { filter: hue-rotate(-20deg); }
+    60%  { filter: hue-rotate(-30deg); }
+    80%  { filter: hue-rotate(-15deg); }
+    100% { filter: hue-rotate(0deg);   }
+}
+
+/* Canvas da onda */
+.rec-wave-wrap {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 48vh;
+    min-height: 240px;
+    pointer-events: none;
+    z-index: 0;
+}
+.rec-wave-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
 }

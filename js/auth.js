@@ -20,30 +20,25 @@ class AuthState {
 
 const authState = new AuthState();
 
-// Retorna true se tratou um redirect com sucesso, false caso contrário
+// Redirect result — mantido mas simplificado
 async function handleGoogleRedirectResult() {
   try {
+    if (!window._firebaseAuth) return false;
     const result = await window._firebaseAuth.getRedirectResult();
     if (!result || !result.user) return false;
-    
-    showToast('A autenticar…');
-    
+    showToast('A autenticar com Google…');
     const idToken = await result.user.getIdToken(true);
-    
-    const user = await AuthApiService.loginWithFirebase(idToken);
-    
+    const user    = await AuthApiService.loginWithFirebase(idToken);
     if (user && user.token) {
       authState.setUser(user);
       window.currentPage = 'chat';
       renderChatPage();
       return true;
     }
-    
     showToast('Erro ao autenticar. Tenta novamente.');
     return false;
   } catch (err) {
-    console.error('[NEXA] redirect result erro:', err);
-    showToast('Erro: ' + (err.message || err.code || ''));
+    // popup-closed ou sem redirect pendente — normal
     return false;
   }
 }
@@ -51,14 +46,39 @@ async function handleGoogleRedirectResult() {
 async function handleGoogleSignIn(btnEl) {
   const original = btnEl.innerHTML;
   btnEl.disabled = true;
-  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.6;">A redirecionar…</span>`;
-  
+  btnEl.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.7;">A entrar…</span>`;
+
   try {
+    if (!window._firebaseAuth || !window._googleProvider) {
+      showToast('Firebase não carregou. Recarrega a página.');
+      btnEl.disabled = false;
+      btnEl.innerHTML = original;
+      return;
+    }
+
     window._googleProvider.setCustomParameters({ prompt: 'select_account' });
-    await window._firebaseAuth.signInWithRedirect(window._googleProvider);
+    const result  = await window._firebaseAuth.signInWithPopup(window._googleProvider);
+    const idToken = await result.user.getIdToken(true);
+
+    showToast('A verificar conta…');
+
+    const user = await AuthApiService.loginWithFirebase(idToken);
+
+    if (user && user.token) {
+      authState.setUser(user);
+      window.currentPage = 'chat';
+      renderChatPage();
+    } else {
+      showToast('Erro no servidor. Verifica a consola.');
+      btnEl.disabled = false;
+      btnEl.innerHTML = original;
+    }
   } catch (err) {
-    console.error('[NEXA] signInWithRedirect erro:', err);
-    showToast('Erro: ' + (err.message || err.code || ''));
+    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+      // utilizador fechou — não mostra erro
+    } else {
+      showToast('Erro Google: ' + (err.code || err.message || ''));
+    }
     btnEl.disabled = false;
     btnEl.innerHTML = original;
   }
@@ -68,7 +88,7 @@ function renderLoginPage() {
   window.currentPage = 'login';
   const colors = isDarkMode ? darkColors : lightColors;
   const bg = isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)';
-  
+
   document.getElementById('app').innerHTML = `
     <div class="min-h-screen flex items-center justify-center" style="background:${bg};">
       <div class="max-w-sm w-full p-8">
@@ -115,7 +135,7 @@ function renderLoginPage() {
         </p>
       </div>
     </div>`;
-  
+
   let passVisible = false;
   document.getElementById('togglePass').onclick = () => {
     passVisible = !passVisible;
@@ -124,38 +144,47 @@ function renderLoginPage() {
     icon.style.maskImage = `url('assets/icons/svg/${passVisible ? 'eye' : 'eye_closed'}.svg')`;
     icon.style.webkitMaskImage = icon.style.maskImage;
   };
-  
+
   document.getElementById('forgotPassBtn').onclick = () => showToast('Recuperação em breve');
-  document.getElementById('goRegister').onclick = renderRegisterPage;
-  
-  document.getElementById('googleLoginBtn').onclick = function() {
+  document.getElementById('goRegister').onclick    = renderRegisterPage;
+
+  document.getElementById('googleLoginBtn').onclick = function () {
     handleGoogleSignIn(this);
   };
-  
+
   document.getElementById('loginBtn').onclick = async () => {
     const email = document.getElementById('loginEmail').value.trim();
-    const pass = document.getElementById('loginPass').value;
+    const pass  = document.getElementById('loginPass').value;
     const errEl = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-    
+    const btn   = document.getElementById('loginBtn');
+
     errEl.classList.add('hidden');
+
     if (!email || !pass) {
       errEl.classList.remove('hidden');
       errEl.textContent = 'Preenche todos os campos.';
       return;
     }
-    btn.disabled = true;
+
+    btn.disabled    = true;
     btn.textContent = '…';
-    
-    const user = await AuthApiService.login(email, pass);
-    if (user && user.token) {
-      authState.setUser(user);
-      window.currentPage = 'chat';
-      renderChatPage();
-    } else {
+
+    try {
+      const user = await AuthApiService.login(email, pass);
+      if (user && user.token) {
+        authState.setUser(user);
+        window.currentPage = 'chat';
+        renderChatPage();
+      } else {
+        errEl.classList.remove('hidden');
+        errEl.textContent = 'Email ou password incorretos.';
+        btn.disabled    = false;
+        btn.textContent = 'Entrar';
+      }
+    } catch (e) {
       errEl.classList.remove('hidden');
-      errEl.textContent = 'Email ou password incorretos.';
-      btn.disabled = false;
+      errEl.textContent = 'Erro de rede: ' + e.message;
+      btn.disabled    = false;
       btn.textContent = 'Entrar';
     }
   };
@@ -165,7 +194,7 @@ function renderRegisterPage() {
   window.currentPage = 'register';
   const colors = isDarkMode ? darkColors : lightColors;
   const bg = isDarkMode ? colors.background : 'linear-gradient(180deg, #FFFFFF 0%, #F0EEFF 100%)';
-  
+
   document.getElementById('app').innerHTML = `
     <div class="min-h-screen flex flex-col" style="background:${bg};">
       <div class="flex items-center h-14 px-4 pt-2">
@@ -227,7 +256,7 @@ function renderRegisterPage() {
         </p>
       </div>
     </div>`;
-  
+
   let rv = false;
   document.getElementById('toggleRegPass').onclick = () => {
     rv = !rv;
@@ -244,23 +273,24 @@ function renderRegisterPage() {
     icon.style.maskImage = `url('assets/icons/svg/${rc ? 'eye' : 'eye_closed'}.svg')`;
     icon.style.webkitMaskImage = icon.style.maskImage;
   };
-  
-  document.getElementById('backBtn').onclick = renderLoginPage;
-  document.getElementById('goLogin').onclick = renderLoginPage;
-  
-  document.getElementById('googleRegBtn').onclick = function() {
+
+  document.getElementById('backBtn').onclick  = renderLoginPage;
+  document.getElementById('goLogin').onclick  = renderLoginPage;
+
+  document.getElementById('googleRegBtn').onclick = function () {
     handleGoogleSignIn(this);
   };
-  
+
   document.getElementById('regBtn').onclick = async () => {
-    const name = document.getElementById('regName').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const pass = document.getElementById('regPass').value;
+    const name     = document.getElementById('regName').value.trim();
+    const email    = document.getElementById('regEmail').value.trim();
+    const pass     = document.getElementById('regPass').value;
     const passConf = document.getElementById('regPassConf').value;
-    const errEl = document.getElementById('regError');
-    const btn = document.getElementById('regBtn');
-    
+    const errEl    = document.getElementById('regError');
+    const btn      = document.getElementById('regBtn');
+
     errEl.classList.add('hidden');
+
     if (!name || !email || !pass || !passConf) {
       errEl.classList.remove('hidden');
       errEl.textContent = 'Preenche todos os campos.';
@@ -271,18 +301,26 @@ function renderRegisterPage() {
       errEl.textContent = 'As passwords não coincidem.';
       return;
     }
-    btn.disabled = true;
+
+    btn.disabled    = true;
     btn.textContent = '…';
-    
-    const user = await AuthApiService.register(name, email, pass);
-    if (user && user.token) {
-      authState.setUser(user);
-      window.currentPage = 'chat';
-      renderChatPage();
-    } else {
+
+    try {
+      const user = await AuthApiService.register(name, email, pass);
+      if (user && user.token) {
+        authState.setUser(user);
+        window.currentPage = 'chat';
+        renderChatPage();
+      } else {
+        errEl.classList.remove('hidden');
+        errEl.textContent = 'Não foi possível criar a conta. Tenta com outro email.';
+        btn.disabled    = false;
+        btn.textContent = 'Criar conta';
+      }
+    } catch (e) {
       errEl.classList.remove('hidden');
-      errEl.textContent = 'Não foi possível criar a conta.';
-      btn.disabled = false;
+      errEl.textContent = 'Erro de rede: ' + e.message;
+      btn.disabled    = false;
       btn.textContent = 'Criar conta';
     }
   };

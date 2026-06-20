@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidade — Nexa</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --text:#1c1c1e;
+    --muted:#6e6e73;
+    --accent:#007aff;
+    --border:#e5e5ea;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.65;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:48px 24px 96px;}
+  header{margin-bottom:32px;}
+  h1{font-size:26px;font-weight:700;margin:0 0 8px;letter-spacing:-0.02em;}
+  .updated{color:var(--muted);font-size:14px;margin:0;}
+  h2{font-size:17px;font-weight:700;margin:34px 0 8px;letter-spacing:-0.01em;border-top:1px solid var(--border);padding-top:24px;}
+  h3{font-size:14.5px;font-weight:600;margin:16px 0 6px;}
+  p{margin:0 0 11px;font-size:14.5px;}
+  ul,ol{margin:0 0 11px;padding-left:21px;}
+  li{font-size:14.5px;margin-bottom:5px;}
+  strong{font-weight:600;}
+  .placeholder{
+    background:#eef4ff;
+    color:#0a5cd6;
+    padding:1px 6px;
+    border-radius:6px;
+    font-family:ui-monospace,Menlo,monospace;
+    font-size:13px;
+  }
+  table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:13.5px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.02em;}
+  hr{border:none;border-top:1px solid var(--border);margin:36px 0;}
+  a{color:var(--accent);text-decoration:none;}
+  .toc{font-size:14px;columns:2;column-gap:24px;margin-bottom:8px;}
+  .toc a{display:block;color:var(--muted);padding:3px 0;break-inside:avoid;}
+  .toc a:hover{color:var(--accent);}
+  footer{margin-top:48px;color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Política de Privacidade</h1>
+    <p class="updated">Nexa — Versão 2.0 · Última atualização: 20 de junho de 2026</p>
+  </header>
+
+  <nav class="toc">
+    <a href="#s1">1. Responsável pelo Tratamento</a>
+    <a href="#s2">2. Dados Pessoais Recolhidos</a>
+    <a href="#s3">3. Finalidades e Fundamento Jurídico</a>
+    <a href="#s4">4. Subcontratantes e Destinatários</a>
+    <a href="#s5">5. Transferências Internacionais</a>
+    <a href="#s6">6. Prazo de Conservação</a>
+    <a href="#s7">7. Cookies e Armazenamento Local</a>
+    <a href="#s8">8. Segurança da Informação</a>
+    <a href="#s9">9. Violações de Dados</a>
+    <a href="#s10">10. Decisões Automatizadas</a>
+    <a href="#s11">11. Direitos do Titular dos Dados</a>
+    <a href="#s12">12. Menores</a>
+    <a href="#s13">13. Titulares Falecidos</a>
+    <a href="#s14">14. Alterações a Esta Política</a>
+    <a href="#s15">15. Contactos</a>
+  </nav>
+
+  <h2 id="s1">1. Introdução e Responsável pelo Tratamento</h2>
+  <p>Esta Política de Privacidade descreve como a Nexa, disponibilizada por <span class="placeholder">[NOME DA ENTIDADE/TITULAR]</span>, com sede/domicílio em <span class="placeholder">[MORADA]</span>, NIF/NIPC <span class="placeholder">[NIF]</span>, contacto <span class="placeholder">[EMAIL]</span>, na qualidade de responsável pelo tratamento ("Nexa", "nós"), recolhe, utiliza, armazena, partilha e protege os dados pessoais dos utilizadores da aplicação web Nexa ("Serviço"), em cumprimento do Regulamento (UE) 2016/679 (RGPD), da Lei n.º 58/2019 e demais legislação aplicável em matéria de proteção de dados.</p>
+
+  <h2 id="s2">2. Dados Pessoais Recolhidos</h2>
+  <p><strong>2.1. Dados de registo e conta</strong> — nome, endereço de email, palavra-passe (armazenada exclusivamente sob a forma de hash criptográfico, nunca em texto simples) e, em caso de autenticação através de conta Google, o identificador único, nome, email e fotografia de perfil associados, obtidos via Firebase Authentication.</p>
+  <p><strong>2.2. Conteúdo das conversas</strong> — o texto, ficheiros, imagens ou áudio que o Utilizador introduz no assistente de IA, as respostas geradas, os títulos de conversa gerados automaticamente, estatísticas de uso (número total de conversas e mensagens) e o histórico de conversas, guardado em infraestrutura da Nexa para permitir consulta, edição, fixação (pin), arquivo e eliminação posterior.</p>
+  <p><strong>2.3. Dados de áudio</strong> — caso o Utilizador utilize funcionalidades de transcrição de voz, o áudio gravado é enviado a um Fornecedor Terceiro para conversão em texto, não sendo o ficheiro de áudio original conservado pela Nexa além do estritamente necessário a essa conversão.</p>
+  <p><strong>2.4. Preferências e dados locais</strong> — tema (claro/escuro), definições de widgets e demais preferências de interface, guardadas localmente no dispositivo do Utilizador através de armazenamento local do navegador (localStorage), não acessíveis aos servidores da Nexa.</p>
+  <p><strong>2.5. Dados técnicos</strong> — endereço IP, tipo e versão de navegador, sistema operativo, identificadores de dispositivo, registos de erro e de acesso (logs), gerados automaticamente pela infraestrutura de alojamento (Cloudflare), para fins de segurança, diagnóstico técnico e deteção de abusos.</p>
+  <p><strong>2.6. Dados de pagamento</strong> — caso o Utilizador subscreva um plano pago, os dados de pagamento (incluindo dados de cartão) são processados diretamente pelo prestador de serviços de pagamento utilizado pela Nexa, não sendo armazenados, na sua totalidade, nos servidores da Nexa.</p>
+  <p><strong>2.7. Dados inferidos pelo Utilizador através do conteúdo das conversas</strong> — o Utilizador pode, por sua iniciativa, partilhar com o assistente de IA dados pessoais seus ou de terceiros (incluindo, eventualmente, categorias especiais de dados, nos termos do artigo 9.º do RGPD). A Nexa não solicita nem incentiva a partilha de tais dados e recomenda ao Utilizador que evite introduzir dados sensíveis desnecessários no assistente.</p>
+
+  <h2 id="s3">3. Finalidades e Fundamento Jurídico do Tratamento</h2>
+  <table>
+    <tr><th>Finalidade</th><th>Fundamento jurídico</th></tr>
+    <tr><td>Criar e gerir a Conta do Utilizador</td><td>Execução de contrato</td></tr>
+    <tr><td>Autenticação via email/palavra-passe ou Google</td><td>Execução de contrato</td></tr>
+    <tr><td>Prestar e operar as funcionalidades de IA e widgets</td><td>Execução de contrato</td></tr>
+    <tr><td>Processar pagamentos, faturação e cobrança</td><td>Execução de contrato / obrigação legal</td></tr>
+    <tr><td>Comunicações operacionais relativas ao Serviço</td><td>Execução de contrato / interesse legítimo</td></tr>
+    <tr><td>Segurança, deteção e prevenção de fraude ou abuso</td><td>Interesse legítimo</td></tr>
+    <tr><td>Diagnóstico técnico e resolução de erros</td><td>Interesse legítimo</td></tr>
+    <tr><td>Melhoria do Serviço e análise agregada e anonimizada</td><td>Interesse legítimo</td></tr>
+    <tr><td>Comunicações de marketing, quando aplicável</td><td>Consentimento</td></tr>
+    <tr><td>Cumprimento de obrigações legais, fiscais e contabilísticas</td><td>Obrigação legal</td></tr>
+    <tr><td>Defesa de direitos em processo judicial ou litígio</td><td>Interesse legítimo</td></tr>
+  </table>
+
+  <h2 id="s4">4. Subcontratantes e Destinatários de Dados</h2>
+  <p>Para prestar o Serviço, a Nexa recorre, designadamente, aos seguintes subcontratantes/destinatários, cada um regido pelas suas próprias políticas de privacidade:</p>
+  <ul>
+    <li><strong>Google LLC / Google Ireland Limited</strong> — autenticação de conta (Firebase Authentication) e processamento das mensagens enviadas ao assistente de IA através da API Gemini;</li>
+    <li><strong>Groq, Inc.</strong> — processamento de mensagens através de modelos de linguagem alternativos e/ou transcrição de áudio para texto;</li>
+    <li><strong>Cloudflare, Inc.</strong> — alojamento da aplicação (Cloudflare Workers), infraestrutura de servidor e armazenamento de dados de conta e conversas (Cloudflare KV);</li>
+    <li><strong>CoinGecko, Coinbase, Inc. e ExchangeRate-API (open.er-api.com)</strong> — fornecimento de cotações de criptomoedas e taxas de câmbio exibidas em widgets, sem que dados pessoais do Utilizador lhes sejam, em regra, transmitidos;</li>
+    <li><strong>OpenFreeMap / colaboradores OpenStreetMap</strong> — fornecimento de mapas e dados geográficos exibidos no widget de mapa;</li>
+    <li>prestador de serviços de pagamento, para processamento de subscrições pagas, quando aplicável;</li>
+    <li>autoridades públicas, judiciais ou reguladoras, quando exigido por lei, ordem judicial ou para proteção de direitos, segurança ou propriedade da Nexa ou de terceiros.</li>
+  </ul>
+  <p>A Nexa não vende dados pessoais a terceiros para fins de publicidade. Os widgets de cotações e mapas funcionam, em regra, através de pedidos diretos a esses Fornecedores Terceiros, pelo que o endereço IP do Utilizador pode ser-lhes exposto enquanto dado técnico inerente ao próprio funcionamento da internet.</p>
+
+  <h2 id="s5">5. Transferências Internacionais de Dados</h2>
+  <p>Alguns dos subcontratantes identificados (nomeadamente Google, Cloudflare e Groq) operam infraestrutura global, podendo implicar a transferência de dados pessoais para fora do Espaço Económico Europeu, designadamente para os Estados Unidos da América. Nestes casos, a Nexa assegura que tais transferências assentam em mecanismos legalmente reconhecidos, como as Cláusulas Contratuais-Tipo aprovadas pela Comissão Europeia, decisões de adequação da Comissão Europeia, ou outras garantias adequadas previstas no Capítulo V do RGPD. O Utilizador pode solicitar mais informação sobre estas garantias através do contacto indicado na cláusula 15.</p>
+
+  <h2 id="s6">6. Prazo de Conservação</h2>
+  <p>6.1. Os dados de conta e o histórico de conversas são conservados enquanto a Conta do Utilizador se mantiver ativa e for necessário para prestar o Serviço.</p>
+  <p>6.2. Após o encerramento da Conta, a pedido do Utilizador ou por iniciativa da Nexa nos termos dos Termos e Condições, os dados são eliminados ou anonimizados num prazo razoável não superior a <span class="placeholder">[ex.: 90 dias]</span>, salvo se a sua conservação por período mais longo for exigida por obrigação legal (nomeadamente dados de faturação, conservados pelo prazo legalmente exigido em matéria fiscal e contabilística).</p>
+  <p>6.3. Os registos técnicos (logs) são conservados por períodos limitados e proporcionais, tipicamente não superiores a <span class="placeholder">[ex.: 30 dias]</span>, para fins de segurança e diagnóstico, salvo quando necessários à investigação de um incidente de segurança em curso.</p>
+  <p>6.4. Dados associados a litígios, reclamações ou obrigações legais em curso podem ser conservados por período adicional, na medida estritamente necessária à sua resolução ou cumprimento.</p>
+
+  <h2 id="s7">7. Cookies e Armazenamento Local</h2>
+  <p>A Nexa utiliza armazenamento local no navegador (localStorage) para guardar a preferência de tema, definições de widgets, token de sessão e dados estritamente necessários ao funcionamento da Conta. Estas tecnologias são essenciais ao funcionamento do Serviço e não dependem de consentimento nos termos da legislação de cookies, por se enquadrarem na exceção de estrita necessidade técnica. A Nexa não utiliza, atualmente, cookies de publicidade ou de rastreio de terceiros; caso tal venha a ser introduzido, será solicitado o consentimento prévio do Utilizador, nos termos legalmente exigidos.</p>
+
+  <h2 id="s8">8. Segurança da Informação</h2>
+  <p>A Nexa implementa medidas técnicas e organizativas adequadas ao risco para proteger os dados pessoais contra acesso não autorizado, perda, destruição, alteração ou divulgação indevida, incluindo, designadamente: armazenamento de palavras-passe sob a forma de hash criptográfico (nunca em texto simples); uso de ligações cifradas (HTTPS/TLS) em todas as comunicações entre o dispositivo do Utilizador e os servidores da Nexa; controlo de acesso por autenticação e tokens; e segregação lógica dos dados de cada Utilizador. Não obstante estas medidas, nenhum sistema de transmissão ou armazenamento de dados é absolutamente seguro, pelo que a Nexa não pode garantir segurança absoluta.</p>
+
+  <h2 id="s9">9. Violações de Dados</h2>
+  <p>Em caso de violação de dados pessoais suscetível de implicar um risco elevado para os direitos e liberdades dos Utilizadores, a Nexa notificará a Comissão Nacional de Proteção de Dados (CNPD) no prazo legalmente exigido (em regra, 72 horas após ter conhecimento da violação) e, quando exigido por lei, comunicará diretamente aos Utilizadores afetados, sem atraso injustificado, descrevendo a natureza da violação e as medidas adotadas ou recomendadas.</p>
+
+  <h2 id="s10">10. Decisões Automatizadas</h2>
+  <p>A Nexa não submete os Utilizadores a decisões baseadas exclusivamente em tratamento automatizado, incluindo definição de perfis, que produzam efeitos jurídicos ou afetem significativamente o Utilizador. A geração automática de respostas e títulos de conversa pela IA constitui uma funcionalidade do Serviço solicitada pelo próprio Utilizador, e não uma decisão automatizada com efeitos sobre o Utilizador na aceção do artigo 22.º do RGPD.</p>
+
+  <h2 id="s11">11. Direitos do Titular dos Dados</h2>
+  <p>Nos termos do RGPD, o Utilizador tem o direito de, a qualquer momento e gratuitamente, salvo exceções legais ou pedidos manifestamente infundados ou excessivos:</p>
+  <ul>
+    <li>aceder aos seus dados pessoais e obter informação sobre o respetivo tratamento;</li>
+    <li>solicitar a retificação de dados incorretos ou incompletos;</li>
+    <li>solicitar o apagamento dos seus dados ("direito ao esquecimento"), nos termos legalmente previstos;</li>
+    <li>solicitar a limitação do tratamento, em determinadas circunstâncias;</li>
+    <li>opor-se ao tratamento baseado em interesse legítimo, designadamente para fins de marketing direto;</li>
+    <li>solicitar a portabilidade dos seus dados, num formato estruturado, de uso corrente e de leitura automática;</li>
+    <li>retirar o consentimento prestado, a qualquer momento, sem afetar a licitude do tratamento já realizado com base nesse consentimento antes da retirada;</li>
+    <li>apresentar reclamação junto da Comissão Nacional de Proteção de Dados (CNPD), em <a href="https://www.cnpd.pt" target="_blank" rel="noopener">www.cnpd.pt</a>, ou de outra autoridade de controlo competente do seu país de residência.</li>
+  </ul>
+  <p>Estes direitos podem ser exercidos através do contacto indicado no ponto 15. A Nexa poderá solicitar informação adicional para confirmar a identidade do requerente antes de dar seguimento ao pedido, e responderá no prazo máximo de um mês, prorrogável nos termos legalmente previstos em casos de especial complexidade.</p>
+
+  <h2 id="s12">12. Menores</h2>
+  <p>O Serviço não se destina a menores de <span class="placeholder">[16]</span> anos, não sendo conscientemente recolhidos dados de menores sem o consentimento do titular das responsabilidades parentais. Caso se verifique a recolha indevida de dados de um menor sem o consentimento exigido, a Nexa procederá à sua eliminação logo que tenha conhecimento do facto, podendo solicitar prova da idade ou do consentimento parental.</p>
+
+  <h2 id="s13">13. Titulares Falecidos</h2>
+  <p>Nos termos da legislação nacional aplicável, certas pessoas designadas pelo titular ou, na sua falta, herdeiros legítimos, podem exercer determinados direitos relativos aos dados pessoais de uma pessoa falecida, mediante pedido fundamentado e prova idónea, através do contacto indicado na cláusula 15, sem prejuízo da proteção de dados de terceiros eventualmente contidos no histórico de conversas do falecido.</p>
+
+  <h2 id="s14">14. Alterações a Esta Política</h2>
+  <p>A Nexa pode atualizar esta Política periodicamente, publicando a versão revista na Aplicação, com indicação da respetiva data. Alterações materiais que ampliem significativamente o tratamento de dados pessoais serão comunicadas ao Utilizador com antecedência razoável, através de aviso na Aplicação ou por email, podendo, quando legalmente exigido, depender de novo consentimento do Utilizador.</p>
+
+  <h2 id="s15">15. Contactos</h2>
+  <p>Para exercer os seus direitos, reportar um incidente de segurança ou esclarecer dúvidas sobre esta Política: <span class="placeholder">[EMAIL DE PRIVACIDADE/DPO]</span></p>
+
+  <hr>
+  <footer>© 2026 Nexa. Todos os direitos reservados.</footer>
+
+</div>
+</body>
+</html>

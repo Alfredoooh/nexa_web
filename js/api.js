@@ -1,4 +1,4 @@
-const API_BASE = 'https://nexa.alfredopjonas.workers.dev';
+const API_BASE = 'https://ipc.alfredopjonas.workers.dev';
 
 const AuthApiService = {
   async login(email, password) {
@@ -9,6 +9,8 @@ const AuthApiService = {
         body: JSON.stringify({ email, password })
       });
       if (res.ok) return await res.json();
+      const err = await res.json().catch(() => ({}));
+      console.error('Login failed:', res.status, err);
     } catch (e) { console.error('Login error:', e); }
     return null;
   },
@@ -21,6 +23,8 @@ const AuthApiService = {
         body: JSON.stringify({ name, email, password })
       });
       if (res.ok) return await res.json();
+      const err = await res.json().catch(() => ({}));
+      console.error('Register failed:', res.status, err);
     } catch (e) { console.error('Register error:', e); }
     return null;
   },
@@ -33,6 +37,8 @@ const AuthApiService = {
         body: JSON.stringify({ idToken })
       });
       if (res.ok) return await res.json();
+      const err = await res.json().catch(() => ({}));
+      console.error('Firebase login failed:', res.status, err);
     } catch (e) { console.error('Firebase login error:', e); }
     return null;
   },

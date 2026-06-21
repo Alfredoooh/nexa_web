@@ -145,8 +145,7 @@ function toggleDarkMode() {
    SPLASH SCREEN — ícone centrado, fundo sólido, fade out limpo
    ========================================================================= */
 function buildInitialSplashHTML() {
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const bg = dark ? '#121212' : '#FFFFFF';
+    const bg = isDarkMode ? '#121212' : '#FFFFFF';
     return `
         <div id="initialSplash" style="
             position: fixed; inset: 0; z-index: 99999;

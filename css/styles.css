@@ -80,8 +80,7 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
     position: relative; overflow: hidden;
 }
 
-/* ── AppBar (sempre fixo, nunca esconde/sobe) ─────────────────────────────── */
-/* ── AppBar (sempre fixo, nunca esconde/sobe, em qualquer situação) ──────── */
+/* ── AppBar ─────────────────────────────────────────────────────────────── */
 .app-bar {
     position: absolute; top: 0; left: 0; right: 0;
     z-index: 40; height: 60px;
@@ -108,7 +107,7 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
         rgba(15,15,15,0.00) 100%);
 }
 
-/* ── Seletor de modelo (appbar) — sempre presente ─────────────────────────── */
+/* ── Seletor de modelo ──────────────────────────────────────────────────── */
 .model-selector-btn {
     display: flex; align-items: center; gap: 4px;
     background: none; border: none; cursor: pointer;
@@ -116,24 +115,24 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
     max-width: 200px;
 }
 
-/* ── Pílula de modo incógnito (appbar) ────────────────────────────────────── */
+/* ── Pílula incógnito ───────────────────────────────────────────────────── */
 .incognito-pill {
     display: flex; align-items: center; gap: 6px;
     padding: 5px 12px 5px 10px; border-radius: 16px;
     font-size: 12px; font-weight: 600;
 }
 
-/* ── Drawer ─────────────────────────────────────────────────────────────── */
+/* ── Drawer overlay — blur leve, escuridão mínima ────────────────────────── */
 .drawer-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.32);
+    background: rgba(0,0,0,0.08);
     z-index: 100; opacity: 0; pointer-events: none;
     backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
     transition: opacity 0.28s ease, backdrop-filter 0.28s ease;
 }
 .drawer-overlay.open {
     opacity: 1; pointer-events: auto;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
 }
 
 .drawer {
@@ -197,7 +196,7 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 
 .drawer-section-divider { height: 1px; margin: 4px 0; flex-shrink: 0; }
 
-/* ── Cabeçalho colapsável da secção de conversas ──────────────────────────── */
+/* ── Cabeçalho colapsável ───────────────────────────────────────────────── */
 .drawer-conv-section-header {
     display: flex; align-items: center; gap: 9px;
     padding: 10px 24px 8px;
@@ -264,19 +263,18 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
     transition: padding-bottom 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 
-/* ── Bottom bar (sobe suavemente com o teclado) ───────────────────────────── */
-/* ── Bottom bar (sobe e desce com 'bottom', sem dupla animação) ──────────── */
+/* ── Bottom bar — sobe instantaneamente com o teclado, sem animação própria ─ */
 .bottom-bar {
     position: absolute; bottom: 0; left: 16px; right: 16px;
     z-index: 50; margin-bottom: 20px; border-radius: 22px;
     display: flex; flex-direction: column;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease, bottom 0.22s cubic-bezier(0.4,0,0.2,1);
-    will-change: bottom;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    will-change: auto;
 }
 .bottom-bar.light { background-color: var(--bottom-bar-light); box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
 .bottom-bar.dark  { background-color: var(--bottom-bar-dark);  box-shadow: 0 4px 24px rgba(0,0,0,0.30); }
 
-/* ── Textarea (altura reduz ao enviar, respeita limite) ───────────────────── */
+/* ── Textarea ───────────────────────────────────────────────────────────── */
 .chat-input {
     resize: none; outline: none; border: none; background: transparent;
     font-size: 15px; line-height: 1.5; padding: 12px 18px 0; width: 100%;
@@ -298,17 +296,17 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 .pulse-tap:active   { transform: scale(0.97); opacity: 0.86; }
 .pulse-tap.circular { border-radius: 50%; overflow: hidden; }
 
-/* ── Modal overlay (blur suave em vez de overlay simples) ─────────────────── */
+/* ── Modal overlay — blur leve, escuridão mínima ─────────────────────────── */
 .modal-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.32); z-index: 200;
+    background: rgba(0,0,0,0.08); z-index: 200;
     opacity: 0; pointer-events: none;
     backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
     transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
 }
 .modal-overlay.open {
     opacity: 1; pointer-events: auto;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 
 /* ── Modal sheet ─────────────────────────────────────────────────────────── */
@@ -480,7 +478,7 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 .center-dialog-btn.cancel { background: rgba(127,127,127,0.14); }
 
-/* ── Modal de opções de conversa / mensagem ──────────────────────────────── */
+/* ── Modal de opções ─────────────────────────────────────────────────────── */
 .conv-options-header {
     display: flex; align-items: center; gap: 12px;
     padding: 6px 20px 16px;
@@ -517,10 +515,10 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
     font-size: 12px; font-weight: 600;
 }
 
-/* ── Settings: ecrã em "card" flutuante centrado (estilo ChatGPT) ─────────── */
+/* ── Settings backdrop — blur leve, escuridão mínima ─────────────────────── */
 .settings-backdrop {
     position: fixed; inset: 0; z-index: 150;
-    background: rgba(0,0,0,0.4);
+    background: rgba(0,0,0,0.08);
     opacity: 0; pointer-events: none;
     backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
     transition: opacity 0.28s ease, backdrop-filter 0.28s ease;
@@ -551,17 +549,17 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
     -webkit-overflow-scrolling: touch;
 }
 
-/* ── Popup card ancorado (usado por menus de contexto rápidos) ───────────── */
+/* ── Popup card — blur leve, escuridão mínima ───────────────────────────── */
 .popup-card-overlay {
     position: fixed; inset: 0; z-index: 220;
-    background: rgba(0,0,0,0.18);
+    background: rgba(0,0,0,0.06);
     opacity: 0; pointer-events: none;
     backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
     transition: opacity 0.22s ease, backdrop-filter 0.22s ease;
 }
 .popup-card-overlay.open {
     opacity: 1; pointer-events: auto;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
 }
 .popup-card {
     position: fixed; z-index: 221;
@@ -581,7 +579,7 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
     pointer-events: auto;
 }
 
-/* ── Bolha de mensagem do utilizador — todas as bordas curvas ────────────── */
+/* ── Bolha utilizador ───────────────────────────────────────────────────── */
 .user-msg-bubble {
     border-radius: 20px !important;
 }
@@ -600,7 +598,7 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 
 /* =========================================================================
-   RECORD OVERLAY (onda fullscreen)
+   RECORD OVERLAY
    ========================================================================= */
 
 #recordOverlay {
@@ -614,7 +612,6 @@ body.dark .modal-sheet { background: var(--dialog-bg-dark); }
 }
 body.dark #recordOverlay { background: #0F0F0F; }
 
-/* Botões topo */
 .rec-top-bar {
     position: absolute;
     top: 0; left: 0; right: 0;
@@ -646,7 +643,6 @@ body.dark .rec-top-btn { background: rgba(255,255,255,0.12); }
 }
 body.dark .rec-timer { color: #F3F4F6; }
 
-/* Bolha */
 .rec-loader-wrap {
     position: absolute;
     left: 0; right: 0;
@@ -719,7 +715,6 @@ body.dark .rec-timer { color: #F3F4F6; }
     100% { filter: hue-rotate(0deg);   }
 }
 
-/* Canvas da onda */
 .rec-wave-wrap {
     position: absolute;
     left: 0; right: 0; bottom: 0;

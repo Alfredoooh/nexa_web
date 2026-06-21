@@ -1,5 +1,9 @@
 /* =========================================================================
-   FIX DE ALTURA DINÂMICA
+   FIX DE ALTURA DINÂMICA + TECLADO
+   Uma ÚNICA fonte de verdade para o deslocamento do teclado, para nunca
+   haver duas animações a competir (o "sobe demais e depois volta").
+   O appbar NUNCA é tocado por este sistema — fica sempre fixo no topo,
+   em qualquer situação, mesmo com o teclado aberto.
    ========================================================================= */
 (function setupDynamicViewportHeight() {
     function applyVH() {
@@ -9,60 +13,54 @@
     applyVH();
     window.addEventListener('resize', applyVH);
     window.addEventListener('orientationchange', () => setTimeout(applyVH, 120));
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', applyVH);
-        window.visualViewport.addEventListener('scroll', applyVH);
-    }
 })();
 
-/* =========================================================================
-   KEYBOARD-AWARE BOTTOM BAR
-   Faz o bottom-bar e o messages-container subirem suavemente quando o
-   teclado aparece, usando visualViewport (funciona em Android Chrome/WebView).
-   ========================================================================= */
 (function setupKeyboardAwareLayout() {
-    let baseHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    let rafPending = false;
+    let lastOffset = -1;
+    let rafId = null;
 
-    function update() {
-        rafPending = false;
-        if (!window.visualViewport) return;
-
+    function computeOffset() {
+        if (!window.visualViewport) return 0;
         const vv = window.visualViewport;
-        const keyboardOffset = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
+        const offset = window.innerHeight - vv.height - vv.offsetTop;
+        return Math.round(Math.max(0, offset));
+    }
+
+    function applyOffset(offset) {
+        if (offset === lastOffset) return;
+        lastOffset = offset;
 
         const bottomBar = document.getElementById('bottomBar');
         const messagesContainer = document.getElementById('messagesContainer');
+        const keyboardOpen = offset > 40;
 
         if (bottomBar) {
-            bottomBar.style.transform = keyboardOffset > 40
-                ? `translateY(-${keyboardOffset}px)`
-                : 'translateY(0)';
+            // Usa 'bottom' em vez de 'transform': uma única propriedade,
+            // sem nenhuma transição concorrente, sobe e fica parado — e
+            // quando o teclado fecha, volta a descer de forma estável.
+            bottomBar.style.bottom = keyboardOpen ? offset + 'px' : '0px';
         }
         if (messagesContainer) {
             const baseBottomPad = 170;
-            messagesContainer.style.paddingBottom = keyboardOffset > 40
-                ? (baseBottomPad + keyboardOffset) + 'px'
+            messagesContainer.style.paddingBottom = keyboardOpen
+                ? (baseBottomPad + offset) + 'px'
                 : baseBottomPad + 'px';
         }
+        // O appbar nunca é alterado aqui — fica sempre no topo, parado.
     }
 
     function scheduleUpdate() {
-        if (rafPending) return;
-        rafPending = true;
-        requestAnimationFrame(update);
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+            rafId = null;
+            applyOffset(computeOffset());
+        });
     }
 
     if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', scheduleUpdate);
         window.visualViewport.addEventListener('scroll', scheduleUpdate);
     }
-    window.addEventListener('focusin', (e) => {
-        if (e.target && e.target.id === 'textInput') setTimeout(scheduleUpdate, 60);
-    });
-    window.addEventListener('focusout', (e) => {
-        if (e.target && e.target.id === 'textInput') setTimeout(scheduleUpdate, 60);
-    });
 
     window._refreshKeyboardLayout = scheduleUpdate;
 })();
@@ -376,10 +374,8 @@ function renderMathToken(expr) {
 }
 
 function renderMathBlocks(text) {
-    // Blocos $$...$$ (display, centrados)
     text = text.replace(/\$\$([\s\S]+?)\$\$/g, (m, inner) =>
         `<div class="math-display">${renderMathToken(inner)}</div>`);
-    // Inline $...$
     text = text.replace(/\$([^\$\n]+?)\$/g, (m, inner) =>
         `<span class="math-inline">${renderMathToken(inner)}</span>`);
     return text;
@@ -585,13 +581,10 @@ function applyInline(text) {
     text = text.replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>');
     text = text.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
     text = text.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
-    // Links em formato markdown [texto](url) — sempre sublinhados e clicáveis
     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
         '<a class="md-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    // URLs nuas — também viram link sublinhado clicável
     text = text.replace(/(?<![">])(https?:\/\/[^\s<>"']+)/g,
         '<a class="md-link" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-    // E-mails — viram link mailto sublinhado
     text = text.replace(/(?<![">@\w])([\w.+-]+@[\w-]+\.[\w.-]+)(?![\w])/g,
         '<a class="md-link" href="mailto:$1">$1</a>');
     text = text.replace(/==([^=\n]+)==/g, '<mark class="md-mark">$1</mark>');
@@ -891,14 +884,13 @@ async function handleRecordingStop() {
     const blob = new Blob(audioChunks, { type: 'audio/webm' });
     audioChunks = [];
 
-    // Mostra Lottie enquanto transcreve
     showLottieLoader('A transcrever…');
 
     try {
         const token = authState.user?.token || '';
         const formData = new FormData();
         formData.append('file', blob, 'audio.webm');
-        formData.append('language', 'pt');
+        formData.append('language', currentLanguage || 'pt');
 
         const res = await fetch(`${API_BASE}/ai/transcribe`, {
             method: 'POST',
@@ -915,8 +907,7 @@ async function handleRecordingStop() {
             const input = document.getElementById('textInput');
             if (input) {
                 input.value = (input.value ? input.value + ' ' : '') + text;
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+                autoResizeTextarea(input);
                 updateSendButton();
                 input.focus();
             }
@@ -993,7 +984,6 @@ function hideLottieLoader() {
 
 function renderChatPage() {
     // O splash NÃO aparece aqui — só na abertura inicial do site (app.js).
-    // Isto evita flash em cada navegação para o chat.
 
     const colors = getThemeColors();
     const hasMessages = chatState.displayMessages.length > 0;
@@ -1130,7 +1120,6 @@ function renderChatPage() {
 function setupDrawerScrollCollapse() {
     const drawer = document.getElementById('drawer');
     const menuSection = document.getElementById('drawerMenuSection');
-    const profileTile = document.getElementById('profileTile');
     if (!drawer || !menuSection) return;
 
     const collapseItems = ['projectsDrawerBtn', 'extrasDrawerBtn', 'settingsDrawerBtn'];
@@ -1206,7 +1195,6 @@ function bindChatEvents() {
         chatState.resetConversation();
     };
 
-    // moreBtn agora mostra as opções DESTA conversa (não o popup de "+")
     document.getElementById('moreBtn').onclick = () => showCurrentConversationOptions();
 
     document.getElementById('addBtn').onclick = () => showAddPopup();
@@ -1269,7 +1257,6 @@ function toggleConversationsSection() {
 function updateChatUI() {
     const hasMessages = chatState.displayMessages.length > 0;
 
-    // O seletor de modelo fica SEMPRE visível (com ou sem conversa).
     const newChatBtn = document.getElementById('newChatBtn');
     const moreBtn = document.getElementById('moreBtn');
     const incognitoStartBtn = document.getElementById('incognitoStartBtn');
@@ -1403,7 +1390,6 @@ function createMessageBubble(msg, idx, colors) {
             bubble.appendChild(p);
         }
 
-        // Long-press → modal de opções (copiar / editar / eliminar)
         let pressTimer = null;
         let didLongPress = false;
         bubble.addEventListener('pointerdown', () => {
@@ -1449,7 +1435,6 @@ function createMessageBubble(msg, idx, colors) {
     return wrapper;
 }
 
-/* Lottie inline como placeholder de "a pensar" */
 function buildLottieThinkingPlaceholder(colors) {
     const container = document.createElement('div');
     container.className = 'lottie-thinking-wrap';
@@ -1551,9 +1536,6 @@ function shareMessage(content) {
     }
 }
 
-/* Regenerar: reenvia EXATAMENTE a mesma mensagem do user, sem duplicar
-   histórico — remove a resposta anterior (e a mensagem do user) e
-   reenvia o texto/anexos originais como uma nova chamada. */
 function regenerateLastResponse() {
     if (chatState.isStreaming) return;
     const removed = chatState.removeLastExchange();
@@ -1719,7 +1701,6 @@ function confirmEditUserMessage(idx, newTextRaw) {
     if (!msg) return;
     const attachments = msg.attachments || [];
 
-    // Remove esta mensagem e tudo o que vem depois (a resposta antiga)
     chatState.displayMessages = chatState.displayMessages.slice(0, idx);
     chatState.chatHistory = chatState.chatHistory.slice(0, idx);
     chatState.notify();
@@ -1730,7 +1711,6 @@ function confirmEditUserMessage(idx, newTextRaw) {
 function deleteUserMessage(idx) {
     const msg = chatState.displayMessages[idx];
     if (!msg) return;
-    // Elimina a mensagem do user e a resposta seguinte associada (se existir e ainda não tiver outro user entre elas)
     let endIdx = idx + 1;
     if (chatState.displayMessages[endIdx] && chatState.displayMessages[endIdx].role === 'assistant') {
         endIdx++;
@@ -1804,14 +1784,11 @@ function renderConversationsList() {
     });
 }
 
-/* Opções da conversa a partir do drawer (long-press num item da lista) */
 function showConvOptionsSheet(conv) {
     closeDrawer();
     buildConvOptionsModal(conv, true);
 }
 
-/* Opções da conversa ATUAL, a partir do botão "moreBtn" da appbar
-   (substitui o antigo popup de "+" nesse botão) */
 function showCurrentConversationOptions() {
     if (!chatState.currentConversationId) {
         showToast('Esta conversa ainda não foi guardada');
@@ -2277,10 +2254,16 @@ async function sendMessage(text, attachmentsOverride, skipClearInput) {
     scrollToBottom();
 
     const token        = authState.user?.token || '';
-    const systemPrompt = GeminiApiService.buildSystemPrompt('pt', chatState.sheetsEnabled);
+    const systemPrompt = GeminiApiService.buildSystemPrompt(currentLanguage, chatState.sheetsEnabled);
 
     try {
-        const stream = GeminiApiService.streamChat({ messages: chatState.chatHistory, systemPrompt, token, think });
+        const stream = GeminiApiService.streamChat({
+            messages: chatState.chatHistory,
+            systemPrompt,
+            token,
+            think,
+            language: currentLanguage
+        });
 
         for await (const chunk of stream) {
             switch (chunk.type) {
@@ -2313,11 +2296,10 @@ async function sendMessage(text, attachmentsOverride, skipClearInput) {
 
     if (isFirstMessage && !chatState.titleGenerated) {
         chatState.titleGenerated = true;
-        const title = await GeminiApiService.generateTitle(trimmed, token);
+        const title = await GeminiApiService.generateTitle(trimmed, token, currentLanguage);
         chatState.currentConversationTitle = title;
     }
 
-    // Conversas incógnito NUNCA são guardadas (nem localmente nem no servidor)
     if (chatState.isIncognito) return;
 
     if (!chatState.currentConversationId) {
@@ -2438,7 +2420,6 @@ function showAddPopup() {
         closeModalSheet
     ));
 
-    // Upload real de imagem
     const fileInputImage = document.createElement('input');
     fileInputImage.type = 'file';
     fileInputImage.accept = 'image/*';
@@ -2452,7 +2433,6 @@ function showAddPopup() {
     };
     content.appendChild(fileInputImage);
 
-    // Upload real de qualquer ficheiro
     const fileInputUpload = document.createElement('input');
     fileInputUpload.type = 'file';
     fileInputUpload.accept = '*/*';
@@ -2501,8 +2481,6 @@ function showAddPopup() {
     openModalSheet();
 }
 
-/* Extras: ícones reduzidos -15% (20px → 17px) e sem cor azul, igual ao
-   resto dos modals neutros do app. */
 function showExtrasSheet() {
     const colors = getThemeColors();
     const content = document.getElementById('modalSheetContent');
@@ -2539,7 +2517,6 @@ function showExtrasSheet() {
         row.style.cursor = 'pointer';
         row.onclick = item.action;
 
-        // -15%: 20px -> 17px
         const icon = document.createElement('span');
         icon.className = 'icon-mask';
         icon.style.cssText = `mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); -webkit-mask-image: url('assets/icons/svg/${item.active ? item.iconOn : item.iconOff}.svg'); width: 17px; height: 17px; background: ${colors.textPrimary}; flex-shrink: 0;`;

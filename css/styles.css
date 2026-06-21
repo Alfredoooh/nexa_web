@@ -81,13 +81,15 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 }
 
 /* ── AppBar (sempre fixo, nunca esconde/sobe) ─────────────────────────────── */
+/* ── AppBar (sempre fixo, nunca esconde/sobe, em qualquer situação) ──────── */
 .app-bar {
     position: absolute; top: 0; left: 0; right: 0;
     z-index: 40; height: 60px;
     display: flex; align-items: center; padding: 0 8px;
     background: transparent;
-    transform: translateY(0) !important;
-    transition: none;
+    transform: none !important;
+    top: 0 !important;
+    transition: none !important;
 }
 .app-bar-gradient {
     position: absolute; top: 0; left: 0; right: 0;
@@ -263,12 +265,13 @@ body.dark  { background-color: var(--bg-dark);  color: var(--text-primary-dark);
 }
 
 /* ── Bottom bar (sobe suavemente com o teclado) ───────────────────────────── */
+/* ── Bottom bar (sobe e desce com 'bottom', sem dupla animação) ──────────── */
 .bottom-bar {
     position: absolute; bottom: 0; left: 16px; right: 16px;
     z-index: 50; margin-bottom: 20px; border-radius: 22px;
     display: flex; flex-direction: column;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.22s cubic-bezier(0.4,0,0.2,1);
-    will-change: transform;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, bottom 0.22s cubic-bezier(0.4,0,0.2,1);
+    will-change: bottom;
 }
 .bottom-bar.light { background-color: var(--bottom-bar-light); box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
 .bottom-bar.dark  { background-color: var(--bottom-bar-dark);  box-shadow: 0 4px 24px rgba(0,0,0,0.30); }

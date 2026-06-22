@@ -1,5 +1,9 @@
 /* =========================================================================
    FIX DE ALTURA DINÂMICA + TECLADO
+   Uma ÚNICA fonte de verdade para o deslocamento do teclado, para nunca
+   haver duas animações a competir (o "sobe demais e depois volta").
+   O appbar NUNCA é tocado por este sistema — fica sempre fixo no topo,
+   em qualquer situação, mesmo com o teclado aberto.
    ========================================================================= */
 (function setupDynamicViewportHeight() {
     function applyVH() {
@@ -31,6 +35,9 @@
         const keyboardOpen = offset > 40;
 
         if (bottomBar) {
+            // Usa 'bottom' em vez de 'transform': uma única propriedade,
+            // sem nenhuma transição concorrente, sobe e fica parado — e
+            // quando o teclado fecha, volta a descer de forma estável.
             bottomBar.style.bottom = keyboardOpen ? offset + 'px' : '0px';
         }
         if (messagesContainer) {
@@ -39,6 +46,7 @@
                 ? (baseBottomPad + offset) + 'px'
                 : baseBottomPad + 'px';
         }
+        // O appbar nunca é alterado aqui — fica sempre no topo, parado.
     }
 
     function scheduleUpdate() {
@@ -58,7 +66,9 @@
 })();
 
 /* =========================================================================
-   SPLASH SCREEN
+   SPLASH SCREEN — usado APENAS na abertura inicial do site (ver app.js).
+   Estas funções existem só por compatibilidade; renderChatPage() NÃO as
+   chama mais a cada navegação, evitando o flash repetido entre telas.
    ========================================================================= */
 function showSplashScreen() {
     const splash = document.createElement('div');
@@ -173,7 +183,7 @@ class ChatState {
     }
 
     resetConversation() {
-        if (this.isIncognito) return;
+        if (this.isIncognito) return; // não é possível sair/trocar de uma conversa incógnita
         this.currentConversationId = '';
         this.currentConversationTitle = 'Nova conversa';
         this.titleGenerated = false;
@@ -194,19 +204,8 @@ class ChatState {
         this.notify();
     }
 
-    exitIncognito() {
-        this.currentConversationId = '';
-        this.currentConversationTitle = 'Nova conversa';
-        this.titleGenerated = false;
-        this.chatHistory = [];
-        this.displayMessages = [];
-        this.pendingAttachments = [];
-        this.isIncognito = false;
-        this.notify();
-    }
-
     loadConversation(conv) {
-        if (this.isIncognito) return;
+        if (this.isIncognito) return; // bloqueado: não se pode sair do incógnito carregando outra conversa
         this.currentConversationId = conv.id;
         this.currentConversationTitle = conv.title;
         this.titleGenerated = true;
@@ -233,6 +232,7 @@ class ChatState {
     }
 
     removeLastExchange() {
+        // Remove o último par (assistant + user) do histórico para permitir regenerar de forma fiel
         const lastUserIdx = [...this.displayMessages].reverse().findIndex(m => m.role === 'user');
         if (lastUserIdx === -1) return null;
         const realIdx = this.displayMessages.length - 1 - lastUserIdx;
@@ -240,6 +240,7 @@ class ChatState {
         const userText = userMsg.content;
         const userAttachments = userMsg.attachments || [];
 
+        // Remove todas as mensagens a partir do último user (inclusive) da UI e do histórico real
         this.displayMessages = this.displayMessages.slice(0, realIdx);
         this.chatHistory = this.chatHistory.slice(0, realIdx);
         this.notify();
@@ -248,98 +249,6 @@ class ChatState {
 }
 
 const chatState = new ChatState();
-
-/* =========================================================================
-   SCROLL INTELIGENTE — só auto-scroll se utilizador está perto do fundo
-   ========================================================================= */
-
-function isNearBottom(threshold = 120) {
-    const container = document.getElementById('messagesContainer');
-    if (!container) return true;
-    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
-}
-
-function scrollToBottom(force) {
-    const container = document.getElementById('messagesContainer');
-    if (!container) return;
-    if (force || isNearBottom()) {
-        requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });
-    }
-}
-
-/* =========================================================================
-   EDITAR MENSAGEM NO BOTTOM BAR
-   ========================================================================= */
-
-let _editingMessageIdx = null;
-
-function enterEditMode(idx) {
-    const msg = chatState.displayMessages[idx];
-    if (!msg) return;
-    _editingMessageIdx = idx;
-
-    const input = document.getElementById('textInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const micBtn = document.getElementById('micBtn');
-    const bottomBar = document.getElementById('bottomBar');
-
-    if (input) {
-        input.value = msg.content;
-        autoResizeTextarea(input);
-        input.focus();
-        input.setSelectionRange(input.value.length, input.value.length);
-    }
-
-    // Indicador visual de modo edição
-    let editIndicator = document.getElementById('editModeIndicator');
-    if (!editIndicator) {
-        editIndicator = document.createElement('div');
-        editIndicator.id = 'editModeIndicator';
-        editIndicator.style.cssText = `
-            display:flex;align-items:center;gap:8px;padding:8px 16px 4px;
-            font-size:12px;font-weight:600;color:${getThemeColors().primary};
-        `;
-        if (bottomBar) bottomBar.insertBefore(editIndicator, bottomBar.firstChild);
-    }
-    editIndicator.innerHTML = `
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        A editar mensagem
-        <button id="cancelEditBtn" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:12px;color:${getThemeColors().textSecondary};font-weight:600;padding:0;">Cancelar</button>
-    `;
-    document.getElementById('cancelEditBtn').onclick = exitEditMode;
-
-    if (sendBtn) sendBtn.classList.remove('hidden');
-    if (micBtn) micBtn.classList.add('hidden');
-    updateSendButton();
-}
-
-function exitEditMode() {
-    _editingMessageIdx = null;
-    document.getElementById('editModeIndicator')?.remove();
-    const input = document.getElementById('textInput');
-    if (input) { input.value = ''; autoResizeTextarea(input); }
-    updateSendButton();
-}
-
-function confirmEditFromBottomBar() {
-    const idx = _editingMessageIdx;
-    const input = document.getElementById('textInput');
-    const newText = (input?.value || '').trim();
-    if (!newText) { showToast('A mensagem não pode estar vazia'); return; }
-
-    exitEditMode();
-    if (chatState.isStreaming) return;
-
-    const msg = chatState.displayMessages[idx];
-    if (!msg) return;
-    const attachments = msg.attachments || [];
-
-    chatState.displayMessages = chatState.displayMessages.slice(0, idx);
-    chatState.chatHistory = chatState.chatHistory.slice(0, idx);
-    chatState.notify();
-
-    setTimeout(() => sendMessage(newText, attachments, true), 100);
-}
 
 /* =========================================================================
    PREFERÊNCIAS DE WIDGETS
@@ -406,7 +315,11 @@ function escapeAttr(str) {
 }
 
 /* =========================================================================
-   MOTOR DE MATEMÁTICA
+   MOTOR DE MATEMÁTICA (sem dependências externas)
+   Suporta: $...$ e $$...$$, \sqrt{}, \frac{}{}, expoentes ^, subscritos _,
+   símbolos gregos \alpha \beta etc, somatórios \sum, integrais \int,
+   infinito \infty, mais/menos \pm, comparação \leq \geq \neq \approx,
+   setas \to \rightarrow, e operadores comuns.
    ========================================================================= */
 
 const GREEK_MAP = {
@@ -422,12 +335,18 @@ const GREEK_MAP = {
 
 function renderMathToken(expr) {
     let out = String(expr).trim();
+
+    // \sqrt{x} ou \sqrt[n]{x}
     out = out.replace(/\\sqrt\[(.+?)\]\{(.+?)\}/g,
         '<span class="math-root"><sup class="math-root-index">$1</sup><span class="math-radical">√</span><span class="math-radicand">$2</span></span>');
     out = out.replace(/\\sqrt\{(.+?)\}/g,
         '<span class="math-root"><span class="math-radical">√</span><span class="math-radicand">$1</span></span>');
+
+    // \frac{a}{b}
     out = out.replace(/\\frac\{(.+?)\}\{(.+?)\}/g,
         '<span class="math-frac"><span class="math-frac-num">$1</span><span class="math-frac-den">$2</span></span>');
+
+    // símbolos gregos \alpha
     out = out.replace(/\\([A-Za-z]+)/g, (m, name) => {
         if (GREEK_MAP[name]) return GREEK_MAP[name];
         const symbolMap = {
@@ -442,10 +361,15 @@ function renderMathToken(expr) {
         };
         return symbolMap[name] || m;
     });
+
+    // expoentes x^2, x^{10}
     out = out.replace(/\^\{(.+?)\}/g, '<sup>$1</sup>');
     out = out.replace(/\^(-?[A-Za-z0-9]+)/g, '<sup>$1</sup>');
+
+    // subscritos x_2, x_{ij}
     out = out.replace(/_\{(.+?)\}/g, '<sub>$1</sub>');
     out = out.replace(/_(-?[A-Za-z0-9]+)/g, '<sub>$1</sub>');
+
     return out;
 }
 
@@ -458,7 +382,7 @@ function renderMathBlocks(text) {
 }
 
 /* =========================================================================
-   TABELAS GFM
+   TABELAS GFM (| col | col |)
    ========================================================================= */
 
 function tryParseTable(lines, startIdx) {
@@ -510,6 +434,8 @@ function renderMarkdown(rawText) {
         return `\u0000CODEBLOCK${index}\u0000`;
     });
 
+    // Protege blocos de matemática $$...$$ e $...$ ANTES do escape de HTML,
+    // para que símbolos como \, {, } não sejam destruídos pelo parser de markdown.
     const mathBlocks = [];
     text = text.replace(/\$\$([\s\S]+?)\$\$/g, (m, inner) => {
         const idx = mathBlocks.length;
@@ -570,6 +496,7 @@ function renderMarkdown(rawText) {
             continue;
         }
 
+        // Tabela GFM
         const tableTry = tryParseTable(lines, i);
         if (tableTry) {
             flushList(); flushOrdered(); flushBlockquote(); flushPara();
@@ -656,9 +583,9 @@ function applyInline(text) {
     text = text.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
         '<a class="md-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    text = text.replace(/(?<!["">])(https?:\/\/[^\s<>"']+)/g,
+    text = text.replace(/(?<![">])(https?:\/\/[^\s<>"']+)/g,
         '<a class="md-link" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-    text = text.replace(/(?<!["">@\w])([\w.+-]+@[\w-]+\.[\w.-]+)(?![\w])/g,
+    text = text.replace(/(?<![">@\w])([\w.+-]+@[\w-]+\.[\w.-]+)(?![\w])/g,
         '<a class="md-link" href="mailto:$1">$1</a>');
     text = text.replace(/==([^=\n]+)==/g, '<mark class="md-mark">$1</mark>');
     return text;
@@ -671,7 +598,7 @@ function copyCodeBlock(btn) {
 }
 
 /* =========================================================================
-   GRAVAÇÃO DE VOZ
+   GRAVAÇÃO DE VOZ — OVERLAY COM ONDA
    ========================================================================= */
 
 let mediaRecorder = null;
@@ -994,7 +921,7 @@ async function handleRecordingStop() {
 }
 
 /* =========================================================================
-   LOTTIE LOADER
+   LOTTIE LOADER (para resposta da IA e transcrição)
    ========================================================================= */
 
 let _lottieInstance = null;
@@ -1052,187 +979,14 @@ function hideLottieLoader() {
 }
 
 /* =========================================================================
-   MODAL INCÓGNITO
-   ========================================================================= */
-
-function showIncognitoModal(isActive) {
-    document.getElementById('incognitoModalOverlay')?.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'incognitoModalOverlay';
-    overlay.style.cssText = `
-        position:fixed;inset:0;z-index:3000;
-        display:flex;align-items:flex-end;justify-content:center;
-        background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);
-        opacity:0;transition:opacity 0.25s ease;
-    `;
-
-    const sheet = document.createElement('div');
-    sheet.style.cssText = `
-        background:#fff;
-        border-radius:28px 28px 0 0;
-        width:100%;max-width:480px;
-        padding:12px 24px 40px;
-        transform:translateY(100%);
-        transition:transform 0.32s cubic-bezier(0.32,0.72,0,1);
-        text-align:center;
-    `;
-
-    const handle = document.createElement('div');
-    handle.style.cssText = `
-        width:36px;height:4px;border-radius:2px;
-        background:rgba(0,0,0,0.15);margin:0 auto 28px;
-    `;
-
-    const iconEl = document.createElement('div');
-    iconEl.style.cssText = 'font-size:52px;margin-bottom:14px;';
-    iconEl.textContent = '🕵️';
-
-    const titleEl = document.createElement('div');
-    titleEl.style.cssText = 'font-size:20px;font-weight:700;color:#111;margin-bottom:10px;';
-    titleEl.textContent = 'Conversa Privada';
-
-    const descEl = document.createElement('div');
-    descEl.style.cssText = 'font-size:14px;color:#666;line-height:1.6;margin-bottom:32px;';
-
-    const actionBtn = document.createElement('button');
-    actionBtn.className = 'pulse-tap';
-    actionBtn.style.cssText = `
-        width:100%;height:54px;border-radius:16px;border:none;cursor:pointer;
-        font-size:16px;font-weight:700;margin-bottom:12px;
-    `;
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'pulse-tap';
-    cancelBtn.style.cssText = `
-        width:100%;height:54px;border-radius:16px;border:none;cursor:pointer;
-        font-size:16px;font-weight:600;background:#F2F2F7;color:#111;
-    `;
-    cancelBtn.textContent = 'Cancelar';
-
-    if (!isActive) {
-        descEl.textContent = 'Esta conversa não será guardada. Não será possível desativar o modo incógnito durante a conversa.';
-        actionBtn.style.background = '#111';
-        actionBtn.style.color = '#fff';
-        actionBtn.textContent = 'Ativar modo incógnito';
-        actionBtn.onclick = () => {
-            close();
-            chatState.startIncognito();
-            renderChatPage();
-            showToast('Conversa privada ativada');
-        };
-    } else {
-        descEl.textContent = 'Ao sair do modo incógnito, toda a conversa atual será eliminada permanentemente.';
-        actionBtn.style.background = '#EF4444';
-        actionBtn.style.color = '#fff';
-        actionBtn.textContent = 'Sair do modo incógnito';
-        actionBtn.onclick = () => {
-            close();
-            chatState.exitIncognito();
-            renderChatPage();
-            showToast('Modo incógnito desativado');
-        };
-    }
-
-    cancelBtn.onclick = close;
-
-    sheet.appendChild(handle);
-    sheet.appendChild(iconEl);
-    sheet.appendChild(titleEl);
-    sheet.appendChild(descEl);
-    sheet.appendChild(actionBtn);
-    sheet.appendChild(cancelBtn);
-    overlay.appendChild(sheet);
-    document.body.appendChild(overlay);
-
-    requestAnimationFrame(() => {
-        overlay.style.opacity = '1';
-        sheet.style.transform = 'translateY(0)';
-    });
-
-    function close() {
-        overlay.style.opacity = '0';
-        sheet.style.transform = 'translateY(100%)';
-        setTimeout(() => overlay.remove(), 350);
-    }
-
-    overlay.onclick = (e) => { if (e.target === overlay) close(); };
-}
-
-/* =========================================================================
-   MODAL SELETOR DE MODELO
-   ========================================================================= */
-
-function showModelPicker() {
-    document.getElementById('modelPickerOverlay')?.remove();
-
-    const colors = getThemeColors();
-    const dialogBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
-    const dividerColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-
-    const overlay = document.createElement('div');
-    overlay.className = 'popup-card-overlay';
-    overlay.id = 'modelPickerOverlay';
-    overlay.style.zIndex = '230';
-
-    const dialog = document.createElement('div');
-    dialog.className = 'center-dialog';
-    dialog.id = 'modelPickerBox';
-    dialog.style.background = dialogBg;
-    dialog.style.padding = '8px 0 12px';
-    dialog.style.zIndex = '231';
-
-    let rowsHtml = `<div style="padding:10px 20px 12px;"><span style="font-size:16px;font-weight:700;color:${colors.textPrimary};">Modelo de IA</span></div>`;
-
-    AVAILABLE_MODELS.forEach((model) => {
-        const isActive = model.id === currentModelId;
-        rowsHtml += `
-        <button class="pulse-tap model-pick-row" data-model-id="${model.id}" style="width:100%;display:flex;align-items:center;padding:13px 20px;background:none;border:none;cursor:pointer;border-top:1px solid ${dividerColor};text-align:left;">
-            <span style="flex:1;min-width:0;">
-                <span style="display:block;font-size:15px;font-weight:600;color:${isActive ? colors.primary : colors.textPrimary};">${model.name}</span>
-                <span style="display:block;font-size:12.5px;color:${colors.textSecondary};margin-top:1px;">${model.description}</span>
-            </span>
-            ${isActive ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${colors.primary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
-        </button>`;
-    });
-
-    dialog.innerHTML = rowsHtml;
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
-
-    requestAnimationFrame(() => {
-        overlay.classList.add('open');
-        dialog.classList.add('open');
-    });
-
-    function close() {
-        overlay.classList.remove('open');
-        dialog.classList.remove('open');
-        setTimeout(() => overlay.remove(), 240);
-    }
-
-    overlay.onclick = (e) => { if (e.target === overlay) close(); };
-    dialog.querySelectorAll('.model-pick-row').forEach(row => {
-        row.onclick = () => {
-            currentModelId = row.getAttribute('data-model-id');
-            close();
-            const titleEl = document.getElementById('appBarTitle');
-            if (titleEl) titleEl.textContent = getCurrentModelName();
-            showToast(`Modelo: ${getCurrentModelName()}`);
-        };
-    });
-}
-
-/* =========================================================================
    PÁGINA DE CHAT
    ========================================================================= */
 
 function renderChatPage() {
+    // O splash NÃO aparece aqui — só na abertura inicial do site (app.js).
+
     const colors = getThemeColors();
     const hasMessages = chatState.displayMessages.length > 0;
-
-    // ícone incógnito: filled se ativo, outline se não
-    const incognitoIconName = chatState.isIncognito ? 'incognito' : 'incognito';
 
     document.getElementById('app').innerHTML = `
     <div id="chatApp" class="h-full w-full flex flex-col relative overflow-hidden">
@@ -1260,10 +1014,6 @@ function renderChatPage() {
                 <span class="icon-mask" style="mask-image: url('assets/icons/svg/incognito.svg'); -webkit-mask-image: url('assets/icons/svg/incognito.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
             </button>
 
-            <button id="incognitoActiveBtn" class="pulse-tap circular w-10 h-10 px-2 ${chatState.isIncognito ? '' : 'hidden'}" title="Sair do modo incógnito">
-                <span class="icon-mask" style="mask-image: url('assets/icons/svg/incognito.svg'); -webkit-mask-image: url('assets/icons/svg/incognito.svg'); width: 18px; height: 18px; background: #6F5AF6;"></span>
-            </button>
-
             <button id="newChatBtn" class="pulse-tap circular w-10 h-10 px-2 ${hasMessages ? '' : 'hidden'}" style="color: ${colors.iconTint}">
                 <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 17px; height: 17px; background: ${colors.iconTint};"></span>
             </button>
@@ -1274,42 +1024,42 @@ function renderChatPage() {
 
         <div class="drawer-overlay" id="drawerOverlay"></div>
 
-        <div class="drawer ${isDarkMode ? 'dark' : 'light'}" id="drawer" style="background:#FFFFFF !important;">
+        <div class="drawer ${isDarkMode ? 'dark' : 'light'}" id="drawer">
             <div class="drawer-header">
                 <div class="drawer-header-left">
                     <img src="assets/icons/png/logo.png" class="drawer-logo" alt="Logo" />
-                    <div class="drawer-app-name" style="color: #000000">Nexa</div>
+                    <div class="drawer-app-name" style="color: ${colors.drawerText}">Nexa</div>
                 </div>
-                <button id="newChatDrawerBtn" class="pulse-tap circular w-9 h-9 flex items-center justify-center" style="color: #000000" title="Nova conversa">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 17px; height: 17px; background: #000000;"></span>
+                <button id="newChatDrawerBtn" class="pulse-tap circular w-9 h-9 flex items-center justify-center" style="color: ${colors.iconTint}" title="Nova conversa">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 17px; height: 17px; background: ${colors.iconTint};"></span>
                 </button>
             </div>
 
             <div class="drawer-menu-section" id="drawerMenuSection">
-                <div class="drawer-menu-item pulse-tap" id="profileTile" style="color: #000000">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/user.svg'); -webkit-mask-image: url('assets/icons/svg/user.svg'); width: 18px; height: 18px; background: #000000;"></span>
+                <div class="drawer-menu-item pulse-tap" id="profileTile" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/user.svg'); -webkit-mask-image: url('assets/icons/svg/user.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">${authState.user?.name || 'Perfil'}</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="projectsDrawerBtn" style="color: #000000">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/folder.svg'); -webkit-mask-image: url('assets/icons/svg/folder.svg'); width: 18px; height: 18px; background: #000000;"></span>
+                <div class="drawer-menu-item pulse-tap" id="projectsDrawerBtn" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/folder.svg'); -webkit-mask-image: url('assets/icons/svg/folder.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Projetos</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="extrasDrawerBtn" style="color: #000000">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/extras.svg'); -webkit-mask-image: url('assets/icons/svg/extras.svg'); width: 18px; height: 18px; background: #000000;"></span>
+                <div class="drawer-menu-item pulse-tap" id="extrasDrawerBtn" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/extras.svg'); -webkit-mask-image: url('assets/icons/svg/extras.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Extras</span>
                 </div>
-                <div class="drawer-menu-item pulse-tap" id="settingsDrawerBtn" style="color: #000000">
-                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/settings.svg'); -webkit-mask-image: url('assets/icons/svg/settings.svg'); width: 18px; height: 18px; background: #000000;"></span>
+                <div class="drawer-menu-item pulse-tap" id="settingsDrawerBtn" style="color: ${colors.drawerText}">
+                    <span class="icon-mask" style="mask-image: url('assets/icons/svg/settings.svg'); -webkit-mask-image: url('assets/icons/svg/settings.svg'); width: 18px; height: 18px; background: ${colors.iconTint};"></span>
                     <span class="drawer-menu-label">Definições</span>
                 </div>
             </div>
 
-            <div class="drawer-section-divider" style="background: #E5E5EA"></div>
+            <div class="drawer-section-divider" style="background: ${colors.divider}"></div>
 
             <div class="drawer-conv-section-header pulse-tap" id="convSectionToggle">
-                <span class="icon-mask" style="mask-image: url('assets/icons/svg/meassage.svg'); -webkit-mask-image: url('assets/icons/svg/meassage.svg'); width: 16px; height: 16px; background: #888888;"></span>
-                <span class="drawer-conv-section-label" style="color: #888888">CONVERSAS</span>
-                <span class="icon-mask drawer-conv-chevron" id="convSectionChevron" style="mask-image: url('assets/icons/svg/chevron_right.svg'); -webkit-mask-image: url('assets/icons/svg/chevron_right.svg'); width: 11px; height: 11px; background: #888888; transform: rotate(90deg);"></span>
+                <span class="icon-mask" style="mask-image: url('assets/icons/svg/meassage.svg'); -webkit-mask-image: url('assets/icons/svg/meassage.svg'); width: 16px; height: 16px; background: ${colors.settings_section_label};"></span>
+                <span class="drawer-conv-section-label" style="color: ${colors.settings_section_label}">CONVERSAS</span>
+                <span class="icon-mask drawer-conv-chevron" id="convSectionChevron" style="mask-image: url('assets/icons/svg/chevron_right.svg'); -webkit-mask-image: url('assets/icons/svg/chevron_right.svg'); width: 11px; height: 11px; background: ${colors.settings_section_label}; transform: rotate(90deg);"></span>
             </div>
 
             <div class="drawer-conv-list-outer" id="conversationsListOuter">
@@ -1427,15 +1177,18 @@ function bindChatEvents() {
         chatState.resetConversation();
         closeDrawer();
     };
-    document.getElementById('projectsDrawerBtn').onclick = () => { closeDrawer(); renderProjectsPage(); };
+    document.getElementById('projectsDrawerBtn').onclick = () => { closeDrawer(); showToast('Projetos em breve'); };
     document.getElementById('extrasDrawerBtn').onclick = () => { closeDrawer(); setTimeout(() => showExtrasSheet(), 300); };
     document.getElementById('settingsDrawerBtn').onclick = () => { closeDrawer(); renderSettingsPage(); };
     document.getElementById('convSectionToggle').onclick = () => toggleConversationsSection();
 
     document.getElementById('modelSelectorBtn').onclick = () => showModelPicker();
 
-    document.getElementById('incognitoStartBtn').onclick = () => showIncognitoModal(false);
-    document.getElementById('incognitoActiveBtn').onclick = () => showIncognitoModal(true);
+    document.getElementById('incognitoStartBtn').onclick = () => {
+        chatState.startIncognito();
+        renderChatPage();
+        showToast('Conversa privada ativada');
+    };
 
     document.getElementById('newChatBtn').onclick = () => {
         if (chatState.isIncognito) { showToast('Não é possível sair da conversa privada'); return; }
@@ -1447,10 +1200,6 @@ function bindChatEvents() {
     document.getElementById('addBtn').onclick = () => showAddPopup();
     document.getElementById('editBtn').onclick = () => showEditModal();
     document.getElementById('sendBtn').onclick = () => {
-        if (_editingMessageIdx !== null) {
-            confirmEditFromBottomBar();
-            return;
-        }
         const text = document.getElementById('textInput').value;
         if ((text.trim() || chatState.pendingAttachments.length) && !chatState.isStreaming) sendMessage(text);
     };
@@ -1468,10 +1217,6 @@ function bindChatEvents() {
             if (isMobile) return;
             if (!e.shiftKey) {
                 e.preventDefault();
-                if (_editingMessageIdx !== null) {
-                    confirmEditFromBottomBar();
-                    return;
-                }
                 if ((textInput.value.trim() || chatState.pendingAttachments.length) && !chatState.isStreaming) {
                     sendMessage(textInput.value);
                 }
@@ -1515,13 +1260,11 @@ function updateChatUI() {
     const newChatBtn = document.getElementById('newChatBtn');
     const moreBtn = document.getElementById('moreBtn');
     const incognitoStartBtn = document.getElementById('incognitoStartBtn');
-    const incognitoActiveBtn = document.getElementById('incognitoActiveBtn');
     const incognitoPill = document.getElementById('incognitoPill');
 
     if (newChatBtn) newChatBtn.classList.toggle('hidden', !hasMessages);
     if (moreBtn) moreBtn.classList.toggle('hidden', !hasMessages);
     if (incognitoStartBtn) incognitoStartBtn.classList.toggle('hidden', hasMessages || chatState.isIncognito);
-    if (incognitoActiveBtn) incognitoActiveBtn.classList.toggle('hidden', !chatState.isIncognito);
     if (incognitoPill) incognitoPill.classList.toggle('hidden', !chatState.isIncognito);
 
     document.getElementById('emptyState').style.display = hasMessages ? 'none' : 'flex';
@@ -1531,14 +1274,21 @@ function updateChatUI() {
     renderConversationsList();
     updateSendButton();
     renderAttachmentsPreview();
+    scrollToBottom();
 }
 
 function updateSendButton() {
     const hasText = document.getElementById('textInput')?.value.trim().length > 0;
     const hasAttachments = chatState.pendingAttachments.length > 0;
-    const isEditing = _editingMessageIdx !== null;
-    document.getElementById('sendBtn')?.classList.toggle('hidden', !hasText && !hasAttachments && !isEditing);
-    document.getElementById('micBtn')?.classList.toggle('hidden', hasText || hasAttachments || isEditing);
+    document.getElementById('sendBtn')?.classList.toggle('hidden', !hasText && !hasAttachments);
+    document.getElementById('micBtn')?.classList.toggle('hidden', hasText || hasAttachments);
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+    requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });
+    setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
 }
 
 /* =========================================================================
@@ -1794,7 +1544,7 @@ function regenerateLastResponse() {
 }
 
 /* =========================================================================
-   OPÇÕES DA MENSAGEM DO USER (long-press)
+   OPÇÕES DA MENSAGEM DO USER (long-press) — copiar / editar / eliminar
    ========================================================================= */
 
 function showUserMessageOptions(msg, idx) {
@@ -1820,10 +1570,7 @@ function showUserMessageOptions(msg, idx) {
         },
         {
             icon: 'customise', label: 'Editar', danger: false,
-            action: () => {
-                closeAllModals();
-                setTimeout(() => enterEditMode(idx), 200);
-            }
+            action: () => { closeAllModals(); setTimeout(() => showEditUserMessageDialog(msg, idx), 200); }
         },
         {
             icon: 'trash', label: 'Eliminar mensagem', danger: true,
@@ -1869,6 +1616,98 @@ function showUserMessageOptions(msg, idx) {
     openModalSheet();
 }
 
+function showEditUserMessageDialog(msg, idx) {
+    document.getElementById('editMsgOverlay')?.remove();
+
+    const colors = getThemeColors();
+    const dialogBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
+    const inputBg  = isDarkMode ? '#2C2C2E' : '#F2F2F7';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'editMsgOverlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'center-dialog';
+    dialog.id = 'editMsgBox';
+    dialog.style.background = dialogBg;
+    dialog.style.width = 'min(92vw, 380px)';
+
+    const title = document.createElement('div');
+    title.className = 'center-dialog-title';
+    title.style.color = colors.textPrimary;
+    title.textContent = 'Editar mensagem';
+    dialog.appendChild(title);
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'center-dialog-input';
+    textarea.value = msg.content;
+    textarea.rows = 4;
+    textarea.style.color = colors.textPrimary;
+    textarea.style.background = inputBg;
+    textarea.style.borderColor = colors.divider;
+    textarea.style.resize = 'vertical';
+    textarea.style.fontFamily = 'inherit';
+    dialog.appendChild(textarea);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'center-dialog-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'center-dialog-btn cancel pulse-tap';
+    cancelBtn.style.color = colors.textPrimary;
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.onclick = closeEditMsgDialog;
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'center-dialog-btn confirm pulse-tap';
+    saveBtn.style.background = colors.primary;
+    saveBtn.style.color = '#fff';
+    saveBtn.textContent = 'Guardar e reenviar';
+    saveBtn.onclick = () => confirmEditUserMessage(idx, textarea.value);
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(saveBtn);
+    dialog.appendChild(btnRow);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+        overlay.classList.add('open');
+        dialog.classList.add('open');
+    });
+
+    overlay.onclick = (e) => { if (e.target === overlay) closeEditMsgDialog(); };
+    setTimeout(() => { textarea.focus(); }, 260);
+}
+
+function closeEditMsgDialog() {
+    const overlay = document.getElementById('editMsgOverlay');
+    const dialog  = document.getElementById('editMsgBox');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    dialog?.classList.remove('open');
+    setTimeout(() => overlay.remove(), 240);
+}
+
+function confirmEditUserMessage(idx, newTextRaw) {
+    const newText = (newTextRaw || '').trim();
+    if (!newText) { showToast('A mensagem não pode estar vazia'); return; }
+    closeEditMsgDialog();
+
+    if (chatState.isStreaming) return;
+
+    const msg = chatState.displayMessages[idx];
+    if (!msg) return;
+    const attachments = msg.attachments || [];
+
+    chatState.displayMessages = chatState.displayMessages.slice(0, idx);
+    chatState.chatHistory = chatState.chatHistory.slice(0, idx);
+    chatState.notify();
+
+    setTimeout(() => sendMessage(newText, attachments, true), 150);
+}
+
 function deleteUserMessage(idx) {
     const msg = chatState.displayMessages[idx];
     if (!msg) return;
@@ -1895,14 +1734,15 @@ function deleteUserMessage(idx) {
 function renderConversationsList() {
     const list = document.getElementById('conversationsList');
     if (!list) return;
+    const colors = getThemeColors();
     list.innerHTML = '';
 
     if (conversations.length === 0) {
         const empty = document.createElement('div');
         empty.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 10px; opacity: 0.45;';
         empty.innerHTML = `
-            <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 28px; height: 28px; background: #888888;"></span>
-            <span style="font-size:13px; color:#888888; text-align:center;">Ainda não há conversas</span>`;
+            <span class="icon-mask" style="mask-image: url('assets/icons/svg/new_chat.svg'); -webkit-mask-image: url('assets/icons/svg/new_chat.svg'); width: 28px; height: 28px; background: ${colors.textHint};"></span>
+            <span style="font-size:13px; color:${colors.textHint}; text-align:center;">Ainda não há conversas</span>`;
         list.appendChild(empty);
         return;
     }
@@ -1911,7 +1751,7 @@ function renderConversationsList() {
         const item = document.createElement('div');
         item.className = 'drawer-conv-item pulse-tap';
         const isActive = conv.id === chatState.currentConversationId;
-        item.style.backgroundColor = isActive ? 'rgba(47,123,246,0.08)' : 'transparent';
+        item.style.backgroundColor = isActive ? (colors.extrasCardActiveText + '12') : 'transparent';
         item.onclick = () => openConversation(conv);
 
         let pressTimer = null;
@@ -1929,13 +1769,14 @@ function renderConversationsList() {
         if (conv.pinned) {
             const pinIcon = document.createElement('span');
             pinIcon.className = 'icon-mask drawer-conv-pin-icon';
-            pinIcon.style.cssText = `mask-image: url('assets/icons/svg/pin_filled.svg'); -webkit-mask-image: url('assets/icons/svg/pin_filled.svg'); background: ${isActive ? '#2F7BF6' : '#888888'};`;
+            const pinColor = isActive ? colors.extrasCardActiveText : colors.iconTintSecondary;
+            pinIcon.style.cssText = `mask-image: url('assets/icons/svg/pin_filled.svg'); -webkit-mask-image: url('assets/icons/svg/pin_filled.svg'); background: ${pinColor};`;
             item.appendChild(pinIcon);
         }
 
         const title = document.createElement('div');
         title.className = 'drawer-conv-title';
-        title.style.color = isActive ? '#2F7BF6' : '#000000';
+        title.style.color = isActive ? colors.extrasCardActiveText : colors.drawerText;
         title.textContent = conv.title;
 
         item.appendChild(title);
@@ -2241,61 +2082,71 @@ function openConversation(conv) {
 }
 
 /* =========================================================================
-   TELA DE PROJETOS
+   SELETOR DE MODELO (sempre presente na appbar, mesmo sem conversa)
    ========================================================================= */
 
-function renderProjectsPage() {
+function showModelPicker() {
+    document.getElementById('modelPickerOverlay')?.remove();
+
     const colors = getThemeColors();
-    const bg = isDarkMode ? colors.background : '#F5F5F7';
+    const dialogBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
+    const dividerColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
 
-    document.getElementById('settingsBackdrop')?.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-card-overlay';
+    overlay.id = 'modelPickerOverlay';
+    overlay.style.zIndex = '230';
 
-    const backdrop = document.createElement('div');
-    backdrop.id = 'projectsBackdrop';
-    backdrop.className = 'settings-backdrop';
+    const dialog = document.createElement('div');
+    dialog.className = 'center-dialog';
+    dialog.id = 'modelPickerBox';
+    dialog.style.background = dialogBg;
+    dialog.style.padding = '8px 0 12px';
+    dialog.style.zIndex = '231';
 
-    const card = document.createElement('div');
-    card.className = 'settings-card';
-    card.style.background = isDarkMode ? '#161616' : '#F5F5F7';
+    let rowsHtml = `<div style="padding:10px 20px 12px;"><span style="font-size:16px;font-weight:700;color:${colors.textPrimary};">Modelo de IA</span></div>`;
 
-    card.innerHTML = `
-        <div style="display:flex;align-items:center;height:56px;padding:0 8px 0 18px;flex-shrink:0;background:${isDarkMode ? '#161616' : '#F5F5F7'};">
-            <h1 style="font-size:17px;font-weight:700;color:${colors.textPrimary};margin:0;flex:1;">Projetos</h1>
-            <button id="closeProjectsBtn" class="pulse-tap" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;border-radius:50%;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${colors.textPrimary}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-            </button>
-        </div>
-        <div class="settings-card-scroll" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;padding:24px;">
-            <div style="font-size:52px;">📁</div>
-            <div style="font-size:20px;font-weight:700;color:${colors.textPrimary};text-align:center;">Projetos</div>
-            <div style="font-size:14px;color:${colors.textSecondary};text-align:center;max-width:260px;line-height:1.6;">
-                Organiza as tuas conversas em projetos. Em breve disponível.
-            </div>
-            <button class="pulse-tap" style="margin-top:8px;padding:12px 28px;border-radius:14px;background:${colors.primary};border:none;cursor:pointer;font-size:15px;font-weight:700;color:#fff;">
-                Em breve
-            </button>
-        </div>`;
+    AVAILABLE_MODELS.forEach((model) => {
+        const isActive = model.id === currentModelId;
+        rowsHtml += `
+        <button class="pulse-tap model-pick-row" data-model-id="${model.id}" style="width:100%;display:flex;align-items:center;padding:13px 20px;background:none;border:none;cursor:pointer;border-top:1px solid ${dividerColor};text-align:left;">
+            <span style="flex:1;min-width:0;">
+                <span style="display:block;font-size:15px;font-weight:600;color:${isActive ? colors.primary : colors.textPrimary};">${model.name}</span>
+                <span style="display:block;font-size:12.5px;color:${colors.textSecondary};margin-top:1px;">${model.description}</span>
+            </span>
+            ${isActive ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${colors.primary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+        </button>`;
+    });
 
-    backdrop.appendChild(card);
-    document.body.appendChild(backdrop);
+    dialog.innerHTML = rowsHtml;
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
 
-    requestAnimationFrame(() => backdrop.classList.add('open'));
+    requestAnimationFrame(() => {
+        overlay.classList.add('open');
+        dialog.classList.add('open');
+    });
 
-    backdrop.onclick = (e) => { if (e.target === backdrop) closeProjectsPage(); };
-    card.querySelector('#closeProjectsBtn').onclick = closeProjectsPage;
-}
+    function close() {
+        overlay.classList.remove('open');
+        dialog.classList.remove('open');
+        setTimeout(() => overlay.remove(), 240);
+    }
 
-function closeProjectsPage() {
-    const backdrop = document.getElementById('projectsBackdrop');
-    if (!backdrop) return;
-    backdrop.classList.remove('open');
-    setTimeout(() => backdrop.remove(), 280);
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+    dialog.querySelectorAll('.model-pick-row').forEach(row => {
+        row.onclick = () => {
+            currentModelId = row.getAttribute('data-model-id');
+            close();
+            const titleEl = document.getElementById('appBarTitle');
+            if (titleEl) titleEl.textContent = getCurrentModelName();
+            showToast(`Modelo: ${getCurrentModelName()}`);
+        };
+    });
 }
 
 /* =========================================================================
-   ANEXOS
+   ANEXOS (imagens / ficheiros) — leitura real e pré-visualização
    ========================================================================= */
 
 function readFileAsDataUrl(file) {
@@ -2396,20 +2247,14 @@ async function sendMessage(text, attachmentsOverride, skipClearInput) {
         renderAttachmentsPreview();
     }
     updateSendButton();
-    scrollToBottom(true);
+    scrollToBottom();
 
     const think = chatState.thinkMoreMode;
     const assistantIndex = chatState.addAssistantPlaceholder(think);
-    scrollToBottom(true);
+    scrollToBottom();
 
     const token        = authState.user?.token || '';
-
-    // System prompt com personalização da IA
-    const personalityInstructions = buildAiPersonalityInstructions();
-    const baseSystemPrompt = GeminiApiService.buildSystemPrompt(currentLanguage, chatState.sheetsEnabled);
-    const systemPrompt = personalityInstructions
-        ? baseSystemPrompt + '\n\n' + personalityInstructions
-        : baseSystemPrompt;
+    const systemPrompt = GeminiApiService.buildSystemPrompt(currentLanguage, chatState.sheetsEnabled);
 
     try {
         const stream = GeminiApiService.streamChat({
@@ -2420,39 +2265,22 @@ async function sendMessage(text, attachmentsOverride, skipClearInput) {
             language: currentLanguage
         });
 
-        let lineBuffer = '';
-
         for await (const chunk of stream) {
             switch (chunk.type) {
                 case 'think':
                     chatState.appendThinkToken(assistantIndex, chunk.text);
                     break;
-                case 'token': {
-                    // Acumula no buffer e renderiza linha a linha
-                    lineBuffer += chunk.text;
-                    const newlineIdx = lineBuffer.lastIndexOf('\n');
-                    if (newlineIdx !== -1) {
-                        // Há pelo menos uma linha completa — entrega tudo até aí
-                        const toAppend = lineBuffer.slice(0, newlineIdx + 1);
-                        lineBuffer = lineBuffer.slice(newlineIdx + 1);
-                        chatState.appendToken(assistantIndex, toAppend);
-                        scrollToBottom();
-                    }
+                case 'token':
+                    chatState.appendToken(assistantIndex, chunk.text);
+                    scrollToBottom();
                     break;
-                }
-                case 'done': {
-                    // Entrega o que sobrou no buffer
-                    if (lineBuffer) {
-                        chatState.appendToken(assistantIndex, lineBuffer);
-                        lineBuffer = '';
-                    }
+                case 'done':
                     chatState.finishAssistantMessage(
                         assistantIndex,
                         chunk.fullText || chatState.displayMessages[assistantIndex].content,
                         chatState.displayMessages[assistantIndex].thinkingContent
                     );
                     break;
-                }
                 case 'error':
                     chatState.failAssistantMessage(assistantIndex, chunk.message);
                     break;
@@ -2464,35 +2292,12 @@ async function sendMessage(text, attachmentsOverride, skipClearInput) {
 
     chatState.isStreaming = false;
     chatState.notify();
-    scrollToBottom(true);
+    scrollToBottom();
 
-    // Título via IA na primeira mensagem
     if (isFirstMessage && !chatState.titleGenerated) {
         chatState.titleGenerated = true;
-        try {
-            const titleRes = await fetch(`${API_BASE}/ai/title`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    message: trimmed,
-                    language: currentLanguage || 'pt',
-                    systemPrompt: `Gera um título curto e descritivo (máximo 5 palavras) para esta conversa. Responde APENAS com o título, sem aspas, sem pontuação final, sem explicação. Formato: <chat_title>Título da Conversa</chat_title>`
-                })
-            });
-            if (titleRes.ok) {
-                const titleData = await titleRes.json();
-                let rawTitle = titleData.title || trimmed.trim().split(/\s+/).slice(0, 4).join(' ').substring(0, 40);
-                // Extrai <chat_title>...</chat_title> se existir
-                const match = rawTitle.match(/<chat_title>([\s\S]*?)<\/chat_title>/i);
-                if (match) rawTitle = match[1].trim();
-                chatState.currentConversationTitle = rawTitle;
-            }
-        } catch (e) {
-            chatState.currentConversationTitle = trimmed.trim().split(/\s+/).slice(0, 4).join(' ').substring(0, 40);
-        }
+        const title = await GeminiApiService.generateTitle(trimmed, token, currentLanguage);
+        chatState.currentConversationTitle = title;
     }
 
     if (chatState.isIncognito) return;

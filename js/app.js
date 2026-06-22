@@ -6,7 +6,9 @@ const MODEL_ID = 'gemini-2.5-flash';
 
 const AVAILABLE_MODELS = [
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Rápido e equilibrado' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Mais capaz para tarefas complexas' }
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Mais capaz para tarefas complexas' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Velocidade máxima' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Contexto longo e raciocínio' }
 ];
 
 let currentModelId = MODEL_ID;
@@ -54,6 +56,60 @@ function setCurrentLanguage(code) {
     try { localStorage.setItem(LANG_STORAGE_KEY, code); } catch (e) {}
 }
 
+/* =========================================================================
+   PREFERÊNCIAS DE PERSONALIZAÇÃO DA IA
+   ========================================================================= */
+
+const AI_PREFS_KEY = 'nexa_ai_prefs_v1';
+
+const DEFAULT_AI_PREFS = {
+    style: 'equilibrado', // 'gentil' | 'direto' | 'equilibrado' | 'formal' | 'humoristico'
+    emojiLevel: 1, // 0 = sem emojis | 1 = normal | 2 = muitos
+    customPrompt: '' // prompt livre do utilizador
+};
+
+function loadAiPrefs() {
+    try {
+        const raw = localStorage.getItem(AI_PREFS_KEY);
+        return raw ? { ...DEFAULT_AI_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_AI_PREFS };
+    } catch (e) { return { ...DEFAULT_AI_PREFS }; }
+}
+
+function saveAiPrefs(prefs) {
+    try { localStorage.setItem(AI_PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
+}
+
+let aiPrefs = loadAiPrefs();
+
+function buildAiPersonalityInstructions() {
+    const styleMap = {
+        gentil: 'Sê sempre muito gentil, empático e encorajador nas tuas respostas.',
+        direto: 'Sê direto, conciso e vai ao ponto sem rodeios desnecessários.',
+        equilibrado: '',
+        formal: 'Usa um tom formal e profissional em todas as respostas.',
+        humoristico: 'Podes ser bem-humorado e descontraído, com um toque de humor quando adequado.'
+    };
+    const emojiMap = {
+        0: 'Não uses absolutamente nenhum emoji nas tuas respostas.',
+        1: '',
+        2: 'Usa emojis com frequência para tornar as respostas mais expressivas e visuais.'
+    };
+    
+    const parts = [];
+    const styleInstruction = styleMap[aiPrefs.style] || '';
+    const emojiInstruction = emojiMap[aiPrefs.emojiLevel] ?? '';
+    if (styleInstruction) parts.push(styleInstruction);
+    if (emojiInstruction) parts.push(emojiInstruction);
+    if (aiPrefs.customPrompt && aiPrefs.customPrompt.trim()) {
+        parts.push('Instruções adicionais do utilizador: ' + aiPrefs.customPrompt.trim());
+    }
+    return parts.join('\n');
+}
+
+/* =========================================================================
+   CORES / TEMAS
+   ========================================================================= */
+
 const lightColors = {
     background: '#FFFFFF',
     textPrimary: '#212730',
@@ -62,7 +118,7 @@ const lightColors = {
     iconTint: '#000000',
     iconTintSecondary: '#888888',
     divider: '#E5E5EA',
-    drawerBackground: '#F2F2F7',
+    drawerBackground: '#FFFFFF',
     drawerText: '#000000',
     bottomBarSolid: '#FFFFFF',
     dialogBackground: '#F2F2F7',
@@ -142,7 +198,7 @@ function toggleDarkMode() {
 }
 
 /* =========================================================================
-   SPLASH SCREEN — ícone centrado, fundo sólido, fade out limpo
+   SPLASH SCREEN
    ========================================================================= */
 function buildInitialSplashHTML() {
     const bg = isDarkMode ? '#121212' : '#FFFFFF';

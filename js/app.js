@@ -62,7 +62,7 @@ const lightColors = {
     iconTint: '#000000',
     iconTintSecondary: '#888888',
     divider: '#E5E5EA',
-    drawerBackground: '#F2F2F7',
+    drawerBackground: '#FFFFFF',
     drawerText: '#000000',
     bottomBarSolid: '#FFFFFF',
     dialogBackground: '#F2F2F7',

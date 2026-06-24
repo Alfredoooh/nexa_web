@@ -15,7 +15,7 @@ const AuthApiService = {
       throw e;
     }
   },
-
+  
   async register(name, email, password) {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
@@ -30,7 +30,7 @@ const AuthApiService = {
       throw e;
     }
   },
-
+  
   async loginWithGoogle(idToken) {
     try {
       const res = await fetch(`${API_BASE}/auth/google`, {
@@ -45,7 +45,7 @@ const AuthApiService = {
       throw e;
     }
   },
-
+  
   async logout(token) {
     try {
       await fetch(`${API_BASE}/auth/logout`, {
@@ -54,7 +54,7 @@ const AuthApiService = {
       });
     } catch (e) { console.error('Logout error:', e); }
   },
-
+  
   async listConversations(token) {
     try {
       const res = await fetch(`${API_BASE}/conversations`, {
@@ -68,7 +68,7 @@ const AuthApiService = {
       return [];
     }
   },
-
+  
   async createConversation(token, title, messages) {
     try {
       const res = await fetch(`${API_BASE}/conversations`, {
@@ -87,7 +87,7 @@ const AuthApiService = {
       return null;
     }
   },
-
+  
   async updateConversation(token, id, title, messages) {
     try {
       await fetch(`${API_BASE}/conversations/${id}`, {
@@ -100,7 +100,7 @@ const AuthApiService = {
       });
     } catch (e) { console.error('Update conversation error:', e); }
   },
-
+  
   async deleteConversation(token, id) {
     try {
       await fetch(`${API_BASE}/conversations/${id}`, {
@@ -109,7 +109,7 @@ const AuthApiService = {
       });
     } catch (e) { console.error('Delete conversation error:', e); }
   },
-
+  
   async pinConversation(token, id, pinned) {
     try {
       await fetch(`${API_BASE}/conversations/${id}/pin`, {
@@ -125,9 +125,44 @@ const AuthApiService = {
 };
 
 /* =========================================================================
+   CRÉDITOS
+   ========================================================================= */
+
+const CreditsApiService = {
+  async getBalance(token) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/balance`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      console.error('Credits balance error:', e);
+      return null;
+    }
+  },
+  
+  async checkout(token, packageId) {
+    try {
+      const res = await fetch(`${API_BASE}/credits/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ package: packageId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar checkout');
+      return data;
+    } catch (e) {
+      throw e;
+    }
+  }
+};
+
+/* =========================================================================
    PROMPTS POR IDIOMA
-   Cada idioma tem o nome nativo da língua usado na instrução "responde
-   sempre em X", para o modelo nunca confundir a língua de resposta.
    ========================================================================= */
 
 const LANGUAGE_NATIVE_NAME = {
@@ -160,78 +195,14 @@ const GeminiApiService = {
     const tick = '```';
     const langCode = lang || 'pt';
     const langName = getLangNativeName(langCode);
-
-    const base = `És um assistente de IA integrado na app Nexa. Responde sempre em ${langName}, seja qual for a língua usada pelo utilizador, a menos que ele peça explicitamente outra língua.
-
-Não tens limite artificial de tamanho de resposta. Quando o pedido exigir um texto longo — uma história, um conto, um artigo extenso, um relatório, um guião, código extenso, ou qualquer conteúdo narrativo ou técnico de grande dimensão — escreve o texto completo, do início ao fim, sem o resumir, sem o encurtar e sem dizer que "não é capaz" de produzir textos longos. Gerar textos longos e detalhados É uma das tuas capacidades centrais. Continua a escrever até o conteúdo pedido estar completo, mesmo que isso exija várias secções ou parágrafos extensos.
-
-Adapta o tamanho da resposta ao que for pedido: respostas curtas e diretas para perguntas simples, e respostas longas, completas e bem desenvolvidas sempre que o pedido — explícita ou implicitamente — exigir profundidade, extensão ou um texto criativo longo.
-
-Usa formatação rica sempre que isso ajudar a clareza: títulos, listas, **negrito**, tabelas markdown normais quando fizer sentido, e notação matemática em LaTeX (com $...$ para expressões em linha e $$...$$ para fórmulas em destaque, incluindo \\sqrt{}, \\frac{}{}, expoentes, subscritos e símbolos gregos) sempre que a resposta envolver matemática.
-
-Para tabelas de dados que o utilizador vá querer interagir ou visualizar como widget, usa o formato widget_table:
-${tick}widget_table
-{"headers":["Coluna1","Coluna2"],"rows":[["val1","val2"]]}
-${tick}
-
-Para blocos de código simples de leitura/explicação, podes usar blocos de código markdown normais (${tick}linguagem ... ${tick}). Para blocos de código que beneficiem de um cartão interativo com botão de copiar dedicado, usa widget_code:
-${tick}widget_code
-{"language":"javascript","code":"// código aqui"}
-${tick}
-
-Quando a resposta envolver uma localização geográfica concreta, usa widget_map:
-${tick}widget_map
-{"lat":38.7169,"lng":-9.1399,"zoom":13}
-${tick}`;
-
-    const sheets = sheetsEnabled ? `
-
-
-Com o Sheets ativo podes também usar estes widgets adicionais quando relevante:
-
-Gráfico de barras:
-${tick}widget_bar
-{"data":[{"label":"Jan","value":35},{"label":"Fev","value":60}]}
-${tick}
-
-Gráfico de pizza:
-${tick}widget_pie
-{"data":[{"label":"A","value":40},{"label":"B","value":60}]}
-${tick}
-
-Folha de notas:
-${tick}widget_sheet
-{"lines":[{"text":"Título","title":true},{"text":"Linha de conteúdo"}]}
-${tick}
-
-Mercado financeiro (forex/crypto/stock):
-${tick}widget_market
-{"type":"crypto","symbol":"BTC","name":"Bitcoin"}
-${tick}
-
-Calendário:
-${tick}widget_calendar
-{"events":[{"date":"2025-06-20","name":"Reunião","time":"14:00","color":"#6F5AF6"}]}
-${tick}
-
-Temporizador:
-${tick}widget_timer
-{"seconds":300,"label":"Foco"}
-${tick}
-
-Mapa mental:
-${tick}widget_mindmap
-{"title":"Projeto","tree":{"id":"root","label":"Projeto","color":"#6F5AF6","children":[{"id":"1","label":"Fase 1","color":"#e74c3c","children":[]}]}}
-${tick}
-
-Gráfico matemático:
-${tick}widget_graph
-{"expression":"sin(x)","xMin":-10,"xMax":10}
-${tick}` : '';
-
+    
+    const base = `És um assistente de IA integrado na app Nexa. Responde sempre em ${langName}, seja qual for a língua usada pelo utilizador, a menos que ele peça explicitamente outra língua.\n\nNão tens limite artificial de tamanho de resposta. Quando o pedido exigir um texto longo — uma história, um conto, um artigo extenso, um relatório, um guião, código extenso, ou qualquer conteúdo narrativo ou técnico de grande dimensão — escreve o texto completo, do início ao fim, sem o resumir, sem o encurtar e sem dizer que "não é capaz" de produzir textos longos. Gerar textos longos e detalhados É uma das tuas capacidades centrais. Continua a escrever até o conteúdo pedido estar completo, mesmo que isso exija várias secções ou parágrafos extensos.\n\nAdapta o tamanho da resposta ao que for pedido: respostas curtas e diretas para perguntas simples, e respostas longas, completas e bem desenvolvidas sempre que o pedido — explícita ou implicitamente — exigir profundidade, extensão ou um texto criativo longo.\n\nUsa formatação rica sempre que isso ajudar a clareza: títulos, listas, **negrito**, tabelas markdown normais quando fizer sentido, e notação matemática em LaTeX (com $...$ para expressões em linha e $$...$$ para fórmulas em destaque, incluindo \\\\sqrt{}, \\\\frac{}{}, expoentes, subscritos e símbolos gregos) sempre que a resposta envolver matemática.\n\nPara tabelas de dados que o utilizador vá querer interagir ou visualizar como widget, usa o formato widget_table:\n${tick}widget_table\n{"headers":["Coluna1","Coluna2"],"rows":[["val1","val2"]]}\n${tick}\n\nPara blocos de código simples de leitura/explicação, podes usar blocos de código markdown normais (${tick}linguagem ... ${tick}). Para blocos de código que beneficiem de um cartão interativo com botão de copiar dedicado, usa widget_code:\n${tick}widget_code\n{"language":"javascript","code":"// código aqui"}\n${tick}\n\nQuando a resposta envolver uma localização geográfica concreta, usa widget_map:\n${tick}widget_map\n{"lat":38.7169,"lng":-9.1399,"zoom":13}\n${tick}`;
+    
+    const sheets = sheetsEnabled ? `\n\n\nCom o Sheets ativo podes também usar estes widgets adicionais quando relevante:\n\nGráfico de barras:\n${tick}widget_bar\n{"data":[{"label":"Jan","value":35},{"label":"Fev","value":60}]}\n${tick}\n\nGráfico de pizza:\n${tick}widget_pie\n{"data":[{"label":"A","value":40},{"label":"B","value":60}]}\n${tick}\n\nFolha de notas:\n${tick}widget_sheet\n{"lines":[{"text":"Título","title":true},{"text":"Linha de conteúdo"}]}\n${tick}\n\nMercado financeiro (forex/crypto/stock):\n${tick}widget_market\n{"type":"crypto","symbol":"BTC","name":"Bitcoin"}\n${tick}\n\nCalendário:\n${tick}widget_calendar\n{"events":[{"date":"2025-06-20","name":"Reunião","time":"14:00","color":"#6F5AF6"}]}\n${tick}\n\nTemporizador:\n${tick}widget_timer\n{"seconds":300,"label":"Foco"}\n${tick}\n\nMapa mental:\n${tick}widget_mindmap\n{"title":"Projeto","tree":{"id":"root","label":"Projeto","color":"#6F5AF6","children":[{"id":"1","label":"Fase 1","color":"#e74c3c","children":[]}]}}\n${tick}\n\nGráfico matemático:\n${tick}widget_graph\n{"expression":"sin(x)","xMin":-10,"xMax":10}\n${tick}` : '';
+    
     return base + sheets;
   },
-
+  
   async * streamChat({ messages, systemPrompt, token, think, language }) {
     try {
       const res = await fetch(`${API_BASE}/ai/chat`, {
@@ -248,25 +219,30 @@ ${tick}` : '';
           language: language || 'pt'
         })
       });
-
+      
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 402 || data.error === 'credits_exhausted') {
+          yield { type: 'credits_exhausted' };
+          return;
+        }
         yield { type: 'error', message: `Erro ${res.status}` };
         return;
       }
-
-      const reader  = res.body.getReader();
+      
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer   = '';
+      let buffer = '';
       let fullText = '';
-
+      
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
+        
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
-
+        
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
@@ -275,7 +251,7 @@ ${tick}` : '';
             return;
           }
           try {
-            const json       = JSON.parse(data);
+            const json = JSON.parse(data);
             const candidates = json.candidates;
             if (!candidates || !candidates.length) continue;
             const parts = candidates[0].content?.parts || [];
@@ -302,7 +278,7 @@ ${tick}` : '';
       yield { type: 'error', message: 'Erro de rede: ' + e.message };
     }
   },
-
+  
   async generateTitle(message, token, language) {
     try {
       const res = await fetch(`${API_BASE}/ai/title`, {

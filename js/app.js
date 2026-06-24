@@ -56,14 +56,14 @@ function setCurrentLanguage(code) {
 
 const lightColors = {
     background: '#FFFFFF',
-    textPrimary: '#212730',
+    textPrimary: '#10151c',
     textSecondary: '#888888',
-    textHint: '#AAAAAA',
+    textHint: '#10151c',
     iconTint: '#000000',
     iconTintSecondary: '#888888',
     divider: '#E5E5EA',
     drawerBackground: '#FFFFFF',
-    drawerText: '#000000',
+    drawerText: '#10151c',
     bottomBarSolid: '#FFFFFF',
     dialogBackground: '#F2F2F7',
     sendBtnColor: '#2F7BF6',

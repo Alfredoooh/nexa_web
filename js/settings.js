@@ -17,6 +17,10 @@ function showSettingsCard() {
     const dividerColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const cardShellBg = isDarkMode ? '#161616' : '#F5F5F7';
 
+    const credits = authState.user?.credits ?? 0;
+    const creditsColor = credits <= 10 ? '#EF4444' : credits <= 30 ? '#F59E0B' : colors.primary;
+    const creditsLabel = credits <= 10 ? '⚠️ Créditos a acabar' : `${credits} créditos disponíveis`;
+
     const backdrop = document.createElement('div');
     backdrop.id = 'settingsBackdrop';
     backdrop.className = 'settings-backdrop';
@@ -46,8 +50,43 @@ function showSettingsCard() {
       <!-- Conteúdo com scroll interno -->
       <div class="settings-card-scroll" style="padding:4px 16px 24px;">
 
+        <!-- Secção CRÉDITOS -->
+        <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:${sectionLabelColor};margin:14px 4px 8px;text-transform:uppercase;">Créditos</p>
+        <div style="background:${cardBg};border-radius:14px;overflow:hidden;">
+          <!-- Saldo -->
+          <div style="display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid ${dividerColor};">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${creditsColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+              <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+            </svg>
+            <span style="margin-left:14px;flex:1;font-size:15px;color:${colors.textPrimary};">Saldo</span>
+            <span style="font-size:14px;font-weight:600;color:${creditsColor};">${creditsLabel}</span>
+          </div>
+          <!-- Botão Básico -->
+          <button id="buyBasicBtn" class="pulse-tap" style="width:100%;display:flex;align-items:center;padding:14px 16px;background:none;border:none;cursor:pointer;border-bottom:1px solid ${dividerColor};">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${colors.iconTint}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+            <span style="margin-left:14px;flex:1;text-align:left;">
+              <span style="display:block;font-size:15px;color:${colors.textPrimary};">Básico</span>
+              <span style="display:block;font-size:12.5px;color:${colors.textSecondary};margin-top:1px;">500 créditos · 2.500 Kz</span>
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${colors.iconTintSecondary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <!-- Botão Premium -->
+          <button id="buyPremiumBtn" class="pulse-tap" style="width:100%;display:flex;align-items:center;padding:14px 16px;background:none;border:none;cursor:pointer;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${colors.iconTint}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span style="margin-left:14px;flex:1;text-align:left;">
+              <span style="display:block;font-size:15px;color:${colors.textPrimary};">Premium</span>
+              <span style="display:block;font-size:12.5px;color:${colors.textSecondary};margin-top:1px;">1.500 créditos · 7.500 Kz</span>
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${colors.iconTintSecondary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
         <!-- Secção CONTA -->
-        <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:${sectionLabelColor};margin:14px 4px 8px;text-transform:uppercase;">Conta</p>
+        <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:${sectionLabelColor};margin:20px 4px 8px;text-transform:uppercase;">Conta</p>
         <div style="background:${cardBg};border-radius:14px;overflow:hidden;">
           ${createSettingsTileNew('customise', 'Personalização', colors, dividerColor, true)}
           ${createSettingsTileNew('database', 'Controlo de Dados', colors, dividerColor, true)}
@@ -80,7 +119,7 @@ function showSettingsCard() {
     backdrop.appendChild(card);
     document.body.appendChild(backdrop);
 
-    // Lista de modelos — sem ícones, igual ao estilo do aviso de incógnito
+    // Lista de modelos
     const modelList = card.querySelector('#settingsModelList');
     AVAILABLE_MODELS.forEach((model, i) => {
         if (i > 0) {
@@ -119,6 +158,29 @@ function showSettingsCard() {
     };
     card.querySelector('#themeBtn').onclick = showThemeSheet;
     card.querySelector('#languageBtn').onclick = showLanguageSheet;
+
+    // Botões de compra
+    card.querySelector('#buyBasicBtn').onclick = () => handleCreditsPurchase('basic');
+    card.querySelector('#buyPremiumBtn').onclick = () => handleCreditsPurchase('premium');
+}
+
+async function handleCreditsPurchase(packageId) {
+    if (!authState.user) return;
+    const btn = document.getElementById(packageId === 'basic' ? 'buyBasicBtn' : 'buyPremiumBtn');
+    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+    try {
+        const data = await CreditsApiService.checkout(authState.user.token, packageId);
+        if (data.checkout_url) {
+            window.open(data.checkout_url, '_blank');
+            showToast('A abrir página de pagamento...');
+        } else {
+            showToast('Erro ao gerar link de pagamento');
+        }
+    } catch (e) {
+        showToast('Erro: ' + e.message);
+    } finally {
+        if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+    }
 }
 
 function closeSettingsCard(skipRenderChat) {
@@ -132,10 +194,6 @@ function closeSettingsCard(skipRenderChat) {
         backdrop.remove();
         if (!skipRenderChat) {
             window.currentPage = 'chat';
-            // A tela de chat por baixo já reflete o tema/idioma atuais,
-            // porque applyTheme() e a troca de idioma sempre re-renderizam
-            // o chat mesmo com as Definições abertas por cima. Não é
-            // necessário recriar tudo de novo aqui — evita um flash extra.
             if (!document.getElementById('chatApp')) {
                 renderChatPage();
             }
@@ -161,7 +219,7 @@ function getThemeLabel() {
     return isDarkMode ? 'Escuro' : 'Claro';
 }
 
-/* ── Sheet de Tema — popup card centrado, igual ao estilo do aviso incógnito ── */
+/* ── Sheet de Tema ── */
 function showThemeSheet() {
     document.getElementById('themePopupOverlay')?.remove();
 
@@ -210,9 +268,6 @@ function showThemeSheet() {
 
     overlay.onclick = (e) => { if (e.target === overlay) close(); };
 
-    // Troca de tema: muda o estado, fecha o popup, aplica o tema (que já
-    // re-renderiza o chat por baixo) e só depois redesenha o card de
-    // Definições com as cores novas — tudo no mesmo ciclo, sem reload.
     dialog.querySelector('#settingsThemeLight').onclick = () => {
         close();
         isDarkMode = false;
@@ -225,7 +280,7 @@ function showThemeSheet() {
     };
 }
 
-/* ── Sheet de Idioma — todos os idiomas disponíveis, com pesquisa simples ── */
+/* ── Sheet de Idioma ── */
 function showLanguageSheet() {
     document.getElementById('languagePopupOverlay')?.remove();
 

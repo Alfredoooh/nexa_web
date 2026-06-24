@@ -7,6 +7,13 @@ const CORS_HEADERS = {
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_BASE  = "https://generativelanguage.googleapis.com/v1beta/models";
 const GROQ_BASE    = "https://api.groq.com/openai/v1";
+const GOPAY_BASE   = "https://rouxavcvorjiwhpjhsye.supabase.co/functions/v1/api-v1";
+
+const FREE_CREDITS = 100;
+const CREDIT_PACKAGES = {
+  basic:   { credits: 500,  price: 2500, name: "Básico",  productId: "SUBSTITUI_PELO_ID_BASICO"  },
+  premium: { credits: 1500, price: 7500, name: "Premium", productId: "db3b0e10-d3da-439b-9c0c-06c112ba524b" },
+};
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -73,47 +80,36 @@ async function verifyFirebaseToken(idToken, projectId) {
   try {
     const parts = idToken.split(".");
     if (parts.length !== 3) return null;
-
     const header  = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/")));
     const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-
     const now = Math.floor(Date.now() / 1000);
     if (payload.exp < now)            return null;
     if (payload.iat > now + 300)      return null;
     if (payload.aud !== projectId)    return null;
     if (payload.iss !== "https://securetoken.google.com/" + projectId) return null;
     if (!payload.sub || payload.sub.length === 0) return null;
-
     const publicKeys = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com").then(r => r.json());
     const certPem    = publicKeys[header.kid];
     if (!certPem) return null;
-
     const certCleaned = certPem
       .replace(/-----BEGIN CERTIFICATE-----/, "")
       .replace(/-----END CERTIFICATE-----/, "")
-      .replace(/\n/g, "")
-      .trim();
+      .replace(/\n/g, "").trim();
     const certDer = Uint8Array.from(atob(certCleaned), function(c) { return c.charCodeAt(0); });
-
     const spkiKey = extractSpkiFromCert(certDer);
     if (!spkiKey) return null;
-
     const cryptoKey = await crypto.subtle.importKey(
       "spki", spkiKey,
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false, ["verify"]
     );
-
     const signingInput = parts[0] + "." + parts[1];
     const sigBytes     = Uint8Array.from(
       atob(parts[2].replace(/-/g, "+").replace(/_/g, "/")),
       function(c) { return c.charCodeAt(0); }
     );
-    const valid = await crypto.subtle.verify(
-      "RSASSA-PKCS1-v1_5", cryptoKey, sigBytes, new TextEncoder().encode(signingInput)
-    );
+    const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", cryptoKey, sigBytes, new TextEncoder().encode(signingInput));
     if (!valid) return null;
-
     return {
       uid:      payload.sub,
       email:    payload.email   || null,
@@ -136,40 +132,32 @@ function extractSpkiFromCert(certDer) {
       for (let i = 0; i < numBytes; i++) { len = (len << 8) | buf[off + 1 + i]; }
       return { len: len, next: off + 1 + numBytes };
     }
-
     function skipTag(buf, off) {
       off++;
       const r = readLength(buf, off);
       return r.next + r.len;
     }
-
     function enterSequence(buf, off) {
       if (buf[off] !== 0x30) return null;
       off++;
       const r = readLength(buf, off);
       return r.next;
     }
-
     let pos = enterSequence(certDer, 0);
     if (pos === null) return null;
-
     pos = enterSequence(certDer, pos);
     if (pos === null) return null;
-
     if (certDer[pos] === 0xa0) { pos = skipTag(certDer, pos); }
-
     pos = skipTag(certDer, pos);
     pos = skipTag(certDer, pos);
     pos = skipTag(certDer, pos);
     pos = skipTag(certDer, pos);
     pos = skipTag(certDer, pos);
-
     if (certDer[pos] !== 0x30) return null;
     const spkiStart = pos;
     pos++;
     const r       = readLength(certDer, pos);
     const spkiEnd = r.next + r.len;
-
     return certDer.slice(spkiStart, spkiEnd).buffer;
   } catch (e) {
     console.error("[SPKI EXTRACT ERROR]", e.message);
@@ -198,11 +186,7 @@ function buildSystemInstruction(language, customSystemPrompt) {
 async function geminiGenerate(apiKey, messages, language, stream, thinkingBudget, customSystemPrompt) {
   const systemText = buildSystemInstruction(language, customSystemPrompt);
   const contents   = buildGeminiContents(messages);
-  const generationConfig = {
-    maxOutputTokens: 16384,
-    temperature: 1,
-    topP: 0.95,
-  };
+  const generationConfig = { maxOutputTokens: 16384, temperature: 1, topP: 0.95 };
   const thinkingConfig = thinkingBudget > 0
     ? { thinkingConfig: { thinkingBudget: thinkingBudget } }
     : { thinkingConfig: { thinkingBudget: 0 } };
@@ -284,7 +268,6 @@ async function groqChatStream(apiKey, messages, model, systemPrompt, language) {
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
-
     const url  = new URL(request.url);
     const path = url.pathname;
 
@@ -301,6 +284,9 @@ export default {
     if (path === "/ai/title"                             && request.method === "POST")   return handleAiTitle(request, env);
     if (path === "/ai/summarize"                         && request.method === "POST")   return handleAiSummarize(request, env);
     if (path === "/ai/transcribe"                        && request.method === "POST")   return handleAiTranscribe(request, env);
+    if (path === "/credits/balance"                      && request.method === "GET")    return handleCreditsBalance(request, env);
+    if (path === "/credits/checkout"                     && request.method === "POST")   return handleCreditsCheckout(request, env);
+    if (path === "/credits/webhook"                      && request.method === "POST")   return handleCreditsWebhook(request, env);
     if (path === "/conversations"                        && request.method === "GET")    return handleListConversations(request, env);
     if (path === "/conversations"                        && request.method === "POST")   return handleCreateConversation(request, env);
     if (path === "/conversations/all"                    && request.method === "DELETE") return handleDeleteAllConversations(request, env);
@@ -327,21 +313,17 @@ async function handleRegister(request, env) {
   const id           = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
   const user = {
-    id:           id,
-    name:         name,
-    email:        email.toLowerCase(),
-    passwordHash: passwordHash,
-    avatar:       null,
-    provider:     "email",
-    firebaseUid:  null,
-    preferences:  { language: "pt", theme: "system", fontSize: "medium" },
-    stats:        { totalConversations: 0, totalMessages: 0 },
-    createdAt:    Date.now(),
+    id, name, email: email.toLowerCase(),
+    passwordHash, avatar: null, provider: "email", firebaseUid: null,
+    credits: FREE_CREDITS,
+    preferences: { language: "pt", theme: "system", fontSize: "medium" },
+    stats: { totalConversations: 0, totalMessages: 0 },
+    createdAt: Date.now(),
   };
   await env.IPC_USERS.put("user:" + id, JSON.stringify(user));
   await env.IPC_USERS.put("email:" + email.toLowerCase(), id);
-  const token = await generateToken({ id: id, email: user.email, name: name }, env.JWT_SECRET);
-  return json({ token: token, id: id, name: name, email: user.email }, 201);
+  const token = await generateToken({ id, email: user.email, name }, env.JWT_SECRET);
+  return json({ token, id, name, email: user.email, credits: FREE_CREDITS }, 201);
 }
 
 async function handleLogin(request, env) {
@@ -356,7 +338,7 @@ async function handleLogin(request, env) {
   const user = JSON.parse(userData);
   if (user.passwordHash !== await hashPassword(password)) return error("Email ou password incorretos", 401);
   const token = await generateToken({ id: user.id, email: user.email, name: user.name }, env.JWT_SECRET);
-  return json({ token: token, id: user.id, name: user.name, email: user.email, preferences: user.preferences || {} });
+  return json({ token, id: user.id, name: user.name, email: user.email, credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {} });
 }
 
 async function handleLogout(request, env) {
@@ -366,32 +348,27 @@ async function handleLogout(request, env) {
 async function handleFirebaseAuth(request, env) {
   const body = await request.json().catch(function() { return null; });
   if (!body || !body.idToken) return error("idToken obrigatório");
-
   const projectId    = env.FIREBASE_PROJECT_ID;
   const firebaseUser = await verifyFirebaseToken(body.idToken, projectId);
   if (!firebaseUser) return error("Token Firebase inválido ou expirado", 401);
-
   const uid = firebaseUser.uid;
   let userId = await env.IPC_USERS.get("firebase:" + uid);
-
   if (!userId) {
     if (firebaseUser.email) {
       userId = await env.IPC_USERS.get("email:" + firebaseUser.email.toLowerCase());
     }
-
     if (!userId) {
       userId = crypto.randomUUID();
       const user = {
-        id:           userId,
-        name:         firebaseUser.name || firebaseUser.email || "Utilizador Nexa",
-        email:        firebaseUser.email ? firebaseUser.email.toLowerCase() : null,
-        passwordHash: null,
-        avatar:       firebaseUser.picture || null,
-        provider:     firebaseUser.provider,
-        firebaseUid:  uid,
-        preferences:  { language: "pt", theme: "system", fontSize: "medium" },
-        stats:        { totalConversations: 0, totalMessages: 0 },
-        createdAt:    Date.now(),
+        id: userId,
+        name: firebaseUser.name || firebaseUser.email || "Utilizador Nexa",
+        email: firebaseUser.email ? firebaseUser.email.toLowerCase() : null,
+        passwordHash: null, avatar: firebaseUser.picture || null,
+        provider: firebaseUser.provider, firebaseUid: uid,
+        credits: FREE_CREDITS,
+        preferences: { language: "pt", theme: "system", fontSize: "medium" },
+        stats: { totalConversations: 0, totalMessages: 0 },
+        createdAt: Date.now(),
       };
       await env.IPC_USERS.put("user:" + userId, JSON.stringify(user));
       if (firebaseUser.email) {
@@ -408,23 +385,13 @@ async function handleFirebaseAuth(request, env) {
         await env.IPC_USERS.put("user:" + userId, JSON.stringify(user));
       }
     }
-
     await env.IPC_USERS.put("firebase:" + uid, userId);
   }
-
   const userData = await env.IPC_USERS.get("user:" + userId);
   if (!userData) return error("Erro ao carregar utilizador", 500);
   const user  = JSON.parse(userData);
   const token = await generateToken({ id: user.id, email: user.email, name: user.name }, env.JWT_SECRET);
-  return json({
-    token:       token,
-    id:          user.id,
-    name:        user.name,
-    email:       user.email,
-    avatar:      user.avatar || null,
-    provider:    user.provider,
-    preferences: user.preferences || {},
-  });
+  return json({ token, id: user.id, name: user.name, email: user.email, avatar: user.avatar || null, provider: user.provider, credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {} });
 }
 
 async function handleForgotPassword(request, env) {
@@ -434,11 +401,7 @@ async function handleForgotPassword(request, env) {
   const userId = await env.IPC_USERS.get("email:" + email);
   if (userId) {
     const resetToken = crypto.randomUUID().replace(/-/g, "");
-    await env.IPC_USERS.put(
-      "reset:" + resetToken,
-      JSON.stringify({ userId: userId, email: email, createdAt: Date.now() }),
-      { expirationTtl: 3600 }
-    );
+    await env.IPC_USERS.put("reset:" + resetToken, JSON.stringify({ userId, email, createdAt: Date.now() }), { expirationTtl: 3600 });
     console.log("[NEXA RESET] Token para " + email + ": " + resetToken);
   }
   return json({ success: true, message: "Se a conta existir, receberás um email com as instruções." });
@@ -466,16 +429,7 @@ async function handleGetMe(request, env) {
   const userData = await env.IPC_USERS.get("user:" + payload.id);
   if (!userData) return error("Utilizador não encontrado", 404);
   const user = JSON.parse(userData);
-  return json({
-    id:          user.id,
-    name:        user.name,
-    email:       user.email,
-    avatar:      user.avatar || null,
-    provider:    user.provider || "email",
-    preferences: user.preferences || {},
-    stats:       user.stats || {},
-    createdAt:   user.createdAt,
-  });
+  return json({ id: user.id, name: user.name, email: user.email, avatar: user.avatar || null, provider: user.provider || "email", credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {}, stats: user.stats || {}, createdAt: user.createdAt });
 }
 
 async function handleUpdateMe(request, env) {
@@ -495,15 +449,7 @@ async function handleUpdateMe(request, env) {
     user.preferences = Object.assign({}, user.preferences || {}, body.preferences);
   }
   await env.IPC_USERS.put("user:" + user.id, JSON.stringify(user));
-  return json({
-    id:          user.id,
-    name:        user.name,
-    email:       user.email,
-    avatar:      user.avatar || null,
-    provider:    user.provider || "email",
-    preferences: user.preferences || {},
-    createdAt:   user.createdAt,
-  });
+  return json({ id: user.id, name: user.name, email: user.email, avatar: user.avatar || null, provider: user.provider || "email", credits: user.credits ?? FREE_CREDITS, preferences: user.preferences || {}, createdAt: user.createdAt });
 }
 
 async function handleUpdateAvatar(request, env) {
@@ -538,7 +484,7 @@ async function handleListConversations(request, env) {
       if (!a.pinned && b.pinned) return 1;
       return b.updatedAt - a.updatedAt;
     });
-  return json({ conversations: conversations });
+  return json({ conversations });
 }
 
 async function handleCreateConversation(request, env) {
@@ -549,16 +495,13 @@ async function handleCreateConversation(request, env) {
   const id  = crypto.randomUUID();
   const now = Date.now();
   const conversation = {
-    id:        id,
-    userId:    payload.id,
-    title:     body.title    || "Nova conversa",
-    messages:  body.messages || [],
-    model:     body.model    || GEMINI_MODEL,
-    pinned:    false,
-    archived:  false,
-    tags:      body.tags     || [],
-    createdAt: now,
-    updatedAt: now,
+    id, userId: payload.id,
+    title:    body.title    || "Nova conversa",
+    messages: body.messages || [],
+    model:    body.model    || GEMINI_MODEL,
+    pinned: false, archived: false,
+    tags: body.tags || [],
+    createdAt: now, updatedAt: now,
   };
   await env.IPC_USERS.put("conv:" + id, JSON.stringify(conversation));
   const raw = await env.IPC_USERS.get("convs:" + payload.id);
@@ -649,7 +592,7 @@ async function handlePinConversation(request, env) {
   conversation.pinned    = body.pinned !== undefined ? body.pinned : !conversation.pinned;
   conversation.updatedAt = Date.now();
   await env.IPC_USERS.put("conv:" + id, JSON.stringify(conversation));
-  return json({ id: id, pinned: conversation.pinned });
+  return json({ id, pinned: conversation.pinned });
 }
 
 async function handleArchiveConversation(request, env) {
@@ -666,7 +609,7 @@ async function handleArchiveConversation(request, env) {
   conversation.pinned    = false;
   conversation.updatedAt = Date.now();
   await env.IPC_USERS.put("conv:" + id, JSON.stringify(conversation));
-  return json({ id: id, archived: conversation.archived });
+  return json({ id, archived: conversation.archived });
 }
 
 async function handleSearchConversations(request, env) {
@@ -685,9 +628,7 @@ async function handleSearchConversations(request, env) {
     .filter(function(c) {
       if (!c || c.archived) return false;
       if (c.title.toLowerCase().includes(query)) return true;
-      return c.messages.some(function(m) {
-        return m.content && m.content.toLowerCase().includes(query);
-      });
+      return c.messages.some(function(m) { return m.content && m.content.toLowerCase().includes(query); });
     })
     .sort(function(a, b) { return b.updatedAt - a.updatedAt; });
   return json({ conversations: results });
@@ -699,7 +640,7 @@ async function handleAiTitle(request, env) {
   const body = await request.json().catch(function() { return null; });
   if (!body || !body.message) return error("message obrigatório");
   const title = await geminiGenerateTitle(env.GEMINI_API_KEY, body.message, body.language || "pt");
-  return json({ title: title });
+  return json({ title });
 }
 
 async function handleAiChat(request, env) {
@@ -707,6 +648,17 @@ async function handleAiChat(request, env) {
   if (!payload) return error("Não autenticado", 401);
   const body = await request.json().catch(function() { return null; });
   if (!body || !body.messages) return error("messages obrigatório");
+
+  // Verificar e consumir crédito
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
+  if (!userData) return error("Utilizador não encontrado", 404);
+  const userObj        = JSON.parse(userData);
+  const currentCredits = userObj.credits ?? 0;
+  if (currentCredits <= 0) {
+    return json({ error: "credits_exhausted", message: "Sem créditos. Recarrega para continuar." }, 402);
+  }
+  userObj.credits = currentCredits - 1;
+  await env.IPC_USERS.put("user:" + payload.id, JSON.stringify(userObj));
 
   const messages           = body.messages;
   const stream             = body.stream !== undefined ? body.stream : false;
@@ -722,18 +674,14 @@ async function handleAiChat(request, env) {
       const groqRes = await groqChatStream(env.GROQ_API_KEY, messages, groqModel, customSystemPrompt, language);
       if (!groqRes.ok) return error("Erro Groq API: " + await groqRes.text(), groqRes.status);
       return new Response(groqRes.body, {
-        headers: Object.assign({}, CORS_HEADERS, {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "X-Accel-Buffering": "no",
-        }),
+        headers: Object.assign({}, CORS_HEADERS, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no" }),
       });
     }
     const groqRes = await groqChat(env.GROQ_API_KEY, messages, groqModel, customSystemPrompt, language);
     if (!groqRes.ok) return error("Erro Groq API: " + await groqRes.text(), groqRes.status);
     const data    = await groqRes.json();
     const content = data.choices?.[0]?.message?.content || "";
-    return json({ content: content, reasoning: null, model: groqModel, usage: data.usage || null });
+    return json({ content, reasoning: null, model: groqModel, usage: data.usage || null });
   }
 
   const gemRes = await geminiGenerate(env.GEMINI_API_KEY, messages, language, stream, thinkingBudget, customSystemPrompt);
@@ -744,23 +692,18 @@ async function handleAiChat(request, env) {
   }
   if (stream) {
     return new Response(gemRes.body, {
-      headers: Object.assign({}, CORS_HEADERS, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "X-Accel-Buffering": "no",
-      }),
+      headers: Object.assign({}, CORS_HEADERS, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no" }),
     });
   }
   const data      = await gemRes.json();
   const candidate = data.candidates?.[0];
   const parts     = candidate?.content?.parts || [];
-  let content   = "";
-  let reasoning = null;
+  let content = "", reasoning = null;
   for (const part of parts) {
     if (part.thought) { reasoning = part.text; }
     else { content += part.text || ""; }
   }
-  return json({ content: content, reasoning: reasoning, model: GEMINI_MODEL, usage: data.usageMetadata || null });
+  return json({ content, reasoning, model: GEMINI_MODEL, usage: data.usageMetadata || null });
 }
 
 async function handleAiSummarize(request, env) {
@@ -770,8 +713,8 @@ async function handleAiSummarize(request, env) {
   if (!body || !body.messages) return error("messages obrigatório");
   const language = body.language || "pt";
   const prompt   = language === "en"
-    ? "Summarize the following conversation in a few sentences, keeping the main points and context:\n\n"
-    : "Resume a seguinte conversa em poucas frases, mantendo os pontos principais e o contexto:\n\n";
+    ? "Summarize the following conversation in a few sentences:\n\n"
+    : "Resume a seguinte conversa em poucas frases:\n\n";
   const text = body.messages.map(function(m) {
     return (m.role === "user" ? "User: " : "Assistant: ") + m.content;
   }).join("\n");
@@ -786,51 +729,164 @@ async function handleAiSummarize(request, env) {
   if (!gemRes.ok) return error("Erro ao resumir", gemRes.status);
   const data    = await gemRes.json();
   const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  return json({ summary: summary });
+  return json({ summary });
 }
 
 async function handleAiTranscribe(request, env) {
   const payload = await getAuthUser(request, env);
   if (!payload) return error("Não autenticado", 401);
   if (!env.GROQ_API_KEY) return error("Groq não configurado", 500);
-
   let formData;
-  try {
-    formData = await request.formData();
-  } catch (e) {
-    return error("Esperado multipart/form-data com campo 'file'");
-  }
-
+  try { formData = await request.formData(); }
+  catch (e) { return error("Esperado multipart/form-data com campo 'file'"); }
   const audioFile = formData.get("file");
   const language  = formData.get("language") || "pt";
   const prompt    = formData.get("prompt")   || "";
-
   if (!audioFile) return error("Campo 'file' obrigatório");
-
   const outForm = new FormData();
   outForm.append("file", audioFile);
   outForm.append("model", "whisper-large-v3-turbo");
   outForm.append("language", language);
   outForm.append("response_format", "json");
   if (prompt) outForm.append("prompt", prompt);
-
   const groqRes = await fetch(GROQ_BASE + "/audio/transcriptions", {
     method: "POST",
     headers: { "Authorization": "Bearer " + env.GROQ_API_KEY },
     body: outForm,
   });
-
   if (!groqRes.ok) {
     const errText = await groqRes.text();
     return error("Erro Groq Whisper: " + errText, groqRes.status);
   }
-
   const data = await groqRes.json();
-  return json({
-    text:     data.text     || "",
-    language: data.language || language,
-    duration: data.duration || null,
+  return json({ text: data.text || "", language: data.language || language, duration: data.duration || null });
+}
+
+async function handleCreditsBalance(request, env) {
+  const payload = await getAuthUser(request, env);
+  if (!payload) return error("Não autenticado", 401);
+  const userData = await env.IPC_USERS.get("user:" + payload.id);
+  if (!userData) return error("Utilizador não encontrado", 404);
+  const user = JSON.parse(userData);
+  return json({ credits: user.credits ?? 0, packages: CREDIT_PACKAGES });
+}
+
+async function handleCreditsCheckout(request, env) {
+  const payload = await getAuthUser(request, env);
+  if (!payload) return error("Não autenticado", 401);
+
+  const body = await request.json().catch(() => null);
+  if (!body || !body.package) return error("Campo 'package' obrigatório (basic | premium)");
+
+  const pkg = CREDIT_PACKAGES[body.package];
+  if (!pkg) return error("Pacote inválido");
+
+  const productId = pkg.productId;
+
+  // Gerar checkout link usando produto fixo já existente no GoPay
+  const checkoutRes = await fetch(GOPAY_BASE + "/checkout-links", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": env.GOPAY_API_KEY,
+    },
+    body: JSON.stringify({ product_id: productId }),
   });
+
+  if (!checkoutRes.ok) {
+    const err = await checkoutRes.text();
+    return error("Erro ao gerar checkout GoPay: " + err, 500);
+  }
+
+  const checkout = await checkoutRes.json();
+  const checkoutUrl = checkout.url || checkout.checkout_url || checkout.link || checkout.checkout_link;
+
+  if (!checkoutUrl) {
+    return error("GoPay não devolveu URL de checkout: " + JSON.stringify(checkout), 500);
+  }
+
+  // Guardar pendente no KV com userId para o webhook identificar quem pagou
+  // Usamos productId + userId como chave para suportar vários utilizadores simultâneos
+  const pendingKey = "pending_credit:" + productId + ":" + payload.id;
+  await env.IPC_USERS.put(
+    pendingKey,
+    JSON.stringify({
+      userId:    payload.id,
+      package:   body.package,
+      credits:   pkg.credits,
+      createdAt: Date.now(),
+    }),
+    { expirationTtl: 3600 }
+  );
+
+  return json({
+    checkout_url: checkoutUrl,
+    product_id:   productId,
+    package:      body.package,
+    credits:      pkg.credits,
+    price:        pkg.price,
+  });
+}
+
+async function handleCreditsWebhook(request, env) {
+  const signature = request.headers.get("X-Webhook-Signature") || "";
+  const rawBody   = await request.text();
+
+  // Verificar assinatura HMAC-SHA256 se secret configurado
+  if (env.GOPAY_WEBHOOK_SECRET && signature) {
+    const key = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(env.GOPAY_WEBHOOK_SECRET),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    );
+    const sigBytes = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+    const expected = btoa(String.fromCharCode(...new Uint8Array(sigBytes)));
+    if (expected !== signature) return error("Assinatura inválida", 401);
+  }
+
+  let event;
+  try { event = JSON.parse(rawBody); } catch { return error("Body inválido"); }
+
+  const eventType  = event.event || event.type || "";
+  const isApproved = eventType === "payment.approved"
+    || eventType === "Pagamento Aprovado"
+    || event.status === "completed"
+    || event.status === "approved";
+
+  if (!isApproved) return json({ received: true });
+
+  const productId = event.product_id || event.data?.product_id;
+  if (!productId)  return json({ received: true, note: "Sem product_id" });
+
+  // Procurar pendente — pode estar com ou sem userId (compatibilidade)
+  // O webhook do GoPay não sabe o userId, então procuramos por prefix
+  const listRes = await env.IPC_USERS.list({ prefix: "pending_credit:" + productId + ":" });
+  let pending = null;
+  let pendingKey = null;
+
+  if (listRes.keys && listRes.keys.length > 0) {
+    pendingKey = listRes.keys[0].name;
+    const raw  = await env.IPC_USERS.get(pendingKey);
+    if (raw) pending = JSON.parse(raw);
+  }
+
+  if (!pending) return json({ received: true, note: "Sem pendente para este produto" });
+
+  // Adicionar créditos
+  const userDataRaw = await env.IPC_USERS.get("user:" + pending.userId);
+  if (userDataRaw) {
+    const user = JSON.parse(userDataRaw);
+    user.credits = (user.credits ?? 0) + pending.credits;
+    await env.IPC_USERS.put("user:" + pending.userId, JSON.stringify(user));
+  }
+
+  // Limpar pendente e guardar registo
+  await env.IPC_USERS.delete(pendingKey);
+  await env.IPC_USERS.put(
+    "purchase:" + crypto.randomUUID(),
+    JSON.stringify({ userId: pending.userId, package: pending.package, credits: pending.credits, productId, paidAt: Date.now() })
+  );
+
+  return json({ success: true, credits_added: pending.credits });
 }
 
 async function incrementUserStat(env, userId, stat, delta) {

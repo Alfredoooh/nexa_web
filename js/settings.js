@@ -166,21 +166,122 @@ function showSettingsCard() {
 
 async function handleCreditsPurchase(packageId) {
     if (!authState.user) return;
-    const btn = document.getElementById(packageId === 'basic' ? 'buyBasicBtn' : 'buyPremiumBtn');
-    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
-    try {
-        const data = await CreditsApiService.checkout(authState.user.token, packageId);
-        if (data.checkout_url) {
-            window.open(data.checkout_url, '_blank');
-            showToast('A abrir página de pagamento...');
-        } else {
-            showToast('Erro ao gerar link de pagamento');
-        }
-    } catch (e) {
-        showToast('Erro: ' + e.message);
-    } finally {
-        if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+    
+    const packages = {
+        basic: { name: 'Básico', credits: 500, price: '2.500 Kz', icon: '💳' },
+        premium: { name: 'Premium', credits: 1500, price: '7.500 Kz', icon: '⭐' },
+    };
+    const pkg = packages[packageId];
+    
+    // Remover overlay anterior se existir
+    document.getElementById('creditsPayOverlay')?.remove();
+    
+    const colors = getThemeColors();
+    const overlayBg = isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)';
+    const cardBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
+    const inputBg = isDarkMode ? '#2C2C2E' : '#F2F2F7';
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'creditsPayOverlay';
+    overlay.style.cssText = `position:fixed;inset:0;z-index:300;background:${overlayBg};display:flex;align-items:flex-end;justify-content:center;`;
+    
+    overlay.innerHTML = `
+      <div id="creditsPayCard" style="
+        background:${cardBg};border-radius:24px 24px 0 0;width:100%;max-width:480px;
+        padding:0 0 32px;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+      ">
+        <!-- Handle -->
+        <div style="display:flex;justify-content:center;padding:12px 0 4px;">
+          <div style="width:36px;height:4px;border-radius:2px;background:${isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'};"></div>
+        </div>
+
+        <!-- Header -->
+        <div style="display:flex;align-items:center;padding:8px 20px 16px;">
+          <span style="font-size:24px;margin-right:12px;">${pkg.icon}</span>
+          <div style="flex:1;">
+            <div style="font-size:17px;font-weight:700;color:${colors.textPrimary};">Pacote ${pkg.name}</div>
+            <div style="font-size:13px;color:${colors.textSecondary};margin-top:2px;">${pkg.credits} créditos · ${pkg.price}</div>
+          </div>
+          <button id="creditsPayClose" style="width:32px;height:32px;border-radius:50%;border:none;background:${inputBg};cursor:pointer;display:flex;align-items:center;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${colors.textPrimary}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- Divisor -->
+        <div style="height:1px;background:${isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'};margin:0 20px 20px;"></div>
+
+        <!-- Info -->
+        <div style="padding:0 20px;margin-bottom:20px;">
+          <div style="background:${inputBg};border-radius:14px;padding:16px;">
+            <div style="font-size:13px;color:${colors.textSecondary};margin-bottom:10px;font-weight:500;">O que inclui:</div>
+            <div style="display:flex;align-items:center;margin-bottom:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:14px;color:${colors.textPrimary};margin-left:10px;">${pkg.credits} mensagens com a Nexa</span>
+            </div>
+            <div style="display:flex;align-items:center;margin-bottom:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:14px;color:${colors.textPrimary};margin-left:10px;">Acesso a todos os modelos de IA</span>
+            </div>
+            <div style="display:flex;align-items:center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:14px;color:${colors.textPrimary};margin-left:10px;">Créditos não expiram</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botão principal -->
+        <div style="padding:0 20px;">
+          <button id="creditsPayBtn" style="
+            width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
+            background:#2F7BF6;color:#fff;font-size:16px;font-weight:700;
+            display:flex;align-items:center;justify-content:center;gap:10px;
+          ">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Pagar ${pkg.price} com Multicaixa
+          </button>
+          <p style="text-align:center;font-size:12px;color:${colors.textSecondary};margin-top:10px;">
+            Serás redirecionado para o checkout seguro do GoPay
+          </p>
+        </div>
+      </div>`;
+    
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => {
+        overlay.querySelector('#creditsPayCard').style.transform = 'translateY(0)';
+    });
+    
+    function closeSheet() {
+        const card = overlay.querySelector('#creditsPayCard');
+        card.style.transform = 'translateY(100%)';
+        setTimeout(() => overlay.remove(), 300);
     }
+    
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSheet(); });
+    overlay.querySelector('#creditsPayClose').onclick = closeSheet;
+    
+    overlay.querySelector('#creditsPayBtn').onclick = async () => {
+        const btn = overlay.querySelector('#creditsPayBtn');
+        btn.style.opacity = '0.6';
+        btn.style.pointerEvents = 'none';
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> A gerar link...';
+        try {
+            const data = await CreditsApiService.checkout(authState.user.token, packageId);
+            if (data.checkout_url) {
+                closeSheet();
+                setTimeout(() => window.open(data.checkout_url, '_blank'), 300);
+            } else {
+                showToast('Erro ao gerar link de pagamento');
+                btn.style.opacity = '';
+                btn.style.pointerEvents = '';
+                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pagar ${pkg.price} com Multicaixa`;
+            }
+        } catch (e) {
+            showToast('Erro: ' + e.message);
+            btn.style.opacity = '';
+            btn.style.pointerEvents = '';
+            btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pagar ${pkg.price} com Multicaixa`;
+        }
+    };
 }
 
 function closeSettingsCard(skipRenderChat) {

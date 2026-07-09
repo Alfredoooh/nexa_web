@@ -1,12 +1,141 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Downora</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/app/main.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <title>Nexa Calendar</title>
+  <meta name="description" content="Nexa Calendar — landing page e calendário simples." />
+  <link rel="icon" href="/icons/svg/calendar.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #09090b;
+      --card: rgba(255,255,255,0.06);
+      --card-border: rgba(255,255,255,0.12);
+      --text: #f4f4f5;
+      --muted: rgba(244,244,245,0.72);
+      --accent: #4f8cff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(79,140,255,0.22), transparent 42%),
+        linear-gradient(180deg, #101114 0%, #09090b 100%);
+      color: var(--text);
+    }
+    .wrap {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(920px, 100%);
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      backdrop-filter: blur(18px);
+      border-radius: 28px;
+      padding: 32px;
+      box-shadow: 0 28px 80px rgba(0,0,0,0.35);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .brand img { width: 28px; height: 28px; }
+    h1 {
+      margin: 18px 0 10px;
+      font-size: clamp(2.3rem, 7vw, 4.8rem);
+      line-height: .95;
+      letter-spacing: -0.05em;
+    }
+    p {
+      margin: 0;
+      max-width: 56ch;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .actions {
+      margin-top: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 20px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform .18s ease, opacity .18s ease, background .18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .primary { background: var(--accent); color: white; }
+    .secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid rgba(255,255,255,0.12); }
+    .features {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .feature {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .feature strong { display:block; margin-bottom: 8px; font-size: 0.98rem; }
+    .feature span { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+    @media (max-width: 720px) {
+      .card { padding: 22px; border-radius: 22px; }
+      .features { grid-template-columns: 1fr; }
+      .actions { flex-direction: column; }
+      .btn { width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <div class="brand">
+        <img src="/icons/svg/calendar.svg" alt="" />
+        Nexa Calendar
+      </div>
+      <h1>Uma landing page limpa para abrir o calendário.</h1>
+      <p>
+        O projeto ficou reduzido ao essencial: uma página inicial simples e o módulo de calendário,
+        sem login e sem apps extras.
+      </p>
+      <div class="actions">
+        <a class="btn primary" href="/calendar/">Abrir calendário</a>
+        <a class="btn secondary" href="/calendar/">Ver agenda</a>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <strong>Sem login</strong>
+          <span>Abre diretamente o projeto sem ecrãs de autenticação.</span>
+        </div>
+        <div class="feature">
+          <strong>Só SVG</strong>
+          <span>As referências visuais ficaram apenas em SVG.</span>
+        </div>
+        <div class="feature">
+          <strong>Foco no calendário</strong>
+          <span>Todo o restante conteúdo foi removido.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
 </html>

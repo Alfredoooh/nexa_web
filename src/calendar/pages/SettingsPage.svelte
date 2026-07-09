@@ -1,20 +1,19 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import { getThemeColors, getTheme } from '$shared/theme.js';
-  import { logout } from '$shared/auth-guard.js';
-  
+
   export let isDark = false;
   export let user = null;
   export let appTitle = 'Nexa Calendar';
-  
+
   const dispatch = createEventDispatcher();
   $: c = getThemeColors(isDark);
-  
+
   let themeValue = getTheme();
   $: userName = user?.name || user?.displayName || user?.email || 'Utilizador';
   $: userEmail = user?.email || '';
   $: userInitial = userName.trim()[0]?.toUpperCase() || 'U';
-  
+
   function setThemeValue(v) {
     themeValue = v;
     localStorage.setItem('nexa_theme', v);
@@ -50,13 +49,6 @@
         {#if i < 2}<div class="divider" style="background:{c.divider}"></div>{/if}
       {/each}
     </div>
-
-    <div class="section-label" style="color:{c.settings_section_label}">Conta</div>
-    <div class="section" style="background:{c.dialogBackground}">
-      <button class="row danger" on:click={() => logout()}>
-        <span class="row-label">Terminar sessão</span>
-      </button>
-    </div>
   </div>
 </div>
 
@@ -72,11 +64,10 @@
   .profile-name { font-size:16px; font-weight:700; }
   .profile-email { font-size:13px; margin-top:2px; }
   .section-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:0 2px 10px; }
-  .section { border-radius:18px; overflow:hidden; margin-bottom:20px; }
-  .row { width:100%; background:transparent; border:none; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; font-size:15px; cursor:pointer; }
-  .row:active { opacity:.7; }
-  .row.danger { color:#FF3B30; justify-content:flex-start; }
-  .check { font-weight:700; }
-  .divider { height:1px; margin:0 16px; }
-  .icon-mask { display:block; mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; flex-shrink:0; }
+  .section { border-radius:18px; overflow:hidden; }
+  .row { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 16px; background:none; border:none; text-align:left; cursor:pointer; }
+  .row:active { opacity:.8; }
+  .row-label { font-size:15px; font-weight:600; }
+  .check { font-size:15px; font-weight:800; }
+  .divider { height:1px; margin:0 16px; opacity:.9; }
 </style>

@@ -1,7 +1,6 @@
 <script>
   import { onMount } from 'svelte';
   import { syncTheme, getTheme } from '$shared/theme.js';
-  import { requireAuth } from '$shared/auth-guard.js';
   import { createRouter } from '$shared/router.js';
   import MainPage from './pages/MainPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
@@ -14,30 +13,30 @@
   const router = createRouter(BASE, VALID_ROUTES, 'main');
 
   let route = 'main';
-  let resourceId = null;
   let user = null;
   let isDark = false;
   let ready = false;
 
   onMount(() => {
-    user = requireAuth();
-    if (!user) return;
-
     const t = getTheme();
     isDark = t === 'dark';
     syncTheme(isDark);
 
-    const { route: initialRoute, resourceId: initialResourceId, notFound } = router.parseCurrentRoute();
-    if (notFound) { window.location.replace('/404/'); return; }
+    const { route: initialRoute, notFound } = router.parseCurrentRoute();
+    if (notFound) {
+      window.location.replace('/404/');
+      return;
+    }
     route = initialRoute;
-    resourceId = initialResourceId;
-    if (!resourceId) router.navigate(route, { replace: true });
+    router.navigate(route, { replace: true });
     ready = true;
 
-    const unbind = router.bindPopState((r, nf, rid) => {
-      if (nf) { window.location.replace('/404/'); return; }
+    const unbind = router.bindPopState((r, nf) => {
+      if (nf) {
+        window.location.replace('/404/');
+        return;
+      }
       route = r;
-      resourceId = rid;
     });
 
     return unbind;
@@ -50,18 +49,18 @@
       localStorage.setItem('nexa_theme', isDark ? 'dark' : 'light');
       syncTheme(isDark);
     }
-    if (data?.logout) {
-      localStorage.removeItem('nexa_user');
-      window.location.href = '/auth/';
+    if (to === 'home') {
+      window.location.href = '/';
       return;
     }
-    if (to === 'home') { window.location.href = '/home/'; return; }
-    if (to === 'settings') { route = 'settings'; resourceId = null; router.navigate('settings'); return; }
-    if (to === 'main' || to === APP_ID) { route = 'main'; resourceId = null; router.navigate('main'); return; }
-    if (to === 'resource' && data?.id) {
+    if (to === 'settings') {
+      route = 'settings';
+      router.navigate('settings');
+      return;
+    }
+    if (to === 'main' || to === APP_ID) {
       route = 'main';
-      resourceId = data.id;
-      router.navigateToResource(data.id);
+      router.navigate('main');
       return;
     }
   }
@@ -69,7 +68,7 @@
 
 {#if ready}
   {#if route === 'main'}
-    <MainPage {isDark} {user} {resourceId} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
+    <MainPage {isDark} {user} appTitle={APP_TITLE} appId={APP_ID} iconPath={APP_ICON} on:nav={handleNav} />
   {:else if route === 'settings'}
     <SettingsPage {isDark} {user} appTitle={APP_TITLE} on:nav={handleNav} />
   {/if}

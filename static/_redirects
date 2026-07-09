@@ -1,0 +1,4 @@
+/home/* /home/index.html 200
+/calendar/* /calendar/index.html 200
+/404/* /404/index.html 200
+/* /404/index.html 404

@@ -1,30 +1,37 @@
-// Paleta de cores do Downora, com suporte a modo claro/escuro.
-// Uso: const c = getThemeColors(isDark);  ->  style="color:{c.textPrimary}"
+// Paleta do Downora — apenas preto, branco quente e cinzas derivados.
+// Sem cores de destaque (nada de azul/verde). Uso: const c = getThemeColors(isDark);
+
+const WARM_WHITE = '#FEFCF7'; // branco levemente amarelado, não puro
+const WARM_WHITE_DIM = '#F3F1EA';
 
 const LIGHT = {
-  background: '#FFFFFF',
-  surface: '#F5F6F8',
-  dialogBackground: '#FFFFFF',
-  appbarBtnBg: 'rgba(0,0,0,0.05)',
-  primary: '#3D8BFF',
-  primaryStrong: '#2E6FE0',
-  textPrimary: 'rgba(20,20,20,0.90)',
-  textSecondary: 'rgba(20,20,20,0.46)',
-  iconTint: 'rgba(20,20,20,0.82)',
-  divider: 'rgba(0,0,0,0.08)',
+  background: WARM_WHITE,
+  surface: WARM_WHITE_DIM,
+  dialogBackground: WARM_WHITE,
+  appbarBtnBg: 'rgba(20,18,14,0.06)',
+  drawerBg: WARM_WHITE,
+  drawerOverlay: 'rgba(20,18,14,0.35)',
+  primary: '#1A1815',
+  primaryStrong: '#000000',
+  textPrimary: 'rgba(20,18,14,0.92)',
+  textSecondary: 'rgba(20,18,14,0.48)',
+  iconTint: 'rgba(20,18,14,0.82)',
+  divider: 'rgba(20,18,14,0.09)',
 };
 
 const DARK = {
-  background: '#0B0D10',
-  surface: '#14171C',
-  dialogBackground: '#1B1F26',
-  appbarBtnBg: 'rgba(255,255,255,0.08)',
-  primary: '#3D8BFF',
-  primaryStrong: '#5EA1FF',
-  textPrimary: 'rgba(255,255,255,0.94)',
-  textSecondary: 'rgba(255,255,255,0.50)',
-  iconTint: 'rgba(255,255,255,0.88)',
-  divider: 'rgba(255,255,255,0.10)',
+  background: '#0E0D0B',
+  surface: '#17160F',
+  dialogBackground: '#1D1B14',
+  appbarBtnBg: 'rgba(254,252,247,0.08)',
+  drawerBg: '#141310',
+  drawerOverlay: 'rgba(0,0,0,0.5)',
+  primary: WARM_WHITE,
+  primaryStrong: '#FFFFFF',
+  textPrimary: 'rgba(254,252,247,0.94)',
+  textSecondary: 'rgba(254,252,247,0.48)',
+  iconTint: 'rgba(254,252,247,0.88)',
+  divider: 'rgba(254,252,247,0.10)',
 };
 
 export function getThemeColors(isDark) {

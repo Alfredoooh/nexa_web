@@ -6,13 +6,13 @@ let toastEl = null;
 
 export function showToast(message, durationMs = 2200) {
   if (typeof document === 'undefined') return;
-
+  
   if (toastEl) {
     toastEl.remove();
     toastEl = null;
   }
   clearTimeout(toastTimer);
-
+  
   toastEl = document.createElement('div');
   toastEl.textContent = message;
   Object.assign(toastEl.style, {
@@ -20,8 +20,8 @@ export function showToast(message, durationMs = 2200) {
     left: '50%',
     bottom: 'calc(env(safe-area-inset-bottom, 0px) + 100px)',
     transform: 'translateX(-50%) translateY(12px)',
-    background: 'rgba(28,28,30,0.92)',
-    color: '#fff',
+    background: 'rgba(28,28,26,0.92)',
+    color: '#FEFCF7',
     padding: '11px 18px',
     borderRadius: '999px',
     fontSize: '14px',
@@ -36,12 +36,12 @@ export function showToast(message, durationMs = 2200) {
     textAlign: 'center',
   });
   document.body.appendChild(toastEl);
-
+  
   requestAnimationFrame(() => {
     toastEl.style.opacity = '1';
     toastEl.style.transform = 'translateX(-50%) translateY(0)';
   });
-
+  
   toastTimer = setTimeout(() => {
     if (!toastEl) return;
     toastEl.style.opacity = '0';

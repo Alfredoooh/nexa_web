@@ -1,7 +1,6 @@
 <script>
   import { onMount, tick } from 'svelte';
 
-  export let c;
   export let isDark = true;
   export let activeTab = 'videos';
 
@@ -26,17 +25,25 @@
     window.addEventListener('resize', updateIndicator);
     return () => window.removeEventListener('resize', updateIndicator);
   });
+
+  // Cores monocromáticas baseadas no tema
+  $: bgColor = isDark ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)';
+  $: borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)';
+  $: indicatorBg = isDark ? '#fff' : '#000';
+  $: indicatorBorder = isDark ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.1)';
+  $: activeColor = isDark ? '#000' : '#fff';
+  $: inactiveColor = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.55)';
 </script>
 
 <div class="cal-tabs" bind:this={tabsWrapEl}
-  style="background:{isDark?'rgba(20,18,14,0.88)':'rgba(254,252,247,0.88)'};border-color:{c.divider}">
+  style="background:{bgColor};border-color:{borderColor}">
   <div class="cal-tab-indicator"
-    style="transform:translateX({indicatorX}px);width:{indicatorW}px;opacity:{indicatorReady?1:0};background:{c.dialogBackground};border-color:{c.divider}">
+    style="transform:translateX({indicatorX}px);width:{indicatorW}px;opacity:{indicatorReady?1:0};background:{indicatorBg};border-color:{indicatorBorder}">
   </div>
   {#each TABS as t}
     <button bind:this={tabRefs[t.id]} class="cal-tab"
       class:cal-tab-active={activeTab===t.id}
-      style="color:{activeTab===t.id?c.textPrimary:c.textSecondary}"
+      style="color:{activeTab===t.id ? activeColor : inactiveColor}"
       on:click={()=>activeTab=t.id}>
       {t.label}
     </button>
@@ -44,7 +51,6 @@
 </div>
 
 <style>
-  /* ── Tab bar (idêntico ao cal-tabs do Calendar.svelte) ───────────────── */
   .cal-tabs {
     position: fixed; left: 14px; right: 14px;
     bottom: calc(env(safe-area-inset-bottom,0px) + 18px);

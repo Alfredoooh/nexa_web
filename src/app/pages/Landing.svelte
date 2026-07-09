@@ -11,10 +11,10 @@
   onMount(() => { requestAnimationFrame(() => { pageVisible = true; }); });
 
   const FEATURES = [
-    { title: 'Vídeos', desc: 'YouTube, TikTok, Instagram, Facebook e mais.', icon: '/icons/svg/video.svg' },
-    { title: 'Áudio', desc: 'Extraia música e som de qualquer link.', icon: '/icons/svg/audio.svg' },
-    { title: 'Ficheiro Aleatório', desc: 'Baixe qualquer tipo de ficheiro, sem restrições.', icon: '/icons/svg/shuffle.svg' },
-    { title: 'Outras Ferramentas', desc: 'Utilitários extra para o teu dia a dia.', icon: '/icons/svg/tools.svg' },
+    { title: 'Vídeos', desc: 'YouTube, TikTok, Instagram, Facebook e mais.' },
+    { title: 'Áudio', desc: 'Extraia música e som de qualquer link.' },
+    { title: 'Ficheiro Aleatório', desc: 'Baixe qualquer tipo de ficheiro, sem restrições.' },
+    { title: 'Outras Ferramentas', desc: 'Utilitários extra para o teu dia a dia.' },
   ];
 </script>
 
@@ -22,7 +22,7 @@
   style="background:{c.background};color:{c.textPrimary}">
 
   <div class="landing-hero">
-    <img src="/icons/png/logo.png" alt="Downora" class="landing-logo" />
+    <span class="icon-mask landing-logo" style="mask-image:url('/icons/svg/logo.svg');-webkit-mask-image:url('/icons/svg/logo.svg');background:{c.textPrimary}"></span>
     <h1 class="landing-title" style="color:{c.textPrimary}">Downora</h1>
     <p class="landing-tagline" style="color:{c.textSecondary}">
       Baixe vídeos, áudio e qualquer ficheiro de qualquer plataforma — rápido, simples, sem complicações.
@@ -35,7 +35,6 @@
   <div class="landing-features">
     {#each FEATURES as f}
       <div class="feature-card" style="background:{c.surface};border-color:{c.divider}">
-        <span class="icon-mask feature-icon" style="mask-image:url('{f.icon}');-webkit-mask-image:url('{f.icon}');background:{c.textPrimary};width:24px;height:24px"></span>
         <span class="feature-title" style="color:{c.textPrimary}">{f.title}</span>
         <span class="feature-desc" style="color:{c.textSecondary}">{f.desc}</span>
       </div>
@@ -83,9 +82,8 @@
     margin-bottom: 48px;
   }
   .landing-logo {
-    width: 64px;
-    height: 64px;
-    object-fit: contain;
+    width: 140px;
+    height: 56px;
     margin-bottom: 20px;
   }
   .landing-title {

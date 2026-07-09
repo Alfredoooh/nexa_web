@@ -23,7 +23,7 @@
 
   <div class="drawer" class:drawer-in={visible} style="background:{c.drawerBg};border-color:{c.divider}">
     <div class="drawer-header">
-      <span class="drawer-title" style="color:{c.textPrimary}">Downora</span>
+      <span class="icon-mask drawer-logo" style="mask-image:url('/icons/svg/logo.svg');-webkit-mask-image:url('/icons/svg/logo.svg');background:{c.textPrimary}"></span>
     </div>
 
     <div class="drawer-sep" style="background:{c.divider}"></div>
@@ -89,10 +89,12 @@
   .drawer-header {
     padding: 20px 20px 14px;
   }
-  .drawer-title {
-    font-size: 19px;
-    font-weight: 800;
-    letter-spacing: -0.3px;
+  .drawer-logo {
+    height: 26px;
+    width: 100px;
+    mask-size: contain; -webkit-mask-size: contain;
+    mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+    mask-position: left center; -webkit-mask-position: left center;
   }
   .drawer-sep {
     height: 1px;

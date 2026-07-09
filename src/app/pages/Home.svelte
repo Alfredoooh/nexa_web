@@ -38,25 +38,21 @@
     videos: {
       title: 'Baixar Vídeo',
       subtitle: 'Cole o link do vídeo que queres guardar.',
-      placeholder: 'Cole aqui o link do vídeo...',
       sources: ['YouTube', 'TikTok', 'Instagram', 'Facebook'],
     },
     audio: {
       title: 'Baixar Áudio',
       subtitle: 'Extrai apenas o som de qualquer vídeo ou link.',
-      placeholder: 'Cole aqui o link para extrair áudio...',
       sources: ['YouTube Music', 'SoundCloud', 'Spotify'],
     },
     random: {
       title: 'Ficheiro Aleatório',
       subtitle: 'Baixa qualquer tipo de ficheiro a partir de um link direto.',
-      placeholder: 'Cole aqui o link do ficheiro...',
       sources: ['PDF', 'ZIP', 'Imagens', 'Documentos'],
     },
     tools: {
       title: 'Outras Ferramentas',
       subtitle: 'Utilitários extra para o teu fluxo de trabalho.',
-      placeholder: 'Cole aqui um link para analisar...',
       sources: ['Conversor', 'Compressor', 'Encurtador'],
     },
   };
@@ -91,7 +87,7 @@
     </div>
   </div>
 
-  <BottomTabs {c} bind:activeTab />
+  <BottomTabs {c} {isDark} bind:activeTab />
 
   <Drawer {c} {isDark} open={drawerOpen} visible={drawerVisible}
     on:close={closeDrawer} on:toggleTheme={toggleTheme} />

@@ -26,12 +26,12 @@
     return () => window.removeEventListener('resize', updateIndicator);
   });
 
-  // Cores monocromáticas baseadas no tema
+  // Cores nativas monocromáticas (preto/branco)
   $: bgColor = isDark ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)';
   $: borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)';
-  $: indicatorBg = isDark ? '#fff' : '#000';
+  $: indicatorBg = isDark ? '#ffffff' : '#000000';
   $: indicatorBorder = isDark ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.1)';
-  $: activeColor = isDark ? '#000' : '#fff';
+  $: activeColor = isDark ? '#000000' : '#ffffff';
   $: inactiveColor = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.55)';
 </script>
 
@@ -72,6 +72,16 @@
     border: none; background: transparent; padding: 11px 4px; border-radius: 999px;
     font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
     transition: color .22s cubic-bezier(0.16,1,0.3,1), transform .18s cubic-bezier(0.34,1.56,0.64,1);
+
+    /* Remove o retângulo azul ao tocar (iOS/Android) */
+    -webkit-tap-highlight-color: transparent;
+    /* Remove contorno de foco padrão (substituído por foco-visible) */
+    outline: none;
   }
   .cal-tab:active { transform: scale(0.94); }
+
+  /* Foco acessível sem azul: usa uma borda branca/preto suave */
+  .cal-tab:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring, light-dark(rgba(0,0,0,0.5), rgba(255,255,255,0.5)));
+  }
 </style>

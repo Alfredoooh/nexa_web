@@ -1,141 +1,928 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-AO">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
-  <title>Nexa Calendar</title>
-  <meta name="description" content="Nexa Calendar — landing page e calendário simples." />
-  <link rel="icon" href="/icons/svg/calendar.svg" type="image/svg+xml" />
-  <style>
-    :root {
-      color-scheme: dark light;
-      --bg: #09090b;
-      --card: rgba(255,255,255,0.06);
-      --card-border: rgba(255,255,255,0.12);
-      --text: #f4f4f5;
-      --muted: rgba(244,244,245,0.72);
-      --accent: #4f8cff;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Checkout</title>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://cdn.jsdelivr.net/npm/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+<style>
+  *, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+    background: #fafafa;
+    color: #0a0a0a;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: clamp(16px, 4vw, 24px);
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+    padding-left: calc(clamp(16px, 4vw, 24px) + env(safe-area-inset-left, 0px));
+    padding-right: calc(clamp(16px, 4vw, 24px) + env(safe-area-inset-right, 0px));
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page-wrap {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 440px;
+  }
+
+  @media (min-width: 900px) {
     body {
-      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-      background:
-        radial-gradient(circle at top, rgba(79,140,255,0.22), transparent 42%),
-        linear-gradient(180deg, #101114 0%, #09090b 100%);
-      color: var(--text);
+      padding-top: clamp(40px, 7vh, 72px);
+      padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
     }
-    .wrap {
-      min-height: 100%;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-    }
-    .card {
-      width: min(920px, 100%);
-      border: 1px solid var(--card-border);
-      background: var(--card);
-      backdrop-filter: blur(18px);
-      border-radius: 28px;
-      padding: 32px;
-      box-shadow: 0 28px 80px rgba(0,0,0,0.35);
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 14px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .brand img { width: 28px; height: 28px; }
-    h1 {
-      margin: 18px 0 10px;
-      font-size: clamp(2.3rem, 7vw, 4.8rem);
-      line-height: .95;
-      letter-spacing: -0.05em;
-    }
-    p {
-      margin: 0;
-      max-width: 56ch;
-      color: var(--muted);
-      font-size: 1.05rem;
-      line-height: 1.7;
-    }
-    .actions {
-      margin-top: 28px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .btn {
-      appearance: none;
-      border: 0;
-      border-radius: 999px;
-      padding: 14px 20px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-      transition: transform .18s ease, opacity .18s ease, background .18s ease;
-    }
-    .btn:hover { transform: translateY(-1px); }
-    .primary { background: var(--accent); color: white; }
-    .secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid rgba(255,255,255,0.12); }
-    .features {
-      margin-top: 28px;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-    .feature {
-      padding: 18px;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-    .feature strong { display:block; margin-bottom: 8px; font-size: 0.98rem; }
-    .feature span { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
-    @media (max-width: 720px) {
-      .card { padding: 22px; border-radius: 22px; }
-      .features { grid-template-columns: 1fr; }
-      .actions { flex-direction: column; }
-      .btn { width: 100%; text-align: center; }
-    }
-  </style>
+    .container { max-width: 400px; }
+  }
+
+  /* ---------- Header ---------- */
+  .header {
+    text-align: center;
+    margin-bottom: clamp(24px, 6vw, 32px);
+  }
+
+  .header h1 {
+    font-size: clamp(20px, 5vw, 23px);
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    color: #0a0a0a;
+  }
+
+  .header p {
+    font-size: clamp(13px, 3.4vw, 14px);
+    color: #8a8a8e;
+    margin-top: 5px;
+    letter-spacing: -0.1px;
+  }
+
+  /* ---------- Cards ---------- */
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: clamp(18px, 4.5vw, 22px);
+    margin-bottom: clamp(14px, 3.5vw, 18px);
+    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.03);
+    border: 1px solid #f0f0f0;
+  }
+
+  .card h2 {
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: clamp(12px, 3vw, 16px);
+    color: #a0a0a5;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+  }
+
+  /* ---------- Resumo ---------- */
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: clamp(13.5px, 3.6vw, 14.5px);
+    color: #5a5a5e;
+    margin-bottom: 10px;
+  }
+
+  .summary-row span:first-child { letter-spacing: -0.1px; }
+  .summary-row span:last-child {
+    white-space: nowrap;
+    color: #2a2a2e;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-row.total {
+    font-size: clamp(16px, 4.4vw, 18px);
+    font-weight: 600;
+    color: #0a0a0a;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 14px;
+    margin-top: 4px;
+    margin-bottom: 0;
+    letter-spacing: -0.3px;
+  }
+
+  .summary-row.total span:last-child { color: #0a0a0a; }
+
+  .summary-row.loading span:last-child {
+    color: #b8b8bc;
+  }
+
+  /* ---------- Métodos ---------- */
+  .payment-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .method {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 3vw, 13px);
+    padding: clamp(12px, 3.4vw, 14px);
+    border: 1.5px solid #ececec;
+    border-radius: 13px;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+
+  .method:hover {
+    border-color: #d4d4d8;
+  }
+
+  .method:focus-within {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .12);
+  }
+
+  .method.selected {
+    border-color: #16a34a;
+    background: #f0fdf4;
+  }
+
+  .method input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+  }
+
+  .method-icon {
+    flex: 0 0 auto;
+    width: clamp(38px, 10.5vw, 44px);
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: #f6f6f7;
+    color: #5a5a5e;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+    overflow: hidden;
+    border: 1px solid #eee;
+  }
+
+  .method-icon ion-icon {
+    font-size: clamp(18px, 5.4vw, 20px);
+    --ionicon-stroke-width: 34px;
+    pointer-events: none;
+  }
+
+  .method-icon img {
+    width: 66%;
+    height: 66%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+
+  .method.selected .method-icon {
+    background: #fff;
+    border-color: #bbf7d0;
+  }
+
+  .method-label {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .method-label .name {
+    font-size: clamp(13.5px, 3.7vw, 14.5px);
+    font-weight: 500;
+    color: #1a1a1a;
+    line-height: 1.25;
+    letter-spacing: -0.1px;
+  }
+
+  .method-label .desc {
+    font-size: clamp(11.5px, 3.1vw, 12.5px);
+    color: #a0a0a5;
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+
+  /* ---------- Radio button custom (verde) ---------- */
+  .method .radio-dot {
+    flex: 0 0 auto;
+    width: clamp(19px, 5.4vw, 21px);
+    height: clamp(19px, 5.4vw, 21px);
+    border-radius: 50%;
+    border: 2px solid #d4d4d8;
+    position: relative;
+    transition: border-color .15s ease;
+    pointer-events: none;
+  }
+
+  .method .radio-dot::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: #16a34a;
+    transform: scale(0);
+    transition: transform .15s ease;
+  }
+
+  .method.selected .radio-dot {
+    border-color: #16a34a;
+  }
+
+  .method.selected .radio-dot::after {
+    transform: scale(1);
+  }
+
+  /* ---------- Campos de input (cartão + dados do cliente, mesmo estilo) ---------- */
+  .card-fields {
+    margin-top: clamp(14px, 3.5vw, 16px);
+    display: none;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .card-fields.active { display: flex; }
+
+  .customer-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .field-group { position: relative; }
+
+  .card-fields input,
+  .customer-fields input {
+    width: 100%;
+    min-width: 0;
+    padding: clamp(12px, 3.3vw, 13.5px) clamp(13px, 3.5vw, 15px);
+    border: 1.5px solid #ececec;
+    border-radius: 11px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.2;
+    color: #1a1a1a;
+    background: #fdfdfd;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+
+  .card-fields input::placeholder,
+  .customer-fields input::placeholder { color: #b8b8bc; }
+
+  .card-fields input:focus,
+  .customer-fields input:focus {
+    outline: none;
+    border-color: #16a34a;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .1);
+  }
+
+  .card-fields input.error,
+  .customer-fields input.error {
+    border-color: #dc2626;
+    background: #fef2f2;
+  }
+
+  .card-fields input.error:focus,
+  .customer-fields input.error:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .1);
+  }
+
+  .field-error {
+    font-size: 11.5px;
+    color: #dc2626;
+    margin-top: 4px;
+    margin-left: 2px;
+    display: none;
+    letter-spacing: -0.05px;
+  }
+
+  .field-error.active { display: block; }
+
+  .row2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  /* ---------- Appbar / bottom bar fixa (travada, não sobe) ---------- */
+  .bottom-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    display: flex;
+    justify-content: center;
+    padding: 14px clamp(16px, 4vw, 24px);
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, #fafafa 60%, rgba(250,250,250,0));
+    pointer-events: none;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .bottom-bar-inner {
+    width: 100%;
+    max-width: 440px;
+    pointer-events: auto;
+  }
+
+  @media (min-width: 900px) {
+    .bottom-bar-inner { max-width: 400px; }
+  }
+
+  .pay-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: clamp(15px, 4.2vw, 16.5px);
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: clamp(14.5px, 4vw, 15.5px);
+    font-weight: 600;
+    letter-spacing: -0.1px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(22,163,74,.22);
+    transition: background .15s ease, transform .1s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+
+  .pay-btn:hover:not(:disabled) {
+    background: #15803d;
+    box-shadow: 0 10px 24px rgba(22,163,74,.26);
+  }
+  .pay-btn:active:not(:disabled) { transform: scale(.98); }
+
+  .pay-btn:disabled {
+    opacity: .7;
+    cursor: default;
+  }
+
+  .pay-btn ion-icon {
+    font-size: 1.1em;
+    --ionicon-stroke-width: 42px;
+    pointer-events: none;
+  }
+
+  .pay-btn .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    display: none;
+    animation: spin .7s linear infinite;
+  }
+
+  .pay-btn.loading .spinner { display: inline-block; }
+  .pay-btn.loading ion-icon { display: none; }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ---------- Nota de segurança ---------- */
+  .secure-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: clamp(11.5px, 3.1vw, 12.5px);
+    color: #b0b0b4;
+    margin-top: clamp(6px, 2.5vw, 10px);
+    text-align: center;
+    letter-spacing: -0.05px;
+  }
+
+  .secure-note ion-icon {
+    font-size: 14px;
+    color: #16a34a;
+    --ionicon-stroke-width: 46px;
+    pointer-events: none;
+  }
+
+  /* ---------- Tela de status (concluído) ---------- */
+  .status-screen {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .status-screen.active { display: block; }
+
+  .status-screen ion-icon {
+    font-size: 56px;
+    color: #16a34a;
+  }
+
+  .status-screen ion-icon.error { color: #dc2626; }
+
+  .status-screen h2 {
+    font-size: 19px;
+    margin-top: 16px;
+    color: #0a0a0a;
+  }
+
+  .status-screen p {
+    font-size: 13.5px;
+    color: #8a8a8e;
+    margin-top: 6px;
+  }
+
+  @media (max-width: 330px) {
+    .method-icon { border-radius: 9px; }
+    .method-label .desc { display: none; }
+  }
+</style>
 </head>
 <body>
-  <main class="wrap">
-    <section class="card">
-      <div class="brand">
-        <img src="/icons/svg/calendar.svg" alt="" />
-        Nexa Calendar
+
+<div class="page-wrap">
+<div class="container">
+
+  <div id="checkout-screen">
+
+    <div class="header">
+      <h1>Finalizar pagamento</h1>
+      <p>Preencha as lacunas com os teus dados</p>
+    </div>
+
+    <div class="card">
+      <h2>Resumo do pedido</h2>
+      <div class="summary-row" id="row-product-name">
+        <span id="product-name-label">Produto</span>
+        <span></span>
       </div>
-      <h1>Uma landing page limpa para abrir o calendário.</h1>
-      <p>
-        O projeto ficou reduzido ao essencial: uma página inicial simples e o módulo de calendário,
-        sem login e sem apps extras.
-      </p>
-      <div class="actions">
-        <a class="btn primary" href="/calendar/">Abrir calendário</a>
-        <a class="btn secondary" href="/calendar/">Ver agenda</a>
+      <div class="summary-row total loading" id="row-total">
+        <span>Total</span>
+        <span id="total-value">A carregar...</span>
       </div>
-      <div class="features">
-        <div class="feature">
-          <strong>Sem login</strong>
-          <span>Abre diretamente o projeto sem ecrãs de autenticação.</span>
+    </div>
+
+    <div class="card">
+      <h2>Seus dados</h2>
+      <div class="customer-fields">
+        <div class="field-group">
+          <input type="text" id="customer-name" placeholder="Nome completo" autocomplete="name">
+          <div class="field-error" id="err-customer-name">Indique o seu nome</div>
         </div>
-        <div class="feature">
-          <strong>Só SVG</strong>
-          <span>As referências visuais ficaram apenas em SVG.</span>
+        <div class="field-group">
+          <input type="email" id="customer-email" placeholder="E-mail" autocomplete="email">
+          <div class="field-error" id="err-customer-email">E-mail inválido</div>
         </div>
-        <div class="feature">
-          <strong>Foco no calendário</strong>
-          <span>Todo o restante conteúdo foi removido.</span>
+        <div class="field-group">
+          <input type="tel" id="customer-phone" placeholder="Telefone (ex: 923456789)" autocomplete="tel">
+          <div class="field-error" id="err-customer-phone">Necessário para Multicaixa Express</div>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+
+    <div class="card">
+      <h2>Método de pagamento</h2>
+      <div class="payment-methods">
+
+        <label class="method" data-target="card-fields">
+          <input type="radio" name="payment" value="visa">
+          <div class="method-icon">
+            <img src="visa.svg" alt="Visa">
+          </div>
+          <div class="method-label">
+            <div class="name">Visa</div>
+            <div class="desc">Débito ou crédito</div>
+          </div>
+          <div class="radio-dot"></div>
+        </label>
+
+        <label class="method" data-target="card-fields">
+          <input type="radio" name="payment" value="mastercard">
+          <div class="method-icon">
+            <img src="mastercard.svg" alt="Mastercard">
+          </div>
+          <div class="method-label">
+            <div class="name">Mastercard</div>
+            <div class="desc">Débito ou crédito</div>
+          </div>
+          <div class="radio-dot"></div>
+        </label>
+
+        <label class="method" data-target="none">
+          <input type="radio" name="payment" value="multicaixa">
+          <div class="method-icon">
+            <img src="express.png" alt="Multicaixa Express">
+          </div>
+          <div class="method-label">
+            <div class="name">Multicaixa Express</div>
+            <div class="desc">QR Code ou aplicação</div>
+          </div>
+          <div class="radio-dot"></div>
+        </label>
+
+      </div>
+
+      <div class="card-fields" id="card-fields">
+        <div class="field-group">
+          <input
+            type="text"
+            inputmode="numeric"
+            autocomplete="cc-number"
+            placeholder="Número do cartão"
+            id="cc-number"
+            maxlength="19">
+          <div class="field-error" id="err-number">Número do cartão inválido</div>
+        </div>
+        <div class="row2">
+          <div class="field-group">
+            <input
+              type="text"
+              inputmode="numeric"
+              autocomplete="cc-exp"
+              placeholder="MM/AA"
+              id="cc-exp"
+              maxlength="5">
+            <div class="field-error" id="err-exp">Data inválida</div>
+          </div>
+          <div class="field-group">
+            <input
+              type="text"
+              inputmode="numeric"
+              autocomplete="cc-csc"
+              placeholder="CVV"
+              id="cc-cvv"
+              maxlength="4">
+            <div class="field-error" id="err-cvv">CVV inválido</div>
+          </div>
+        </div>
+        <div class="field-group">
+          <input
+            type="text"
+            autocomplete="cc-name"
+            placeholder="Nome no cartão"
+            id="cc-name">
+          <div class="field-error" id="err-name">Indique o nome no cartão</div>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="secure-note">
+      <ion-icon name="shield-checkmark"></ion-icon>
+      <span>Pagamento seguro e encriptado</span>
+    </p>
+
+  </div>
+
+  <div class="status-screen" id="status-screen">
+    <ion-icon id="status-icon" name="checkmark-circle"></ion-icon>
+    <h2 id="status-title">Pagamento concluído!</h2>
+    <p id="status-desc">Obrigado pela sua compra.</p>
+  </div>
+
+</div>
+</div>
+
+<div class="bottom-bar" id="bottom-bar">
+  <div class="bottom-bar-inner">
+    <button class="pay-btn" type="button" id="pay-btn" disabled>
+      <ion-icon name="lock-closed"></ion-icon>
+      <span class="spinner"></span>
+      <span class="btn-label">A carregar produto...</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  // ==============================
+  // CONFIGURAÇÃO
+  // ==============================
+  const WORKER_URL = "https://nexa-checkout-gateway.alfredopjonas.workers.dev";
+  const PRODUCT_ID = "c072d53e-e680-4ba3-a8fc-90882ff8f34e";
+  const STRIPE_PUBLISHABLE_KEY = "SUBSTITUA_PELA_SUA_STRIPE_PUBLISHABLE_KEY";
+
+  const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+
+  const elements = stripe.elements();
+  const cardNumberElement = elements.create('cardNumber', {
+    showIcon: false,
+    style: { base: { fontSize: '16px', color: '#1a1a1a', '::placeholder': { color: '#b8b8bc' } } }
+  });
+  const cardExpiryElement = elements.create('cardExpiry', {
+    style: { base: { fontSize: '16px', color: '#1a1a1a', '::placeholder': { color: '#b8b8bc' } } }
+  });
+  const cardCvcElement = elements.create('cardCvc', {
+    style: { base: { fontSize: '16px', color: '#1a1a1a', '::placeholder': { color: '#b8b8bc' } } }
+  });
+
+  const methods = document.querySelectorAll('.method');
+  const cardFields = document.getElementById('card-fields');
+  const payBtn = document.getElementById('pay-btn');
+  const btnLabel = payBtn.querySelector('.btn-label');
+
+  const ccNumberInput = document.getElementById('cc-number');
+  const ccExpInput = document.getElementById('cc-exp');
+  const ccCvvInput = document.getElementById('cc-cvv');
+  const ccName = document.getElementById('cc-name');
+
+  const customerName = document.getElementById('customer-name');
+  const customerEmail = document.getElementById('customer-email');
+  const customerPhone = document.getElementById('customer-phone');
+
+  const checkoutScreen = document.getElementById('checkout-screen');
+  const statusScreen = document.getElementById('status-screen');
+  const statusIcon = document.getElementById('status-icon');
+  const statusTitle = document.getElementById('status-title');
+  const statusDesc = document.getElementById('status-desc');
+  const bottomBar = document.getElementById('bottom-bar');
+
+  const productNameLabel = document.getElementById('product-name-label');
+  const totalRow = document.getElementById('row-total');
+  const totalValue = document.getElementById('total-value');
+
+  let selectedMethod = null;
+  let stripeElementsMounted = false;
+  let productData = null;
+
+  /* ---------- Carregar produto real da API ---------- */
+
+  function formatKz(valueInKz) {
+    return new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      .format(valueInKz) + ' Kz';
+  }
+
+  async function loadProduct() {
+    try {
+      const res = await fetch(`${WORKER_URL}/products`);
+      const data = await res.json();
+      const product = (data.products || []).find(p => p.id === PRODUCT_ID);
+
+      if (!product) throw new Error('Produto não encontrado.');
+
+      productData = product;
+      productNameLabel.textContent = product.name;
+      totalValue.textContent = formatKz(product.price);
+      totalRow.classList.remove('loading');
+
+      payBtn.disabled = false;
+      btnLabel.textContent = 'Confirmar pagamento';
+    } catch (err) {
+      totalValue.textContent = 'Erro ao carregar';
+      btnLabel.textContent = 'Indisponível';
+      console.error(err);
+    }
+  }
+
+  loadProduct();
+
+  /* ---------- Stripe Elements sobreposto nos campos visuais ---------- */
+
+  function mountStripeElements() {
+    if (stripeElementsMounted) return;
+    ccNumberInput.style.display = 'none';
+    ccExpInput.style.display = 'none';
+    ccCvvInput.style.display = 'none';
+
+    const numberMount = document.createElement('div');
+    numberMount.id = 'stripe-cc-number';
+    Object.assign(numberMount.style, {
+      padding: '13.5px 15px',
+      border: '1.5px solid #ececec',
+      borderRadius: '11px',
+      background: '#fdfdfd'
+    });
+    ccNumberInput.parentElement.insertBefore(numberMount, ccNumberInput);
+
+    const expMount = document.createElement('div');
+    expMount.id = 'stripe-cc-exp';
+    Object.assign(expMount.style, {
+      padding: '13.5px 15px',
+      border: '1.5px solid #ececec',
+      borderRadius: '11px',
+      background: '#fdfdfd'
+    });
+    ccExpInput.parentElement.insertBefore(expMount, ccExpInput);
+
+    const cvcMount = document.createElement('div');
+    cvcMount.id = 'stripe-cc-cvv';
+    Object.assign(cvcMount.style, {
+      padding: '13.5px 15px',
+      border: '1.5px solid #ececec',
+      borderRadius: '11px',
+      background: '#fdfdfd'
+    });
+    ccCvvInput.parentElement.insertBefore(cvcMount, ccCvvInput);
+
+    cardNumberElement.mount('#stripe-cc-number');
+    cardExpiryElement.mount('#stripe-cc-exp');
+    cardCvcElement.mount('#stripe-cc-cvv');
+
+    stripeElementsMounted = true;
+  }
+
+  function selectMethod(method) {
+    const target = method.getAttribute('data-target');
+    selectedMethod = method.querySelector('input[type="radio"]').value;
+
+    methods.forEach(m => {
+      const isCurrent = m === method;
+      m.classList.toggle('selected', isCurrent);
+      m.querySelector('input[type="radio"]').checked = isCurrent;
+    });
+
+    cardFields.classList.toggle('active', target === 'card-fields');
+    if (target === 'card-fields') mountStripeElements();
+    clearAllErrors();
+  }
+
+  methods.forEach(m => {
+    m.addEventListener('click', () => selectMethod(m));
+  });
+
+  if (methods.length) selectMethod(methods[0]);
+
+  /* ---------- Validação ---------- */
+
+  function setError(input, errorId, hasError) {
+    if (input) input.classList.toggle('error', hasError);
+    document.getElementById(errorId).classList.toggle('active', hasError);
+  }
+
+  function clearAllErrors() {
+    [ccName, customerName, customerEmail, customerPhone].forEach(input => input && input.classList.remove('error'));
+    document.querySelectorAll('.field-error').forEach(el => el.classList.remove('active'));
+  }
+
+  function validateCustomerFields() {
+    let valid = true;
+
+    const nameOk = customerName.value.trim().length >= 3;
+    setError(customerName, 'err-customer-name', !nameOk);
+    if (!nameOk) valid = false;
+
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.value.trim());
+    setError(customerEmail, 'err-customer-email', !emailOk);
+    if (!emailOk) valid = false;
+
+    if (selectedMethod === 'multicaixa') {
+      const phoneOk = /^9\d{8}$/.test(customerPhone.value.trim());
+      setError(customerPhone, 'err-customer-phone', !phoneOk);
+      if (!phoneOk) valid = false;
+    }
+
+    if (selectedMethod === 'visa' || selectedMethod === 'mastercard') {
+      const nameOnCardOk = ccName.value.trim().length >= 3;
+      setError(ccName, 'err-name', !nameOnCardOk);
+      if (!nameOnCardOk) valid = false;
+    }
+
+    return valid;
+  }
+
+  function showStatus({ success, title, desc }) {
+    checkoutScreen.style.display = 'none';
+    bottomBar.style.display = 'none';
+    statusScreen.classList.add('active');
+    statusIcon.setAttribute('name', success ? 'checkmark-circle' : 'close-circle');
+    statusIcon.classList.toggle('error', !success);
+    statusTitle.textContent = title;
+    statusDesc.textContent = desc;
+  }
+
+  /* ---------- Chamadas ao Worker ---------- */
+
+  async function createPayment(paymentMethod) {
+    const res = await fetch(`${WORKER_URL}/create-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: PRODUCT_ID,
+        payment_method: paymentMethod,
+        customer_name: customerName.value.trim(),
+        customer_email: customerEmail.value.trim(),
+        customer_phone: customerPhone.value.trim() || undefined
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao criar pagamento.');
+    return data;
+  }
+
+  async function pollPaymentStatus(paymentId, { intervalMs = 3000, timeoutMs = 120000 } = {}) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const res = await fetch(`${WORKER_URL}/payment-status/${paymentId}`);
+      const data = await res.json();
+      if (data.status === 'completed') return 'completed';
+      if (data.status === 'failed' || data.status === 'cancelled') return data.status;
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return 'timeout';
+  }
+
+  /* ---------- Confirmar pagamento ---------- */
+
+  payBtn.addEventListener('click', async () => {
+    if (!selectedMethod || !productData) return;
+    if (!validateCustomerFields()) return;
+
+    payBtn.classList.add('loading');
+    payBtn.disabled = true;
+    btnLabel.textContent = 'A processar...';
+
+    try {
+      const apiPaymentMethod = (selectedMethod === 'visa' || selectedMethod === 'mastercard')
+        ? 'stripe'
+        : 'multicaixa';
+
+      const payment = await createPayment(apiPaymentMethod);
+
+      if (apiPaymentMethod === 'stripe') {
+        const { error, paymentIntent } = await stripe.confirmCardPayment(payment.client_secret, {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: {
+              name: ccName.value.trim(),
+              email: customerEmail.value.trim()
+            }
+          }
+        });
+
+        if (error) {
+          payBtn.classList.remove('loading');
+          payBtn.disabled = false;
+          btnLabel.textContent = 'Confirmar pagamento';
+          setError(null, 'err-number', true);
+          document.getElementById('err-number').textContent = error.message;
+          return;
+        }
+
+        if (paymentIntent.status === 'succeeded') {
+          showStatus({
+            success: true,
+            title: 'Pagamento concluído!',
+            desc: 'Obrigado pela sua compra.'
+          });
+        }
+        return;
+      }
+
+      if (apiPaymentMethod === 'multicaixa') {
+        btnLabel.textContent = 'Aguardando confirmação no telemóvel...';
+        const finalStatus = await pollPaymentStatus(payment.payment_id || payment.id);
+
+        if (finalStatus === 'completed') {
+          showStatus({
+            success: true,
+            title: 'Pagamento concluído!',
+            desc: 'Obrigado pela sua compra.'
+          });
+        } else if (finalStatus === 'timeout') {
+          showStatus({
+            success: false,
+            title: 'Tempo esgotado',
+            desc: 'Não recebemos a confirmação a tempo. Tente novamente.'
+          });
+        } else {
+          showStatus({
+            success: false,
+            title: 'Pagamento não concluído',
+            desc: 'O pagamento foi cancelado ou falhou.'
+          });
+        }
+        return;
+      }
+
+    } catch (err) {
+      payBtn.classList.remove('loading');
+      payBtn.disabled = false;
+      btnLabel.textContent = 'Confirmar pagamento';
+      console.error(err);
+    }
+  });
+</script>
+
 </body>
 </html>

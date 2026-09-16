@@ -4,10 +4,6 @@ workflows:
     max_build_duration: 30
     instance_type: linux_x2
     environment:
-      android_signing:
-        - looply.keystore
-      groups:
-        - looply_keystore_creds
       vars:
         PACKAGE_NAME: "com.looply.social"
       java: 17

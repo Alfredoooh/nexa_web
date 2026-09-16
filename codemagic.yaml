@@ -11,6 +11,10 @@ workflows:
       - name: Set up local.properties
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Generate Gradle wrapper
+        script: |
+          cd "$CM_BUILD_DIR"
+          gradle wrapper --gradle-version 8.7
       - name: Build release AAB and APK
         script: |
           cd "$CM_BUILD_DIR"

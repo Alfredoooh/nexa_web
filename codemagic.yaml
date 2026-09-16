@@ -1,0 +1,32 @@
+workflows:
+  looply-android-release:
+    name: Looply Android Release
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - looply_keystore
+      groups:
+        - looply_keystore_creds
+      vars:
+        PACKAGE_NAME: "com.looply.social"
+      java: 17
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Build release AAB and APK
+        script: |
+          cd "$CM_BUILD_DIR"
+          ./gradlew assembleRelease bundleRelease
+    artifacts:
+      - app/build/outputs/**/*.apk
+      - app/build/outputs/**/*.aab
+      - app/build/outputs/mapping/**/mapping.txt
+    publishing:
+      email:
+        recipients:
+          - seu-email@exemplo.com
+        notify:
+          success: true
+          failure: true

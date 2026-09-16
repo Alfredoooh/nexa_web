@@ -5,3 +5,5 @@
 .DS_Store
 /build
 /app/build
+*.jks
+*.keystore

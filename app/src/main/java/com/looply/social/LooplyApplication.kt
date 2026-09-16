@@ -1,8 +1,8 @@
-package com.exemplo.myapp
+package com.looply.social
 
 import android.app.Application
 
-class MyApplication : Application() {
+class LooplyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()

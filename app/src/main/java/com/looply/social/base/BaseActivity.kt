@@ -1,4 +1,4 @@
-package com.exemplo.myapp.base
+package com.looply.social.base
 
 import androidx.appcompat.app.AppCompatActivity
 

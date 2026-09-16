@@ -1,8 +1,8 @@
-package com.exemplo.myapp
+package com.looply.social
 
 import android.os.Bundle
-import com.exemplo.myapp.base.BaseActivity
-import com.exemplo.myapp.databinding.ActivityMainBinding
+import com.looply.social.base.BaseActivity
+import com.looply.social.databinding.ActivityMainBinding
 
 class MainActivity : BaseActivity() {
 
@@ -10,7 +10,7 @@ class MainActivity : BaseActivity() {
 
     private val greetings = listOf(
         "Olá!",
-        "Bem-vindo!",
+        "Bem-vindo ao Looply!",
         "Tudo bem?",
         "Que bom ter-te aqui!",
         "Vamos construir algo incrível!"

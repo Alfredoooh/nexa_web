@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.exemplo.myapp"
+    namespace = "com.looply.social"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.exemplo.myapp"
+        applicationId = "com.looply.social"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

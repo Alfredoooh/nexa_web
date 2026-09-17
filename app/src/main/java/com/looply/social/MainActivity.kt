@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
             }
             text = label
             textSize = 15f
-            setTextColor(onSurface)
+            setTextColor(tint)
         }
 
         root.addView(iconView)

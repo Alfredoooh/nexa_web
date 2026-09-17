@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#121212</color>
-    <color name="surface">#1E1E1E</color>
+    <color name="background">#101010</color>
+    <color name="surface">#282828</color>
     <color name="primary">#FFFFFF</color>
     <color name="on_primary">#000000</color>
     <color name="text_primary">#F5F5F5</color>
     <color name="text_secondary">#AAAAAA</color>
+    
+    <!-- Escuro: exatamente #101010 / #282828 como pediste -->
+    <color name="page_background_light">#101010</color>
+    <color name="card_background_light">#282828</color>
+    <color name="on_surface_light">#F2F2F3</color>
+    <color name="on_surface_variant_light">#9B9BA1</color>
+    <color name="outline_variant_light">#3A3A3A</color>
+    <color name="accent2_light">#0A84FF</color>
 </resources>

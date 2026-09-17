@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <attr name="colorPageBackground" format="color" />
+  <attr name="colorCardBackground" format="color" />
+  <attr name="colorOnSurface" format="color" />
+  <attr name="colorOnSurfaceVariant" format="color" />
+  <attr name="colorOutlineVariant" format="color" />
+  <attr name="colorAccent2" format="color" />
+</resources>

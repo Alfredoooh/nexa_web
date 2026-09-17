@@ -16,6 +16,8 @@
         <item name="colorOnSurfaceVariant">@color/on_surface_variant_light</item>
         <item name="colorOutlineVariant">@color/outline_variant_light</item>
         <item name="colorAccent2">@color/accent2_light</item>
+        <item name="colorNavBackground">@color/nav_background_light</item>
+        <item name="colorNavPillActive">@color/nav_pill_active_light</item>
     </style>
 
     <style name="Theme.Looply.Editor" parent="Theme.Looply">

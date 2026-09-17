@@ -6,4 +6,6 @@
   <attr name="colorOnSurfaceVariant" format="color" />
   <attr name="colorOutlineVariant" format="color" />
   <attr name="colorAccent2" format="color" />
+  <attr name="colorNavBackground" format="color" />
+  <attr name="colorNavPillActive" format="color" />
 </resources>

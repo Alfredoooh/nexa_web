@@ -30,14 +30,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Permite que o conteúdo vá atrás da statusbar
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Aplica o padding da statusbar só no topBar para o conteúdo
-        // ficar correctamente abaixo dos ícones do sistema
         ViewCompat.setOnApplyWindowInsetsListener(binding.topBar) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(
@@ -63,10 +60,9 @@ class MainActivity : AppCompatActivity() {
         val onSurface = getColorAttr(R.attr.colorOnSurface)
         val primary   = getColorAttr(androidx.appcompat.R.attr.colorPrimary)
         val variant   = getColorAttr(R.attr.colorOnSurfaceVariant)
-        val onPrimary = getColorAttr(R.attr.colorOnSurface) // branco no escuro, preto no claro — usa colorPageBackground invertido
 
         binding.btnMenu.setImageDrawable(SvgIcon.load(this, "ui", "menu", dp(20), onSurface))
-        binding.fabNewCreation.setImageDrawable(SvgIcon.load(this, "ui", "add", dp(24), onPrimary))
+        binding.fabNewCreation.setImageDrawable(SvgIcon.load(this, "ui", "add", dp(24), android.graphics.Color.WHITE))
 
         binding.navHomeIcon.setImageDrawable(SvgIcon.load(this, "ui", "apps", dp(22), primary))
         binding.navCreationsIcon.setImageDrawable(SvgIcon.load(this, "ui", "library", dp(22), variant))
@@ -98,18 +94,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateNavHighlight() {
-        val primary = getColorAttr(androidx.appcompat.R.attr.colorPrimary)
-        val variant = getColorAttr(R.attr.colorOnSurfaceVariant)
+        val white = android.graphics.Color.WHITE
+        val muted = android.graphics.Color.parseColor("#99FFFFFF")
 
-        binding.navHomeIcon.setImageDrawable(
-            SvgIcon.load(this, "ui", "apps", dp(22), if (currentTab == Tab.HOME) primary else variant)
-        )
-        binding.navCreationsIcon.setImageDrawable(
-            SvgIcon.load(this, "ui", "library", dp(22), if (currentTab == Tab.CREATIONS) primary else variant)
-        )
-        binding.navTemplatesIcon.setImageDrawable(
-            SvgIcon.load(this, "ui", "stacks", dp(22), if (currentTab == Tab.TEMPLATES) primary else variant)
-        )
+        binding.navHome.background      = null
+        binding.navCreations.background = null
+        binding.navTemplates.background = null
+
+        val (homeColor, creationsColor, templatesColor) = when (currentTab) {
+            Tab.HOME      -> Triple(white, muted, muted).also { binding.navHome.setBackgroundResource(R.drawable.bg_nav_pill_active) }
+            Tab.CREATIONS -> Triple(muted, white, muted).also { binding.navCreations.setBackgroundResource(R.drawable.bg_nav_pill_active) }
+            Tab.TEMPLATES -> Triple(muted, muted, white).also { binding.navTemplates.setBackgroundResource(R.drawable.bg_nav_pill_active) }
+        }
+
+        binding.navHomeIcon.setImageDrawable(SvgIcon.load(this, "ui", "apps", dp(22), homeColor))
+        binding.navCreationsIcon.setImageDrawable(SvgIcon.load(this, "ui", "library", dp(22), creationsColor))
+        binding.navTemplatesIcon.setImageDrawable(SvgIcon.load(this, "ui", "stacks", dp(22), templatesColor))
+
+        binding.navHomeLabel.setTextColor(homeColor)
+        binding.navCreationsLabel.setTextColor(creationsColor)
+        binding.navTemplatesLabel.setTextColor(templatesColor)
     }
 
     private fun setupDrawer() {
@@ -128,9 +132,7 @@ class MainActivity : AppCompatActivity() {
         bindDrawerItem(findViewById(R.id.drawerShare), "share1", getString(R.string.drawer_share), onSurface) {
             shareApp()
         }
-        bindDrawerItem(findViewById(R.id.drawerExplore), "apps", getString(R.string.drawer_explore), onSurface) {
-            // TODO: link para outros apps
-        }
+        bindDrawerItem(findViewById(R.id.drawerExplore), "apps", getString(R.string.drawer_explore), onSurface) {}
     }
 
     private fun bindDrawerItem(root: android.view.View, iconName: String, label: String, tint: Int, onClick: () -> Unit) {

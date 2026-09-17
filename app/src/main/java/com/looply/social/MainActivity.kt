@@ -6,6 +6,9 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import com.looply.social.databinding.ActivityMainBinding
@@ -26,8 +29,25 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Permite que o conteúdo vá atrás da statusbar
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Aplica o padding da statusbar só no topBar para o conteúdo
+        // ficar correctamente abaixo dos ícones do sistema
+        ViewCompat.setOnApplyWindowInsetsListener(binding.topBar) { view, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(
+                view.paddingLeft,
+                systemBars.top,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
 
         setupIcons()
         setupBottomNav()
@@ -40,10 +60,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupIcons() {
-        val onSurface  = getColorAttr(R.attr.colorOnSurface)
-        val primary    = getColorAttr(androidx.appcompat.R.attr.colorPrimary)
-        val variant    = getColorAttr(R.attr.colorOnSurfaceVariant)
-        val onPrimary  = getColorAttr(androidx.appcompat.R.attr.colorPrimaryDark)
+        val onSurface = getColorAttr(R.attr.colorOnSurface)
+        val primary   = getColorAttr(androidx.appcompat.R.attr.colorPrimary)
+        val variant   = getColorAttr(R.attr.colorOnSurfaceVariant)
+        val onPrimary = getColorAttr(R.attr.colorOnSurface) // branco no escuro, preto no claro — usa colorPageBackground invertido
 
         binding.btnMenu.setImageDrawable(SvgIcon.load(this, "ui", "menu", dp(20), onSurface))
         binding.fabNewCreation.setImageDrawable(SvgIcon.load(this, "ui", "add", dp(24), onPrimary))

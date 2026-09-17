@@ -4,12 +4,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="?attr/colorPageBackground">
+        android:background="?attr/colorPageBackground"
+        android:fitsSystemWindows="false">
 
         <LinearLayout
             android:id="@+id/topBar"
@@ -87,7 +89,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="@string/nav_home"
-                    android:textSize="11sp"/>
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
             </LinearLayout>
 
             <LinearLayout
@@ -113,7 +116,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="@string/nav_creations"
-                    android:textSize="11sp"/>
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
             </LinearLayout>
 
             <LinearLayout
@@ -139,7 +143,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="@string/nav_templates"
-                    android:textSize="11sp"/>
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
             </LinearLayout>
 
         </LinearLayout>
@@ -151,9 +156,10 @@
             android:layout_marginBottom="12dp"
             android:layout_marginEnd="16dp"
             android:src="@drawable/ic_placeholder"
-            android:background="?attr/colorPrimary"
+            android:background="@drawable/bg_fab_circular"
             android:padding="16dp"
             android:contentDescription="Nova criação"
+            android:elevation="6dp"
             app:layout_constraintBottom_toTopOf="@id/bottomNav"
             app:layout_constraintEnd_toEndOf="parent"/>
 
@@ -165,6 +171,7 @@
         android:layout_gravity="start"
         android:orientation="vertical"
         android:background="?attr/colorCardBackground"
+        android:fitsSystemWindows="true"
         android:paddingTop="48dp">
 
         <TextView
@@ -177,14 +184,10 @@
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"/>
 
-        <include layout="@layout/drawer_item"
-            android:id="@+id/drawerSettings"/>
-        <include layout="@layout/drawer_item"
-            android:id="@+id/drawerRate"/>
-        <include layout="@layout/drawer_item"
-            android:id="@+id/drawerShare"/>
-        <include layout="@layout/drawer_item"
-            android:id="@+id/drawerExplore"/>
+        <include layout="@layout/drawer_item" android:id="@+id/drawerSettings"/>
+        <include layout="@layout/drawer_item" android:id="@+id/drawerRate"/>
+        <include layout="@layout/drawer_item" android:id="@+id/drawerShare"/>
+        <include layout="@layout/drawer_item" android:id="@+id/drawerExplore"/>
 
     </LinearLayout>
 

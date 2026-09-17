@@ -18,14 +18,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <com.google.android.material.button.MaterialButton
+        <ImageButton
             android:id="@+id/btnBack"
             style="@style/Widget.Looply.IconButton.Circular"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            app:icon="@drawable/ic_placeholder"
-            app:iconGravity="textStart"
-            app:iconPadding="0dp"/>
+            android:src="@drawable/ic_placeholder"
+            android:contentDescription="Voltar"/>
 
         <TextView
             android:layout_width="wrap_content"

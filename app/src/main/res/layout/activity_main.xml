@@ -11,7 +11,6 @@
         android:layout_height="match_parent"
         android:background="?attr/colorPageBackground">
 
-        <!-- Header (topo): botão menu + logo + título -->
         <LinearLayout
             android:id="@+id/topBar"
             android:layout_width="0dp"
@@ -24,14 +23,12 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/btnMenu"
                 style="@style/Widget.Looply.IconButton.Circular"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                app:icon="@drawable/ic_placeholder"
-                app:iconGravity="textStart"
-                app:iconPadding="0dp"
+                android:src="@drawable/ic_placeholder"
                 android:contentDescription="Menu"/>
 
             <TextView
@@ -47,7 +44,6 @@
 
         </LinearLayout>
 
-        <!-- Container de fragmentos -->
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/fragmentContainer"
             android:layout_width="0dp"
@@ -57,7 +53,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
 
-        <!-- Bottom nav customizado (não Material padrão — design próprio) -->
         <LinearLayout
             android:id="@+id/bottomNav"
             android:layout_width="0dp"
@@ -149,23 +144,21 @@
 
         </LinearLayout>
 
-        <!-- FAB: nova criação -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
+        <ImageButton
             android:id="@+id/fabNewCreation"
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginBottom="12dp"
-            app:layout_constraintBottom_toTopOf="@id/bottomNav"
-            app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginEnd="16dp"
-            app:srcCompat="@drawable/ic_placeholder"
-            app:backgroundTint="?attr/colorPrimary"
-            app:tint="?attr/colorOnPrimary"
-            app:elevation="6dp"/>
+            android:src="@drawable/ic_placeholder"
+            android:background="?attr/colorPrimary"
+            android:padding="16dp"
+            android:contentDescription="Nova criação"
+            app:layout_constraintBottom_toTopOf="@id/bottomNav"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- DRAWER (lado esquerdo) -->
     <LinearLayout
         android:layout_width="280dp"
         android:layout_height="match_parent"

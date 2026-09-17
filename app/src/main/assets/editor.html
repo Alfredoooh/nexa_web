@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Looply Editor</title>
+<style>
+  :root {
+    --primary: #FF3B30;
+    --on-primary: #FFFFFF;
+    --accent: #007AFF;
+    --on-accent: #FFFFFF;
+    --page-bg: #FFFFFF;
+    --card-bg: #FFFFFF;
+    --on-surface: #1C1C1E;
+    --on-surface-variant: #6B6B70;
+    --outline-variant: #EAEAEC;
+    --outline: #D4D4D6;
+    --hover: rgba(0,0,0,0.05);
+    --accent-container: rgba(0,122,255,0.14);
+    --shadow-color: rgba(0,0,0,0.14);
+    --menu-bg: #FFFFFF;
+    --checker-a: rgba(120,120,120,0.18);
+    --icon-filter: none;
+  }
+
+  html[data-theme="dark"] {
+    --primary: #FF453A;
+    --accent: #0A84FF;
+    --on-accent: #101010;
+    --page-bg: #101010;
+    --card-bg: #282828;
+    --on-surface: #F2F2F3;
+    --on-surface-variant: #9B9BA1;
+    --outline-variant: #3A3A3A;
+    --outline: #4A4A4A;
+    --hover: rgba(255,255,255,0.08);
+    --accent-container: rgba(10,132,255,0.22);
+    --shadow-color: rgba(0,0,0,0.55);
+    --menu-bg: #282828;
+    --checker-a: rgba(255,255,255,0.12);
+    /* Ícones do pack são pretos (stroke sólido) — inverte para branco no escuro */
+    --icon-filter: invert(1) brightness(1.6);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: var(--page-bg);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    touch-action: none;
+  }
+  html, body, #stage, #toolbar, #header, .sheet {
+    transition: background-color 0.22s ease, border-color 0.22s ease;
+  }
+
+  /* Ícone real do pack, carregado como <img>, tintado via filter */
+  .icon-asset {
+    display: block;
+    filter: var(--icon-filter);
+  }
+  .icon-asset.accent-tint {
+    filter: var(--icon-filter) drop-shadow(0 0 0 var(--accent));
+  }
+
+  #stage { position: fixed; inset: 0; background: var(--page-bg); }
+
+  #canvasWrap {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 340px; height: 340px;
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: 0 8px 30px var(--shadow-color);
+    background-color: transparent;
+    background-image:
+      linear-gradient(45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker-a) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  }
+  #canvasWrap.solid-bg { background-image: none; }
+  #canvasWrap.gradient-bg { background-image: var(--canvas-gradient); background-size: auto; }
+
+  #canvas { position: relative; width: 100%; height: 100%; }
+
+  .layer { position: absolute; touch-action: none; }
+  .layer.selected::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border: 1.5px dashed var(--accent);
+    pointer-events: none;
+  }
+
+  .layer-handle {
+    position: absolute;
+    width: 26px; height: 26px;
+    background: var(--accent);
+    border: 2.5px solid var(--card-bg);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px var(--shadow-color);
+    z-index: 10;
+  }
+  .layer.selected .layer-handle { display: flex; }
+  .handle-delete { top: -15px; left: -15px; }
+  .handle-resize { bottom: -15px; right: -15px; }
+  .handle-rotate { top: -15px; right: -15px; }
+  .handle-confirm { bottom: -15px; left: -15px; background: #34C759; }
+  .handle-icon { width: 13px; height: 13px; filter: brightness(0) invert(1); }
+
+  .text-layer {
+    padding: 4px 8px;
+    font-weight: 700;
+    font-size: 28px;
+    color: #FFFFFF;
+    -webkit-text-stroke: 1.5px #000000;
+    text-align: center;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.2;
+    outline: none;
+    min-width: 40px;
+    cursor: text;
+  }
+  .image-layer { display: block; pointer-events: none; }
+  .shape-layer { display: block; }
+
+  /* ── TOOLBAR ───────────────────────────────────── */
+  #toolbar {
+    position: fixed;
+    left: 12px; right: 12px; bottom: 16px;
+    height: 52px;
+    background: var(--card-bg);
+    border-radius: 26px;
+    box-shadow: 0 6px 24px var(--shadow-color);
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    z-index: 100;
+  }
+  #toolbar::-webkit-scrollbar { display: none; }
+
+  .tb-group { display: flex; align-items: center; flex-shrink: 0; }
+
+  .tb-pill {
+    display: flex; align-items: center;
+    background: var(--page-bg);
+    border-radius: 999px;
+    padding: 3px;
+    flex-shrink: 0;
+    margin-right: 4px;
+  }
+  .tb-pill .tb-btn { width: 34px; height: 34px; border-radius: 999px; }
+
+  .tb-btn {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .tb-btn:active { background: var(--hover); }
+  .tb-btn.active { background: var(--accent-container); }
+  .tb-btn.active .icon-asset { filter: var(--icon-filter) sepia(1) saturate(6) hue-rotate(190deg); }
+  .tb-btn.disabled { opacity: 0.32; pointer-events: none; }
+
+  .tb-divider { width: 1px; height: 22px; background: var(--outline-variant); margin: 0 4px; flex-shrink: 0; }
+
+  .tb-color-ring {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .tb-color-ring-inner {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #FF3B30, #FF9500, #FFCC00, #34C759, #00C7BE, #32ADE6, #007AFF, #AF52DE, #FF2D55, #FF3B30);
+  }
+
+  /* ── HEADER ────────────────────────────────────── */
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+  }
+  .hd-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--card-bg);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    display: flex; align-items: center; justify-content: center;
+    border: none;
+    cursor: pointer;
+  }
+  .hd-spacer { flex: 1; }
+
+  /* ── PILHA DE MODAIS ───────────────────────────── */
+  .sheet-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sheet-overlay.open { opacity: 1; pointer-events: auto; }
+  .sheet-overlay.animating { transition: opacity 0.25s ease; }
+  .sheet-overlay.stacked-hidden .sheet { transform: translateY(100%) scale(0.94); opacity: 0; }
+  .sheet-overlay.stacked-hidden { background: rgba(0,0,0,0); pointer-events: none; }
+
+  .sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--card-bg);
+    border-radius: 24px 24px 0 0;
+    padding: 8px 20px 24px;
+    max-height: 78vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    touch-action: none;
+  }
+  .sheet-overlay.open .sheet { transform: translateY(0); }
+  .sheet-overlay.animating .sheet { transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease; }
+
+  .sheet-handle { width: 36px; height: 4px; background: var(--outline-variant); border-radius: 2px; margin: 8px auto 14px; }
+  .sheet-drag-zone { padding: 4px 20px 0; margin: -4px -20px 0; }
+  .sheet-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .sheet-back-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--page-bg); flex-shrink: 0; }
+  .sheet-title { font-size: 15px; font-weight: 600; color: var(--on-surface); flex: 1; }
+
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--page-bg);
+    border-radius: 999px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+  .search-box input {
+    flex: 1; border: none; background: transparent; outline: none;
+    font-size: 14.5px; color: var(--on-surface);
+  }
+  .search-box input::placeholder { color: var(--on-surface-variant); }
+
+  .elements-tabs { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; scrollbar-width: none; }
+  .elements-tabs::-webkit-scrollbar { display: none; }
+  .elements-tab {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: var(--page-bg);
+    font-size: 13px; font-weight: 600;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+  }
+  .elements-tab.active { background: var(--accent-container); color: var(--accent); }
+
+  .elements-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .element-item {
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--page-bg);
+    border-radius: 14px;
+    cursor: pointer;
+  }
+  .element-item:active { background: var(--hover); }
+  .element-item svg { width: 30px; height: 30px; }
+  .element-item.no-results { grid-column: 1 / -1; aspect-ratio: auto; padding: 30px 0; color: var(--on-surface-variant); font-size: 13px; }
+
+  .color-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .color-tab { flex: 1; text-align: center; padding: 9px; border-radius: 999px; background: var(--page-bg); font-size: 13px; font-weight: 600; color: var(--on-surface-variant); cursor: pointer; }
+  .color-tab.active { background: var(--accent-container); color: var(--accent); }
+
+  .color-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+  .color-swatch {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid var(--outline);
+    box-shadow: 0 1px 3px var(--shadow-color);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .color-swatch.selected { box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px var(--accent); }
+  .color-swatch.transparent-swatch {
+    background-color: transparent;
+    background-image:
+      linear-gradient(45deg, #999 25%, transparent 25%), linear-gradient(-45deg, #999 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #999 75%), linear-gradient(-45deg, transparent 75%, #999 75%);
+    background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+  }
+  .color-swatch.create-new { border: 1.5px dashed var(--outline); background: var(--page-bg); }
+  .color-swatch.create-new svg { width: 16px; height: 16px; stroke: var(--on-surface-variant); fill: none; stroke-width: 2.2; }
+
+  .creator-preview {
+    width: 100%; height: 84px; border-radius: 20px; border: 1px solid var(--outline);
+    box-shadow: 0 4px 14px var(--shadow-color);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .creator-preview span { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+  .hue-slider {
+    height: 32px; border-radius: 16px;
+    background: linear-gradient(to right, #FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000);
+    margin-bottom: 14px;
+  }
+  .shade-slider { height: 28px; border-radius: 14px; margin-bottom: 14px; }
+  .slider-label { font-size: 12px; font-weight: 600; color: var(--on-surface-variant); margin: 0 0 6px 2px; }
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 28px; background: transparent; margin: 0; display: block; }
+  .hue-slider input[type="range"], .shade-slider input[type="range"] { height: 100%; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #fff; border: 2px solid rgba(0,0,0,0.15);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.35);
+    margin-top: 3px;
+  }
+
+  .gradient-stops { display: flex; gap: 12px; margin-bottom: 16px; }
+  .gradient-stop { flex: 1; text-align: center; }
+  .gradient-stop-swatch { width: 100%; height: 46px; border-radius: 12px; border: 1px solid var(--outline); cursor: pointer; margin-bottom: 6px; }
+  .gradient-stop-label { font-size: 11px; color: var(--on-surface-variant); font-weight: 600; }
+  .gradient-preview-bar { height: 40px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--outline); }
+
+  .sheet-row { display: flex; align-items: center; padding: 11px 0; cursor: pointer; }
+  .sheet-row-label { flex: 1; font-size: 14.5px; color: var(--on-surface); font-weight: 500; }
+
+  .toggle { width: 46px; height: 28px; background: var(--outline-variant); border-radius: 999px; position: relative; cursor: pointer; transition: background 0.18s ease; flex-shrink: 0; }
+  .toggle.on { background: var(--accent); }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; background: #FFFFFF; border-radius: 50%; box-shadow: 0 1px 3px var(--shadow-color); transition: transform 0.18s ease; }
+  .toggle.on::after { transform: translateX(18px); }
+
+  .stepper-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; }
+  .stepper-controls { display: flex; align-items: center; gap: 14px; }
+  .stepper-btn { width: 30px; height: 30px; border-radius: 50%; background: var(--page-bg); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; color: var(--on-surface); cursor: pointer; }
+  .stepper-value { font-size: 14px; font-weight: 600; color: var(--on-surface); min-width: 34px; text-align: center; }
+
+  .shape-preview-configurable {
+    width: 100%; height: 100px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--page-bg);
+    border-radius: 16px;
+    margin-bottom: 18px;
+  }
+  .shape-preview-configurable-inner { width: 60px; height: 60px; }
+
+  .layers-list { display: flex; flex-direction: column; gap: 6px; }
+  .layer-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; }
+  .layer-row.active { background: var(--accent-container); }
+  .layer-row-icon { width: 20px; height: 20px; flex-shrink: 0; }
+  .layer-row-label { flex: 1; font-size: 13.5px; color: var(--on-surface); }
+  .layer-row-btn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+
+  .sheet-primary-btn {
+    width: 100%; padding: 13px;
+    background: var(--accent); color: var(--on-accent);
+    border: none; border-radius: 999px;
+    font-size: 15px; font-weight: 600;
+    margin-top: 16px; cursor: pointer;
+  }
+
+  .font-list { display: flex; flex-direction: column; gap: 4px; }
+  .font-item { padding: 13px 14px; border-radius: 14px; font-size: 22px; color: var(--on-surface); cursor: pointer; }
+  .font-item.selected { background: var(--accent-container); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="canvasWrap">
+    <div id="canvas"></div>
+  </div>
+</div>
+
+<div id="header">
+  <button class="hd-btn" id="btnBack" aria-label="Voltar">
+    <img class="icon-asset" src="icons/ui/back.svg" width="19" height="19">
+  </button>
+  <div class="hd-spacer"></div>
+  <div class="tb-pill" style="margin-right:0;">
+    <button class="tb-btn disabled" id="btnUndo" aria-label="Desfazer">
+      <img class="icon-asset" src="icons/editor/undo.svg" width="20" height="20">
+    </button>
+    <button class="tb-btn disabled" id="btnRedo" aria-label="Refazer">
+      <img class="icon-asset" src="icons/editor/redo.svg" width="20" height="20">
+    </button>
+  </div>
+  <button class="hd-btn" id="btnMore" aria-label="Mais opções" style="margin-left:8px;">
+    <img class="icon-asset" src="icons/ui/more_vert.svg" width="20" height="20">
+  </button>
+</div>
+
+<div id="toolbar">
+  <div class="tb-group">
+    <button class="tb-btn" id="tbText" aria-label="Adicionar texto">
+      <img class="icon-asset" src="icons/editor/edit_text.svg" width="20" height="20">
+    </button>
+    <button class="tb-btn" id="tbImage" aria-label="Adicionar imagem">
+      <img class="icon-asset" src="icons/editor/image.svg" width="20" height="20">
+    </button>
+    <button class="tb-btn" id="tbElements" aria-label="Elementos">
+      <img class="icon-asset" src="icons/ui/apps.svg" width="20" height="20">
+    </button>
+  </div>
+  <div class="tb-divider"></div>
+  <div class="tb-group" id="textToolsGroup" style="display:none;">
+    <button class="tb-btn" id="tbFont" aria-label="Tipo de letra">
+      <img class="icon-asset" src="icons/editor/font.svg" width="20" height="20">
+    </button>
+    <button class="tb-btn" id="tbTextColor" aria-label="Cor do texto">
+      <img class="icon-asset" src="icons/editor/text_color.svg" width="20" height="20">
+    </button>
+    <button class="tb-btn" id="tbTextBold" aria-label="Negrito">
+      <img class="icon-asset" src="icons/editor/bold.svg" width="20" height="20">
+    </button>
+    <div class="tb-divider"></div>
+  </div>
+  <div class="tb-group" id="shapeToolsGroup" style="display:none;">
+    <button class="tb-btn" id="tbShapeConfig" aria-label="Configurar forma">
+      <img class="icon-asset" src="icons/ui/settings2.svg" width="20" height="20">
+    </button>
+    <div class="tb-divider"></div>
+  </div>
+  <div class="tb-group">
+    <div class="tb-color-ring" id="tbCanvasBg" aria-label="Fundo do canvas">
+      <div class="tb-color-ring-inner"></div>
+    </div>
+    <button class="tb-btn" id="tbLayers" aria-label="Camadas">
+      <img class="icon-asset" src="icons/ui/stacks.svg" width="20" height="20">
+    </button>
+    <button class="tb-btn" id="tbDelete" aria-label="Eliminar">
+      <img class="icon-asset" src="icons/ui/trash.svg" width="20" height="20">
+    </button>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+
+<!-- SHEET: Fonte -->
+<div class="sheet-overlay" id="sheetFont">
+  <div class="sheet">
+    <div class="sheet-drag-zone" data-sheet-drag="sheetFont">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row"><div class="sheet-title">Tipo de letra</div></div>
+    </div>
+    <div class="font-list" id="fontList"></div>
+  </div>
+</div>
+
+<!-- SHEET: COR -->
+<div class="sheet-overlay" id="sheetColor">
+  <div class="sheet">
+    <div class="sheet-drag-zone" data-sheet-drag="sheetColor">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row">
+        <div class="sheet-back-btn" id="colorBackBtn" style="display:none;">
+          <img class="icon-asset" src="icons/ui/chevron_forward.svg" width="15" height="15" style="transform:rotate(180deg);">
+        </div>
+        <div class="sheet-title" id="colorSheetTitle">Escolher cor</div>
+      </div>
+    </div>
+
+    <div id="colorPanelMain">
+      <div class="color-tabs" id="colorTabs">
+        <div class="color-tab active" data-mode="solid">Sólida</div>
+        <div class="color-tab" data-mode="gradient">Gradiente</div>
+      </div>
+      <div class="color-grid" id="colorGrid"></div>
+    </div>
+
+    <div id="colorPanelCreator" style="display:none;">
+      <div class="creator-preview" id="creatorPreview"><span id="creatorHex">#FF3B30</span></div>
+      <div class="slider-label">Matiz</div>
+      <div class="hue-slider"><input type="range" id="hueSlider" min="0" max="360" value="0"></div>
+      <div class="slider-label">Saturação</div>
+      <div class="shade-slider" id="satTrack"><input type="range" id="satSlider" min="0" max="100" value="75"></div>
+      <div class="slider-label">Luminosidade</div>
+      <div class="shade-slider" id="lightTrack"><input type="range" id="lightSlider" min="0" max="100" value="50"></div>
+      <button class="sheet-primary-btn" id="applyCreatedColor">Aplicar cor</button>
+    </div>
+
+    <div id="colorPanelGradient" style="display:none;">
+      <div class="gradient-preview-bar" id="gradientPreviewBar"></div>
+      <div class="gradient-stops">
+        <div class="gradient-stop">
+          <div class="gradient-stop-swatch" id="gradStop1" style="background:#FF3B30;"></div>
+          <div class="gradient-stop-label">Cor 1</div>
+        </div>
+        <div class="gradient-stop">
+          <div class="gradient-stop-swatch" id="gradStop2" style="background:#007AFF;"></div>
+          <div class="gradient-stop-label">Cor 2</div>
+        </div>
+      </div>
+      <div class="slider-label">Ângulo</div>
+      <div class="shade-slider" style="background:var(--page-bg);"><input type="range" id="gradAngleSlider" min="0" max="360" value="135"></div>
+      <button class="sheet-primary-btn" id="applyGradientColor">Aplicar gradiente</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHEET: sub-picker de stop do gradiente -->
+<div class="sheet-overlay" id="sheetGradStopPicker">
+  <div class="sheet">
+    <div class="sheet-drag-zone" data-sheet-drag="sheetGradStopPicker">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row">
+        <div class="sheet-back-btn" id="gradStopBackBtn">
+          <img class="icon-asset" src="icons/ui/chevron_forward.svg" width="15" height="15" style="transform:rotate(180deg);">
+        </div>
+        <div class="sheet-title">Cor do stop</div>
+      </div>
+    </div>
+    <div class="color-grid" id="gradStopColorGrid"></div>
+  </div>
+</div>
+
+<!-- SHEET: Elementos — SEM emoji, só formas/ícones geométricos reais -->
+<div class="sheet-overlay" id="sheetElements">
+  <div class="sheet">
+    <div class="sheet-drag-zone" data-sheet-drag="sheetElements">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row"><div class="sheet-title">Elementos</div></div>
+    </div>
+    <div class="search-box">
+      <img class="icon-asset" src="icons/ui/search.svg" width="17" height="17">
+      <input type="text" id="elementsSearch" placeholder="Pesquisar formas, ícones...">
+    </div>
+    <div class="elements-tabs" id="elementsTabs">
+      <div class="elements-tab active" data-category="all">Tudo</div>
+      <div class="elements-tab" data-category="shape">Formas</div>
+      <div class="elements-tab" data-category="icon">Ícones</div>
+    </div>
+    <div class="elements-grid" id="elementsGrid"></div>
+  </div>
+</div>
+
+<!-- SHEET: Configuração avançada de forma -->
+<div class="sheet-overlay" id="sheetShapeConfig">
+  <div class="sheet">
+    <div class="sheet-drag-zone" data-sheet-drag="sheetShapeConfig">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row"><div class="sheet-title">Configurar forma</div></div>
+    </div>
+    <div class="shape-preview-configurable"><div class="shape-preview-configurable-inner" id="shapeConfigPreview"></div></div>
+
+    <div class="stepper-row">
+      <div class="sheet-row-label">Raio do canto</div>
+      <div class="stepper-controls">
+        <div class="stepper-btn" data-step="cornerRadius" data-dir="-1">−</div>
+        <div class="stepper-value" id="cornerRadiusValue">8</div>
+        <div class="stepper-btn" data-step="cornerRadius" data-dir="1">+</div>
+      </div>
+    </div>
+
+    <div class="stepper-row">
+      <div class="sheet-row-label">Espessura do contorno</div>
+      <div class="stepper-controls">
+        <div class="stepper-btn" data-step="strokeWidth" data-dir="-1">−</div>
+        <div class="stepper-value" id="strokeWidthValue">0</div>
+        <div class="stepper-btn" data-step="strokeWidth" data-dir="1">+</div>
+      </div>
+    </div>
+
+    <div class="sheet-row" id="rowStrokeColor">
+      <div class="sheet-row-label">Cor do contorno</div>
+      <div class="color-swatch" id="strokeColorSwatch" style="width:28px;height:28px;background:#000;"></div>
+    </div>
+
+    <div class="slider-row" style="margin-top:8px;">
+      <div class="slider-label">Opacidade</div>
+      <div class="shade-slider" style="background:var(--page-bg);"><input type="range" id="shapeOpacitySlider" min="10" max="100" value="100"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SHEET: Camadas -->
+<div class="sheet-overlay" id="sheetLayers">
+  <div class="sheet">
+    <div class="sheet-drag-zone" data-sheet-drag="sheetLayers">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row"><div class="sheet-title">Camadas</div></div>
+    </div>
+    <div class="layers-list" id="layersList"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var canvas = document.getElementById('canvas');
+  var canvasWrap = document.getElementById('canvasWrap');
+  var htmlRoot = document.documentElement;
+  var layers = [];
+  var layerIdSeq = 1;
+  var selectedLayer = null;
+  var undoStack = [];
+  var redoStack = [];
+  var suppressHistory = false;
+  var canvasBgMode = 'transparent';
+  var canvasBgValue = null;
+
+  var FONTS = [
+    { id: 'system', label: 'Impact', family: '"Arial Black", Impact, sans-serif' },
+    { id: 'serif', label: 'Georgia', family: 'Georgia, serif' },
+    { id: 'mono', label: 'Courier', family: '"Courier New", monospace' },
+    { id: 'round', label: 'Verdana', family: 'Verdana, sans-serif' },
+    { id: 'script', label: 'Comic Sans', family: '"Comic Sans MS", cursive' }
+  ];
+
+  var COLORS = [
+    '#FFFFFF', '#000000', '#FF3B30', '#FF9500', '#FFCC00', '#34C759',
+    '#00C7BE', '#32ADE6', '#007AFF', '#5856D6', '#AF52DE', '#FF2D55'
+  ];
+
+  // Elementos: SEM emoji — só formas geométricas reais e ícones simbólicos desenhados a vetor
+  var ELEMENTS = [
+    { id: 'shape_rect', category: 'shape', label: 'Retângulo', kind: 'shape', shapeType: 'rect' },
+    { id: 'shape_rounded', category: 'shape', label: 'Retângulo arredondado', kind: 'shape', shapeType: 'rounded' },
+    { id: 'shape_circle', category: 'shape', label: 'Círculo', kind: 'shape', shapeType: 'circle' },
+    { id: 'shape_triangle', category: 'shape', label: 'Triângulo', kind: 'shape', shapeType: 'triangle' },
+    { id: 'shape_line', category: 'shape', label: 'Linha', kind: 'shape', shapeType: 'line' },
+    { id: 'shape_star', category: 'shape', label: 'Estrela', kind: 'shape', shapeType: 'star' },
+    { id: 'shape_hexagon', category: 'shape', label: 'Hexágono', kind: 'shape', shapeType: 'hexagon' },
+    { id: 'shape_pentagon', category: 'shape', label: 'Pentágono', kind: 'shape', shapeType: 'pentagon' },
+    { id: 'icon_arrow_right', category: 'icon', label: 'Seta direita', kind: 'icon', iconType: 'arrow_right' },
+    { id: 'icon_arrow_up', category: 'icon', label: 'Seta cima', kind: 'icon', iconType: 'arrow_up' },
+    { id: 'icon_check', category: 'icon', label: 'Visto', kind: 'icon', iconType: 'check' },
+    { id: 'icon_plus', category: 'icon', label: 'Mais', kind: 'icon', iconType: 'plus' },
+    { id: 'icon_heart', category: 'icon', label: 'Coração', kind: 'icon', iconType: 'heart' },
+    { id: 'icon_flag', category: 'icon', label: 'Bandeira', kind: 'icon', iconType: 'flag' }
+  ];
+
+  function bridgeSend(action, payload) {
+    var msg = JSON.stringify({ action: action, payload: payload || {} });
+    if (window.flutter_inappwebview) {
+      window.flutter_inappwebview.callHandler('editorBridge', msg);
+    } else if (window.LooplyBridge) {
+      // Bridge nativo Kotlin (WebView.addJavascriptInterface)
+      window.LooplyBridge.onEditorEvent(msg);
+    } else {
+      console.log('[bridge]', msg);
+    }
+  }
+
+  // TEMA: aplicado SÓ via chamada externa do Kotlin. Não existe
+  // nenhum controlo de tema dentro do HTML — o Kotlin chama
+  // window.setThemeMode('dark'|'light') quando o utilizador muda
+  // o tema nas Definições nativas do app.
+  function setTheme(mode) {
+    htmlRoot.setAttribute('data-theme', mode);
+  }
+  window.setThemeMode = setTheme;
+
+  function snapshot() {
+    return JSON.stringify({
+      layers: layers.map(function(l) { return l.data; }),
+      canvasBgMode: canvasBgMode,
+      canvasBgValue: canvasBgValue
+    });
+  }
+
+  function updateUndoRedoButtons() {
+    document.getElementById('btnUndo').classList.toggle('disabled', undoStack.length === 0);
+    document.getElementById('btnRedo').classList.toggle('disabled', redoStack.length === 0);
+  }
+
+  function pushHistory() {
+    if (suppressHistory) return;
+    undoStack.push(snapshot());
+    if (undoStack.length > 40) undoStack.shift();
+    redoStack = [];
+    updateUndoRedoButtons();
+  }
+
+  function restoreFromSnapshot(json) {
+    suppressHistory = true;
+    var state = JSON.parse(json);
+    layers.forEach(function(l) { l.el.remove(); });
+    layers = [];
+    (state.layers || []).forEach(function(data) { createLayerFromData(data); });
+    applyCanvasBg(state.canvasBgMode, state.canvasBgValue);
+    selectLayer(null);
+    suppressHistory = false;
+    updateUndoRedoButtons();
+  }
+
+  document.getElementById('btnUndo').addEventListener('click', function() {
+    if (undoStack.length === 0) return;
+    redoStack.push(snapshot());
+    restoreFromSnapshot(undoStack.pop());
+    updateUndoRedoButtons();
+  });
+  document.getElementById('btnRedo').addEventListener('click', function() {
+    if (redoStack.length === 0) return;
+    undoStack.push(snapshot());
+    restoreFromSnapshot(redoStack.pop());
+    updateUndoRedoButtons();
+  });
+
+  document.getElementById('btnBack').addEventListener('click', function() { bridgeSend('close', {}); });
+
+  function applyCanvasBg(mode, value) {
+    canvasBgMode = mode;
+    canvasBgValue = value;
+    canvasWrap.classList.remove('solid-bg', 'gradient-bg');
+    if (mode === 'solid') {
+      canvasWrap.classList.add('solid-bg');
+      canvasWrap.style.backgroundColor = value;
+    } else if (mode === 'gradient') {
+      canvasWrap.classList.add('gradient-bg');
+      canvasWrap.style.setProperty('--canvas-gradient', value);
+      canvasWrap.style.backgroundColor = '';
+    } else {
+      canvasWrap.style.backgroundColor = '';
+    }
+  }
+
+  function baseData(kind) {
+    return { id: 'l' + (layerIdSeq++), kind: kind, x: 120, y: 140, w: 100, h: 60, rotation: 0, scale: 1, z: layers.length };
+  }
+
+  // SVG vetorial real para cada forma/ícone (não decorativo — é o próprio conteúdo)
+  function shapeSvgMarkup(shapeType, fillCss, strokeColor, strokeWidth, cornerRadius) {
+    var strokeAttr = strokeWidth ? ' stroke="' + strokeColor + '" stroke-width="' + strokeWidth + '"' : '';
+    if (shapeType === 'circle') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="50" cy="50" r="46"' + strokeAttr + ' fill="' + fillCss + '"/></svg>';
+    if (shapeType === 'rounded') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><rect x="3" y="3" width="94" height="94" rx="' + cornerRadius + '"' + strokeAttr + ' fill="' + fillCss + '"/></svg>';
+    if (shapeType === 'triangle') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><polygon points="50,4 96,92 4,92"' + strokeAttr + ' fill="' + fillCss + '"/></svg>';
+    if (shapeType === 'line') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><line x1="5" y1="95" x2="95" y2="5" stroke="' + (strokeColor || fillCss) + '" stroke-width="' + (strokeWidth || 6) + '" stroke-linecap="round"/></svg>';
+    if (shapeType === 'star') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><polygon points="50,3 61,37 97,37 68,58 79,92 50,71 21,92 32,58 3,37 39,37"' + strokeAttr + ' fill="' + fillCss + '"/></svg>';
+    if (shapeType === 'hexagon') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><polygon points="25,6 75,6 97,50 75,94 25,94 3,50"' + strokeAttr + ' fill="' + fillCss + '"/></svg>';
+    if (shapeType === 'pentagon') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><polygon points="50,4 96,38 78,92 22,92 4,38"' + strokeAttr + ' fill="' + fillCss + '"/></svg>';
+    return '<svg viewBox="0 0 100 100" width="100%" height="100%"><rect x="3" y="3" width="94" height="94" rx="' + cornerRadius + '"' + strokeAttr + ' fill="' + fillCss + '"/></svg>';
+  }
+
+  function iconSvgMarkup(iconType, color) {
+    var s = 'stroke="' + color + '" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+    if (iconType === 'arrow_right') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M15 50h70M60 20l30 30-30 30" ' + s + '/></svg>';
+    if (iconType === 'arrow_up') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M50 85V15M20 40l30-30 30 30" ' + s + '/></svg>';
+    if (iconType === 'check') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M20 52l20 20 40-45" ' + s + '/></svg>';
+    if (iconType === 'plus') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M50 15v70M15 50h70" ' + s + '/></svg>';
+    if (iconType === 'heart') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M50 88C20 65 8 45 8 30a20 20 0 0138-8 20 20 0 0138 8c0 15-12 35-42 58z" fill="' + color + '"/></svg>';
+    if (iconType === 'flag') return '<svg viewBox="0 0 100 100" width="100%" height="100%"><path d="M22 10v80M22 15h55l-14 18 14 18H22" ' + s + '/></svg>';
+    return '<svg viewBox="0 0 100 100" width="100%" height="100%"></svg>';
+  }
+
+  function createLayerFromData(data) {
+    var el = document.createElement('div');
+    el.className = 'layer';
+    el.style.left = data.x + 'px';
+    el.style.top = data.y + 'px';
+    el.style.zIndex = data.z;
+    el.style.transform = 'rotate(' + data.rotation + 'deg) scale(' + data.scale + ')';
+
+    var inner;
+    if (data.kind === 'text') {
+      inner = document.createElement('div');
+      inner.className = 'text-layer';
+      inner.contentEditable = 'true';
+      inner.style.color = data.color || '#FFFFFF';
+      inner.style.fontFamily = data.fontFamily || FONTS[0].family;
+      if (data.bold) inner.style.fontWeight = '900';
+      inner.textContent = data.text || 'Texto';
+      inner.addEventListener('input', function() { data.text = inner.textContent; pushHistory(); });
+      inner.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
+    } else if (data.kind === 'image') {
+      inner = document.createElement('img');
+      inner.className = 'image-layer';
+      inner.src = data.src;
+      inner.style.width = data.w + 'px';
+      inner.style.height = data.h + 'px';
+    } else if (data.kind === 'icon') {
+      inner = document.createElement('div');
+      inner.style.width = data.w + 'px';
+      inner.style.height = data.w + 'px';
+      inner.innerHTML = iconSvgMarkup(data.iconType, data.color || '#1C1C1E');
+    } else if (data.kind === 'shape') {
+      inner = document.createElement('div');
+      inner.className = 'shape-layer';
+      inner.style.width = data.w + 'px';
+      inner.style.height = data.h + 'px';
+      inner.style.opacity = (data.opacity != null ? data.opacity : 100) / 100;
+      var fill = data.fillMode === 'gradient' ? ('url(#grad_' + data.id + ')') : (data.color || '#FF3B30');
+      inner.innerHTML = shapeSvgMarkup(data.shapeType, fill, data.strokeColor, data.strokeWidth, data.cornerRadius);
+      if (data.fillMode === 'gradient') {
+        var defs = '<defs><linearGradient id="grad_' + data.id + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+          '<stop offset="0%" stop-color="' + data.gradientColor1 + '"/><stop offset="100%" stop-color="' + data.gradientColor2 + '"/></linearGradient></defs>';
+        inner.innerHTML = inner.innerHTML.replace('<svg', '<svg').replace('viewBox="0 0 100 100" width="100%" height="100%">', 'viewBox="0 0 100 100" width="100%" height="100%">' + defs);
+      }
+    }
+
+    el.appendChild(inner);
+    var delHandle = makeHandle('handle-delete', 'icons/ui/close.svg');
+    var resizeHandle = makeHandle('handle-resize', 'icons/editor/resize.svg');
+    var rotateHandle = makeHandle('handle-rotate', 'icons/ui/refresh.svg');
+    var confirmHandle = makeHandle('handle-confirm', 'icons/ui/check.svg');
+    el.appendChild(delHandle); el.appendChild(resizeHandle); el.appendChild(rotateHandle); el.appendChild(confirmHandle);
+    canvas.appendChild(el);
+
+    var layerObj = { id: data.id, el: el, inner: inner, data: data };
+    layers.push(layerObj);
+
+    attachDrag(layerObj);
+    attachResize(layerObj, resizeHandle);
+    attachRotate(layerObj, rotateHandle);
+
+    delHandle.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
+    delHandle.addEventListener('click', function(e) { e.stopPropagation(); deleteLayer(layerObj); });
+    confirmHandle.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
+    confirmHandle.addEventListener('click', function(e) { e.stopPropagation(); pushHistory(); selectLayer(null); });
+
+    el.addEventListener('pointerdown', function(e) {
+      if (e.target === inner && data.kind === 'text' && layerObj === selectedLayer) return;
+      selectLayer(layerObj);
+    });
+
+    return layerObj;
+  }
+
+  function makeHandle(cls, iconSrc) {
+    var h = document.createElement('div');
+    h.className = 'layer-handle ' + cls;
+    h.innerHTML = '<img class="handle-icon" src="' + iconSrc + '" width="13" height="13">';
+    return h;
+  }
+
+  function addTextLayer() {
+    var data = baseData('text');
+    data.text = 'Texto'; data.color = '#FFFFFF'; data.fontFamily = FONTS[0].family; data.fontId = FONTS[0].id;
+    var l = createLayerFromData(data);
+    selectLayer(l); pushHistory();
+    setTimeout(function() { l.inner.focus(); }, 60);
+  }
+
+  function addImageLayer(dataUrl, naturalW, naturalH) {
+    var data = baseData('image');
+    var maxDim = 150;
+    var ratio = naturalW / naturalH;
+    if (ratio >= 1) { data.w = maxDim; data.h = maxDim / ratio; } else { data.h = maxDim; data.w = maxDim * ratio; }
+    data.src = dataUrl;
+    var l = createLayerFromData(data);
+    selectLayer(l); pushHistory();
+  }
+
+  function addElementLayer(element) {
+    var data;
+    if (element.kind === 'shape') {
+      data = baseData('shape');
+      data.shapeType = element.shapeType;
+      data.fillMode = 'solid';
+      data.color = '#FF3B30';
+      data.opacity = 100;
+      data.cornerRadius = element.shapeType === 'circle' ? 46 : 8;
+      data.strokeWidth = 0;
+      data.strokeColor = '#000000';
+      data.w = 90; data.h = 90;
+    } else {
+      data = baseData('icon');
+      data.iconType = element.iconType;
+      data.color = '#1C1C1E';
+      data.w = 56;
+    }
+    var l = createLayerFromData(data);
+    selectLayer(l); pushHistory();
+    return l;
+  }
+
+  function deleteLayer(layerObj) {
+    layerObj.el.remove();
+    layers = layers.filter(function(l) { return l.id !== layerObj.id; });
+    if (selectedLayer === layerObj) selectLayer(null);
+    pushHistory();
+  }
+
+  function selectLayer(layerObj) {
+    if (selectedLayer) selectedLayer.el.classList.remove('selected');
+    selectedLayer = layerObj;
+    if (selectedLayer) selectedLayer.el.classList.add('selected');
+    document.getElementById('textToolsGroup').style.display = (selectedLayer && selectedLayer.data.kind === 'text') ? 'flex' : 'none';
+    document.getElementById('shapeToolsGroup').style.display = (selectedLayer && selectedLayer.data.kind === 'shape') ? 'flex' : 'none';
+  }
+
+  canvas.addEventListener('pointerdown', function(e) { if (e.target === canvas) selectLayer(null); });
+  canvasWrap.addEventListener('pointerdown', function(e) { if (e.target === canvasWrap) openCanvasBgSheet(); });
+
+  function attachDrag(layerObj) {
+    var el = layerObj.el;
+    var dragging = false, startX, startY, origX, origY;
+    el.addEventListener('pointerdown', function(e) {
+      if (e.target.closest('.layer-handle')) return;
+      if (layerObj.data.kind === 'text' && selectedLayer === layerObj) return;
+      dragging = true; startX = e.clientX; startY = e.clientY;
+      origX = layerObj.data.x; origY = layerObj.data.y;
+      el.setPointerCapture(e.pointerId);
+      e.stopPropagation();
+    });
+    el.addEventListener('pointermove', function(e) {
+      if (!dragging) return;
+      layerObj.data.x = origX + (e.clientX - startX);
+      layerObj.data.y = origY + (e.clientY - startY);
+      el.style.left = layerObj.data.x + 'px';
+      el.style.top = layerObj.data.y + 'px';
+    });
+    el.addEventListener('pointerup', function() { if (dragging) { dragging = false; pushHistory(); } });
+  }
+
+  function attachResize(layerObj, handle) {
+    var resizing = false, startX, startY, origScale;
+    handle.addEventListener('pointerdown', function(e) {
+      resizing = true; startX = e.clientX; startY = e.clientY; origScale = layerObj.data.scale;
+      handle.setPointerCapture(e.pointerId); e.stopPropagation();
+    });
+    handle.addEventListener('pointermove', function(e) {
+      if (!resizing) return;
+      var delta = ((e.clientX - startX) + (e.clientY - startY)) / 200;
+      layerObj.data.scale = Math.max(0.3, Math.min(4, origScale + delta));
+      applyTransform(layerObj);
+    });
+    handle.addEventListener('pointerup', function() { if (resizing) { resizing = false; pushHistory(); } });
+  }
+
+  function attachRotate(layerObj, handle) {
+    var rotating = false, centerX, centerY, startAngle, origRotation;
+    handle.addEventListener('pointerdown', function(e) {
+      rotating = true;
+      var rect = layerObj.el.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2;
+      startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      origRotation = layerObj.data.rotation;
+      handle.setPointerCapture(e.pointerId); e.stopPropagation();
+    });
+    handle.addEventListener('pointermove', function(e) {
+      if (!rotating) return;
+      var angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      layerObj.data.rotation = origRotation + (angle - startAngle) * (180 / Math.PI);
+      applyTransform(layerObj);
+    });
+    handle.addEventListener('pointerup', function() { if (rotating) { rotating = false; pushHistory(); } });
+  }
+
+  function applyTransform(layerObj) {
+    layerObj.el.style.transform = 'rotate(' + layerObj.data.rotation + 'deg) scale(' + layerObj.data.scale + ')';
+  }
+
+  document.getElementById('tbText').addEventListener('click', addTextLayer);
+  document.getElementById('tbImage').addEventListener('click', function() { document.getElementById('fileInput').click(); });
+
+  document.getElementById('fileInput').addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() { addImageLayer(ev.target.result, img.width, img.height); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('tbDelete').addEventListener('click', function() { if (selectedLayer) deleteLayer(selectedLayer); });
+  document.getElementById('tbCanvasBg').addEventListener('click', openCanvasBgSheet);
+
+  // ── PILHA DE MODAIS ───────────────────────────────
+  var sheetStack = [];
+
+  function openSheet(id) {
+    if (sheetStack.length > 0) {
+      document.getElementById(sheetStack[sheetStack.length - 1]).classList.add('stacked-hidden');
+    }
+    sheetStack.push(id);
+    var overlay = document.getElementById(id);
+    overlay.classList.remove('stacked-hidden');
+    overlay.classList.add('animating');
+    requestAnimationFrame(function() { overlay.classList.add('open'); });
+  }
+
+  function closeSheet(id) {
+    var idx = sheetStack.indexOf(id);
+    if (idx === -1) return;
+    sheetStack.splice(idx, 1);
+    var overlay = document.getElementById(id);
+    overlay.classList.add('animating');
+    overlay.classList.remove('open');
+    overlay.querySelector('.sheet').style.transform = '';
+    setTimeout(function() { overlay.classList.remove('animating', 'stacked-hidden'); }, 300);
+    if (sheetStack.length > 0) {
+      var restoreOverlay = document.getElementById(sheetStack[sheetStack.length - 1]);
+      restoreOverlay.classList.add('animating');
+      restoreOverlay.classList.remove('stacked-hidden');
+    }
+  }
+
+  document.querySelectorAll('.sheet-overlay').forEach(function(overlay) {
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSheet(overlay.id); });
+  });
+
+  document.querySelectorAll('[data-sheet-drag]').forEach(function(dragZone) {
+    var sheetId = dragZone.getAttribute('data-sheet-drag');
+    var overlay = document.getElementById(sheetId);
+    var sheetEl = overlay.querySelector('.sheet');
+    var dragging = false, startY = 0, currentY = 0, lastY = 0, lastT = 0, velocity = 0;
+
+    dragZone.addEventListener('pointerdown', function(e) {
+      dragging = true; startY = e.clientY; currentY = 0; lastY = e.clientY; lastT = Date.now(); velocity = 0;
+      overlay.classList.remove('animating');
+      dragZone.setPointerCapture(e.pointerId);
+    });
+    dragZone.addEventListener('pointermove', function(e) {
+      if (!dragging) return;
+      currentY = Math.max(0, e.clientY - startY);
+      sheetEl.style.transform = 'translateY(' + currentY + 'px)';
+      var now = Date.now(); var dt = now - lastT;
+      if (dt > 0) velocity = (e.clientY - lastY) / dt;
+      lastY = e.clientY; lastT = now;
+    });
+    dragZone.addEventListener('pointerup', function() {
+      if (!dragging) return;
+      dragging = false;
+      overlay.classList.add('animating');
+      var shouldClose = currentY > sheetEl.offsetHeight * 0.3 || velocity > 0.6;
+      if (shouldClose) closeSheet(sheetId); else sheetEl.style.transform = 'translateY(0)';
+    });
+  });
+
+  // Popup "mais opções" — delegado ao Kotlin, que abre um PopupMenu
+  // nativo com elevação real de Material. O HTML só envia o pedido.
+  document.getElementById('btnMore').addEventListener('click', function() {
+    bridgeSend('openMoreMenu', { anchorId: 'btnMore' });
+  });
+
+  window.editorApiOnMoreMenuAction = function(action) {
+    if (action === 'export') exportAsPng();
+    else if (action === 'clear') {
+      layers.forEach(function(l) { l.el.remove(); });
+      layers = [];
+      selectLayer(null);
+      pushHistory();
+    }
+  };
+
+  var fontListEl = document.getElementById('fontList');
+  FONTS.forEach(function(f) {
+    var item = document.createElement('div');
+    item.className = 'font-item';
+    item.style.fontFamily = f.family;
+    item.textContent = f.label;
+    item.addEventListener('click', function() {
+      if (selectedLayer && selectedLayer.data.kind === 'text') {
+        selectedLayer.data.fontFamily = f.family;
+        selectedLayer.data.fontId = f.id;
+        selectedLayer.inner.style.fontFamily = f.family;
+        pushHistory();
+      }
+      closeSheet('sheetFont');
+      renderFontSelection();
+    });
+    fontListEl.appendChild(item);
+  });
+  function renderFontSelection() {
+    var currentId = selectedLayer && selectedLayer.data.kind === 'text' ? selectedLayer.data.fontId : null;
+    Array.prototype.forEach.call(fontListEl.children, function(el, i) { el.classList.toggle('selected', FONTS[i].id === currentId); });
+  }
+  document.getElementById('tbFont').addEventListener('click', function() { renderFontSelection(); openSheet('sheetFont'); });
+
+  document.getElementById('tbTextBold').addEventListener('click', function() {
+    if (selectedLayer && selectedLayer.data.kind === 'text') {
+      var isBold = selectedLayer.inner.style.fontWeight !== '400' && selectedLayer.inner.style.fontWeight !== '';
+      selectedLayer.inner.style.fontWeight = isBold ? '400' : '900';
+      selectedLayer.data.bold = !isBold;
+      pushHistory();
+    }
+  });
+
+  var colorGridEl = document.getElementById('colorGrid');
+  var colorSheetMode = 'fill';
+  var colorTabMode = 'solid';
+
+  function buildColorGrid(includeTransparent) {
+    colorGridEl.innerHTML = '';
+    if (includeTransparent) {
+      var t = document.createElement('div');
+      t.className = 'color-swatch transparent-swatch';
+      t.dataset.color = 'transparent';
+      t.addEventListener('click', function() { applyColorAction('transparent'); renderColorSelection(); });
+      colorGridEl.appendChild(t);
+    }
+    COLORS.forEach(function(c) {
+      var sw = document.createElement('div');
+      sw.className = 'color-swatch';
+      sw.style.background = c;
+      sw.dataset.color = c;
+      sw.addEventListener('click', function() { applyColorAction(c); renderColorSelection(); });
+      colorGridEl.appendChild(sw);
+    });
+    var create = document.createElement('div');
+    create.className = 'color-swatch create-new';
+    create.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
+    create.addEventListener('click', openColorCreator);
+    colorGridEl.appendChild(create);
+  }
+
+  function applyColorAction(hex) {
+    if (colorSheetMode === 'canvasBg') { applyCanvasBg(hex === 'transparent' ? 'transparent' : 'solid', hex === 'transparent' ? null : hex); pushHistory(); return; }
+    if (!selectedLayer) return;
+    if (colorSheetMode === 'text' && selectedLayer.data.kind === 'text') {
+      selectedLayer.data.color = hex; selectedLayer.inner.style.color = hex;
+    } else if (colorSheetMode === 'fill' && selectedLayer.data.kind === 'shape') {
+      selectedLayer.data.fillMode = 'solid'; selectedLayer.data.color = hex;
+      selectedLayer.inner.innerHTML = shapeSvgMarkup(selectedLayer.data.shapeType, hex, selectedLayer.data.strokeColor, selectedLayer.data.strokeWidth, selectedLayer.data.cornerRadius);
+    } else if (colorSheetMode === 'shapeStroke' && selectedLayer.data.kind === 'shape') {
+      selectedLayer.data.strokeColor = hex;
+      document.getElementById('strokeColorSwatch').style.background = hex;
+      selectedLayer.inner.innerHTML = shapeSvgMarkup(selectedLayer.data.shapeType, selectedLayer.data.color, hex, selectedLayer.data.strokeWidth, selectedLayer.data.cornerRadius);
+    }
+    pushHistory();
+  }
+
+  function renderColorSelection() {
+    var current = colorSheetMode === 'canvasBg' ? (canvasBgMode === 'transparent' ? 'transparent' : canvasBgValue) : (selectedLayer ? selectedLayer.data.color : null);
+    Array.prototype.forEach.call(colorGridEl.children, function(sw) { sw.classList.toggle('selected', sw.dataset.color === current); });
+  }
+
+  document.getElementById('tbTextColor').addEventListener('click', function() {
+    colorSheetMode = 'text'; colorTabMode = 'solid';
+    document.getElementById('colorSheetTitle').textContent = 'Cor do texto';
+    document.getElementById('colorTabs').style.display = 'none';
+    document.getElementById('colorBackBtn').style.display = 'none';
+    showColorPanel('main');
+    buildColorGrid(false);
+    renderColorSelection();
+    openSheet('sheetColor');
+  });
+
+  function openCanvasBgSheet() {
+    colorSheetMode = 'canvasBg';
+    document.getElementById('colorSheetTitle').textContent = 'Fundo do canvas';
+    document.getElementById('colorTabs').style.display = 'flex';
+    document.getElementById('colorBackBtn').style.display = 'none';
+    setColorTab('solid');
+    showColorPanel('main');
+    buildColorGrid(true);
+    renderColorSelection();
+    openSheet('sheetColor');
+  }
+
+  document.querySelectorAll('#colorTabs .color-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() { setColorTab(tab.dataset.mode); });
+  });
+  function setColorTab(mode) {
+    colorTabMode = mode;
+    document.querySelectorAll('#colorTabs .color-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.mode === mode); });
+    if (mode === 'gradient') { showColorPanel('gradient'); renderGradientPreview(); }
+    else { showColorPanel('main'); }
+  }
+  function showColorPanel(which) {
+    document.getElementById('colorPanelMain').style.display = which === 'main' ? 'block' : 'none';
+    document.getElementById('colorPanelCreator').style.display = which === 'creator' ? 'block' : 'none';
+    document.getElementById('colorPanelGradient').style.display = which === 'gradient' ? 'block' : 'none';
+    document.getElementById('colorBackBtn').style.display = which === 'creator' ? 'flex' : (which === 'main' ? 'none' : document.getElementById('colorBackBtn').style.display);
+  }
+  document.getElementById('colorBackBtn').addEventListener('click', function() { showColorPanel(colorTabMode === 'gradient' ? 'gradient' : 'main'); });
+
+  var creatorHue = 4, creatorSat = 75, creatorLight = 50;
+  function openColorCreator() { showColorPanel('creator'); document.getElementById('colorBackBtn').style.display = 'flex'; renderCreatorPreview(); }
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    var c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    var r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; } else if (h < 180) { g = c; b = x; }
+    else if (h < 240) { g = x; b = c; } else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+    var toHex = function(v) { return Math.round((v + m) * 255).toString(16).padStart(2, '0'); };
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+  }
+  function renderCreatorPreview() {
+    var hex = hslToHex(creatorHue, creatorSat, creatorLight);
+    document.getElementById('creatorPreview').style.background = hex;
+    document.getElementById('creatorHex').textContent = hex.toUpperCase();
+    document.getElementById('creatorHex').style.color = creatorLight > 55 ? '#00000090' : '#FFFFFF';
+    document.getElementById('satTrack').style.background = 'linear-gradient(to right, ' + hslToHex(creatorHue, 0, creatorLight) + ', ' + hslToHex(creatorHue, 100, creatorLight) + ')';
+    document.getElementById('lightTrack').style.background = 'linear-gradient(to right, #000000, ' + hslToHex(creatorHue, creatorSat, 50) + ', #FFFFFF)';
+  }
+  document.getElementById('hueSlider').addEventListener('input', function(e) { creatorHue = +e.target.value; renderCreatorPreview(); });
+  document.getElementById('satSlider').addEventListener('input', function(e) { creatorSat = +e.target.value; renderCreatorPreview(); });
+  document.getElementById('lightSlider').addEventListener('input', function(e) { creatorLight = +e.target.value; renderCreatorPreview(); });
+  document.getElementById('applyCreatedColor').addEventListener('click', function() { applyColorAction(hslToHex(creatorHue, creatorSat, creatorLight)); closeSheet('sheetColor'); });
+
+  var gradColor1 = '#FF3B30', gradColor2 = '#007AFF', gradAngle = 135;
+  var gradEditingStop = 1;
+  function renderGradientPreview() {
+    document.getElementById('gradientPreviewBar').style.background = 'linear-gradient(' + gradAngle + 'deg, ' + gradColor1 + ', ' + gradColor2 + ')';
+    document.getElementById('gradStop1').style.background = gradColor1;
+    document.getElementById('gradStop2').style.background = gradColor2;
+  }
+  document.getElementById('gradStop1').addEventListener('click', function() { gradEditingStop = 1; buildGradStopGrid(); openSheet('sheetGradStopPicker'); });
+  document.getElementById('gradStop2').addEventListener('click', function() { gradEditingStop = 2; buildGradStopGrid(); openSheet('sheetGradStopPicker'); });
+  document.getElementById('gradAngleSlider').addEventListener('input', function(e) { gradAngle = +e.target.value; renderGradientPreview(); });
+  document.getElementById('gradStopBackBtn').addEventListener('click', function() { closeSheet('sheetGradStopPicker'); });
+
+  var gradStopGridEl = document.getElementById('gradStopColorGrid');
+  function buildGradStopGrid() {
+    gradStopGridEl.innerHTML = '';
+    COLORS.forEach(function(c) {
+      var sw = document.createElement('div');
+      sw.className = 'color-swatch';
+      sw.style.background = c;
+      sw.addEventListener('click', function() {
+        if (gradEditingStop === 1) gradColor1 = c; else gradColor2 = c;
+        renderGradientPreview();
+        closeSheet('sheetGradStopPicker');
+      });
+      gradStopGridEl.appendChild(sw);
+    });
+  }
+
+  document.getElementById('applyGradientColor').addEventListener('click', function() {
+    var css = 'linear-gradient(' + gradAngle + 'deg, ' + gradColor1 + ', ' + gradColor2 + ')';
+    if (colorSheetMode === 'canvasBg') { applyCanvasBg('gradient', css); pushHistory(); }
+    else if (selectedLayer && selectedLayer.data.kind === 'shape') {
+      selectedLayer.data.fillMode = 'gradient';
+      selectedLayer.data.gradientColor1 = gradColor1;
+      selectedLayer.data.gradientColor2 = gradColor2;
+      selectedLayer.inner.innerHTML = shapeSvgMarkup(selectedLayer.data.shapeType, 'url(#grad_' + selectedLayer.data.id + ')', selectedLayer.data.strokeColor, selectedLayer.data.strokeWidth, selectedLayer.data.cornerRadius);
+      pushHistory();
+    }
+    closeSheet('sheetColor');
+  });
+
+  var elementsGridEl = document.getElementById('elementsGrid');
+  var elementsSearchEl = document.getElementById('elementsSearch');
+  var currentElementsCategory = 'all';
+
+  function elementThumbSvg(el) {
+    if (el.kind === 'shape') return shapeSvgMarkup(el.shapeType, 'currentColor', null, 0, 8).replace('<svg', '<svg style="color:var(--on-surface)"');
+    return iconSvgMarkup(el.iconType, 'currentColor').replace('<svg', '<svg style="color:var(--on-surface)"');
+  }
+
+  function renderElementsGrid() {
+    var query = elementsSearchEl.value.trim().toLowerCase();
+    var filtered = ELEMENTS.filter(function(el) {
+      var matchesCategory = currentElementsCategory === 'all' || el.category === currentElementsCategory;
+      var matchesQuery = !query || el.label.toLowerCase().indexOf(query) !== -1;
+      return matchesCategory && matchesQuery;
+    });
+    elementsGridEl.innerHTML = '';
+    if (filtered.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'element-item no-results';
+      empty.textContent = 'Nenhum elemento encontrado para "' + query + '"';
+      elementsGridEl.appendChild(empty);
+      return;
+    }
+    filtered.forEach(function(el) {
+      var item = document.createElement('div');
+      item.className = 'element-item';
+      item.innerHTML = elementThumbSvg(el);
+      item.addEventListener('click', function() {
+        var layer = addElementLayer(el);
+        closeSheet('sheetElements');
+        if (el.kind === 'shape') openShapeConfigSheet(layer);
+      });
+      elementsGridEl.appendChild(item);
+    });
+  }
+
+  elementsSearchEl.addEventListener('input', renderElementsGrid);
+  document.querySelectorAll('#elementsTabs .elements-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      currentElementsCategory = tab.dataset.category;
+      document.querySelectorAll('#elementsTabs .elements-tab').forEach(function(t) { t.classList.toggle('active', t === tab); });
+      renderElementsGrid();
+    });
+  });
+  document.getElementById('tbElements').addEventListener('click', function() {
+    elementsSearchEl.value = '';
+    currentElementsCategory = 'all';
+    document.querySelectorAll('#elementsTabs .elements-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.category === 'all'); });
+    renderElementsGrid();
+    openSheet('sheetElements');
+  });
+
+  function openShapeConfigSheet(layer) {
+    selectedLayer = layer;
+    document.getElementById('cornerRadiusValue').textContent = layer.data.cornerRadius;
+    document.getElementById('strokeWidthValue').textContent = layer.data.strokeWidth || 0;
+    document.getElementById('strokeColorSwatch').style.background = layer.data.strokeColor || '#000000';
+    document.getElementById('shapeOpacitySlider').value = layer.data.opacity || 100;
+    updateShapeConfigPreview(layer);
+    openSheet('sheetShapeConfig');
+  }
+  function updateShapeConfigPreview(layer) {
+    var preview = document.getElementById('shapeConfigPreview');
+    var fill = layer.data.fillMode === 'gradient' ? layer.data.gradientColor1 : layer.data.color;
+    preview.innerHTML = shapeSvgMarkup(layer.data.shapeType, fill, layer.data.strokeColor, layer.data.strokeWidth, layer.data.cornerRadius);
+    preview.style.opacity = (layer.data.opacity || 100) / 100;
+  }
+  document.getElementById('tbShapeConfig').addEventListener('click', function() {
+    if (selectedLayer && selectedLayer.data.kind === 'shape') openShapeConfigSheet(selectedLayer);
+  });
+
+  document.querySelectorAll('.stepper-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (!selectedLayer || selectedLayer.data.kind !== 'shape') return;
+      var field = btn.dataset.step;
+      var dir = +btn.dataset.dir;
+      var step = field === 'cornerRadius' ? 2 : 1;
+      var max = field === 'cornerRadius' ? 50 : 12;
+      var newVal = Math.max(0, Math.min(max, (selectedLayer.data[field] || 0) + dir * step));
+      selectedLayer.data[field] = newVal;
+      document.getElementById(field + 'Value').textContent = newVal;
+      updateShapeConfigPreview(selectedLayer);
+      selectedLayer.inner.innerHTML = shapeSvgMarkup(selectedLayer.data.shapeType, selectedLayer.data.color, selectedLayer.data.strokeColor, selectedLayer.data.strokeWidth, selectedLayer.data.cornerRadius);
+      pushHistory();
+    });
+  });
+
+  document.getElementById('rowStrokeColor').addEventListener('click', function() {
+    colorSheetMode = 'shapeStroke';
+    document.getElementById('colorSheetTitle').textContent = 'Cor do contorno';
+    document.getElementById('colorTabs').style.display = 'none';
+    document.getElementById('colorBackBtn').style.display = 'none';
+    showColorPanel('main');
+    buildColorGrid(false);
+    renderColorSelection();
+    openSheet('sheetColor');
+  });
+
+  document.getElementById('shapeOpacitySlider').addEventListener('input', function(e) {
+    if (!selectedLayer || selectedLayer.data.kind !== 'shape') return;
+    var v = +e.target.value;
+    selectedLayer.data.opacity = v;
+    selectedLayer.inner.style.opacity = v / 100;
+    updateShapeConfigPreview(selectedLayer);
+  });
+  document.getElementById('shapeOpacitySlider').addEventListener('change', function() { pushHistory(); });
+
+  function kindIcon(kind) {
+    if (kind === 'text') return 'icons/editor/edit_text.svg';
+    if (kind === 'image') return 'icons/editor/image.svg';
+    if (kind === 'icon') return 'icons/ui/stacks.svg';
+    return 'icons/ui/apps.svg';
+  }
+  function kindLabel(l) {
+    if (l.data.kind === 'text') return l.data.text || 'Texto';
+    if (l.data.kind === 'image') return 'Imagem';
+    if (l.data.kind === 'icon') return 'Ícone';
+    return 'Forma';
+  }
+  function escapeHtml(s) { var div = document.createElement('div'); div.textContent = s; return div.innerHTML; }
+
+  function renderLayersList() {
+    var listEl = document.getElementById('layersList');
+    listEl.innerHTML = '';
+    var sorted = layers.slice().sort(function(a, b) { return b.data.z - a.data.z; });
+    sorted.forEach(function(l) {
+      var row = document.createElement('div');
+      row.className = 'layer-row' + (l === selectedLayer ? ' active' : '');
+      row.innerHTML =
+        '<img class="layer-row-icon icon-asset" src="' + kindIcon(l.data.kind) + '" width="20" height="20">' +
+        '<div class="layer-row-label">' + escapeHtml(kindLabel(l)) + '</div>' +
+        '<div class="layer-row-btn" data-action="delete"><img class="icon-asset" src="icons/ui/trash.svg" width="16" height="16"></div>';
+      row.addEventListener('click', function(e) {
+        if (e.target.closest('[data-action="delete"]')) { deleteLayer(l); renderLayersList(); return; }
+        selectLayer(l); renderLayersList();
+      });
+      listEl.appendChild(row);
+    });
+  }
+  document.getElementById('tbLayers').addEventListener('click', function() { renderLayersList(); openSheet('sheetLayers'); });
+
+  function exportAsPng() {
+    selectLayer(null);
+    var w = canvasWrap.offsetWidth, h = canvasWrap.offsetHeight;
+    var bgFill = canvasBgMode === 'solid' ? canvasBgValue : '';
+    var svgContent = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
+      (bgFill ? '<rect width="100%" height="100%" fill="' + bgFill + '"/>' : '') +
+      '<foreignObject width="100%" height="100%">' +
+      '<div xmlns="http://www.w3.org/1999/xhtml" style="width:' + w + 'px;height:' + h + 'px;position:relative;">' +
+      canvas.innerHTML.replace(/class="layer selected"/g, 'class="layer"') +
+      '</div></foreignObject></svg>';
+    var svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(svgBlob);
+    var img = new Image();
+    img.onload = function() {
+      var c = document.createElement('canvas');
+      c.width = w * 2; c.height = h * 2;
+      var ctx = c.getContext('2d');
+      ctx.scale(2, 2);
+      if (canvasBgMode === 'solid') { ctx.fillStyle = canvasBgValue; ctx.fillRect(0, 0, w, h); }
+      else if (canvasBgMode === 'gradient') {
+        var grad = ctx.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, gradColor1); grad.addColorStop(1, gradColor2);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      bridgeSend('export', { imageBase64: c.toDataURL('image/png') });
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); bridgeSend('exportError', { message: 'Falha ao gerar imagem' }); };
+    img.src = url;
+  }
+
+  window.editorApi = {
+    loadState: function(json) { restoreFromSnapshot(json); undoStack = []; redoStack = []; updateUndoRedoButtons(); },
+    getState: function() { return snapshot(); },
+    setThemeMode: setTheme,
+    exportPng: function() { exportAsPng(); },
+    clear: function() { layers.forEach(function(l) { l.el.remove(); }); layers = []; selectLayer(null); pushHistory(); }
+  };
+
+  applyCanvasBg('transparent', null);
+  updateUndoRedoButtons();
+  pushHistory();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorPageBackground">
+
+    <WebView
+        android:id="@+id/editorWebView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <!-- Anchor invisível para o PopupMenu nativo — posicionado no
+         canto onde o botão "mais opções" do HTML realmente aparece
+         (topo direito), para o popup nascer visualmente do sítio certo. -->
+    <View
+        android:id="@+id/moreMenuAnchor"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="60dp"/>
+
+</FrameLayout>

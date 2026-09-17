@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Looply</string>
-    <string name="change_greeting">Mudar saudação</string>
+    <string name="nav_home">Início</string>
+    <string name="nav_creations">Criações</string>
+    <string name="nav_templates">Modelos</string>
+    <string name="drawer_settings">Configurações</string>
+    <string name="drawer_rate">Avaliar o app</string>
+    <string name="drawer_share">Partilhar app</string>
+    <string name="drawer_explore">Explorar mais apps</string>
 </resources>

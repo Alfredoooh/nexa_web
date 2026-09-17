@@ -40,14 +40,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupIcons() {
-        val onSurface = getColorAttr(R.attr.colorOnSurface)
-        val primary = getColorAttr(R.attr.colorPrimary)
-        val variant = getColorAttr(R.attr.colorOnSurfaceVariant)
+        val onSurface  = getColorAttr(R.attr.colorOnSurface)
+        val primary    = getColorAttr(androidx.appcompat.R.attr.colorPrimary)
+        val variant    = getColorAttr(R.attr.colorOnSurfaceVariant)
+        val onPrimary  = getColorAttr(androidx.appcompat.R.attr.colorPrimaryDark)
 
         binding.btnMenu.setImageDrawable(SvgIcon.load(this, "ui", "menu", dp(20), onSurface))
-        binding.fabNewCreation.setImageDrawable(
-            SvgIcon.load(this, "ui", "add", dp(24), getColorAttr(android.R.attr.colorForegroundInverse))
-        )
+        binding.fabNewCreation.setImageDrawable(SvgIcon.load(this, "ui", "add", dp(24), onPrimary))
 
         binding.navHomeIcon.setImageDrawable(SvgIcon.load(this, "ui", "apps", dp(22), primary))
         binding.navCreationsIcon.setImageDrawable(SvgIcon.load(this, "ui", "library", dp(22), variant))
@@ -63,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     private fun switchTab(tab: Tab) {
         currentTab = tab
         val fragment: Fragment = when (tab) {
-            Tab.HOME -> HomeFragment()
+            Tab.HOME      -> HomeFragment()
             Tab.CREATIONS -> CreationsFragment()
             Tab.TEMPLATES -> TemplatesFragment()
         }
@@ -71,7 +70,7 @@ class MainActivity : AppCompatActivity() {
             replace(R.id.fragmentContainer, fragment)
         }
         binding.topBarTitle.text = when (tab) {
-            Tab.HOME -> getString(R.string.nav_home)
+            Tab.HOME      -> getString(R.string.nav_home)
             Tab.CREATIONS -> getString(R.string.nav_creations)
             Tab.TEMPLATES -> getString(R.string.nav_templates)
         }
@@ -79,7 +78,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateNavHighlight() {
-        val primary = getColorAttr(R.attr.colorPrimary)
+        val primary = getColorAttr(androidx.appcompat.R.attr.colorPrimary)
         val variant = getColorAttr(R.attr.colorOnSurfaceVariant)
 
         binding.navHomeIcon.setImageDrawable(

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --bg: #FFFFFF; --text: #1C1C1E; --muted: #6B6B70;
+    --card: #F5F5F5; --divider: #EAEAEC; --status-h: 44px;
+  }
+  .dark {
+    --bg: #101010; --text: #F2F2F3; --muted: #9B9BA1;
+    --card: #282828; --divider: #3A3A3A;
+  }
+
+  html, body { min-height: 100%; background: var(--bg); font-family: -apple-system, sans-serif; }
+
+  #header {
+    display: flex; align-items: center;
+    padding: calc(var(--status-h) + 10px) 12px 10px;
+  }
+  #btnBack {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  #btnBack:active { opacity: 0.5; }
+  #btnBack img { width: 20px; height: 20px; }
+  #header h1 { font-size: 19px; font-weight: 700; color: var(--text); margin-left: 12px; }
+
+  .section-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px;
+    padding: 20px 20px 8px;
+  }
+  .card { background: var(--card); border-radius: 14px; margin: 0 16px; overflow: hidden; }
+  .option {
+    display: flex; align-items: center; padding: 16px 20px; cursor: pointer;
+  }
+  .option:active { opacity: 0.6; }
+  .option + .option { border-top: 1px solid var(--divider); }
+  .option-label { flex: 1; font-size: 15px; color: var(--text); }
+  .check {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--divider);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .check.on { background: var(--text); border-color: var(--text); }
+  .check.on::after { content:''; width:6px; height:6px; border-radius:50%; background: var(--bg); }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <button id="btnBack" onclick="LooplyBridge.goBack()">
+    <img src="icons/back.svg">
+  </button>
+  <h1>Configurações</h1>
+</div>
+
+<div class="section-label">Aparência</div>
+<div class="card">
+  <div class="option" onclick="pick('system')">
+    <span class="option-label">Automático (sistema)</span>
+    <div class="check" id="c-system"></div>
+  </div>
+  <div class="option" onclick="pick('light')">
+    <span class="option-label">Claro</span>
+    <div class="check" id="c-light"></div>
+  </div>
+  <div class="option" onclick="pick('dark')">
+    <span class="option-label">Escuro</span>
+    <div class="check" id="c-dark"></div>
+  </div>
+</div>
+
+<script>
+  var sel = 'system';
+
+  function init(mode, theme) {
+    sel = mode;
+    document.body.classList.toggle('dark', theme === 'dark');
+    render();
+  }
+
+  function pick(mode) {
+    sel = mode;
+    render();
+    LooplyBridge.applyTheme(mode);
+  }
+
+  function render() {
+    ['system','light','dark'].forEach(function(m) {
+      document.getElementById('c-' + m).className = 'check' + (m === sel ? ' on' : '');
+    });
+  }
+
+  render();
+</script>
+</body>
+</html>

@@ -1,32 +1,30 @@
 package com.looply.social
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.fragment.app.Fragment
-import androidx.fragment.app.commit
 import com.looply.social.databinding.ActivityMainBinding
-import com.looply.social.databinding.DrawerItemBinding
 import com.looply.social.editor.EditorActivity
-import com.looply.social.icons.SvgIcon
 import com.looply.social.settings.SettingsActivity
-import com.looply.social.ui.creations.CreationsFragment
-import com.looply.social.ui.home.HomeFragment
-import com.looply.social.ui.templates.TemplatesFragment
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    private enum class Tab { HOME, CREATIONS, TEMPLATES }
-    private var currentTab = Tab.HOME
-
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -35,119 +33,158 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.topBar) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(
-                view.paddingLeft,
-                systemBars.top,
-                view.paddingRight,
-                view.paddingBottom
-            )
-            insets
-        }
-
-        setupIcons()
-        setupBottomNav()
+        setupWebView()
         setupDrawer()
-        setupFab()
-
-        if (savedInstanceState == null) {
-            switchTab(Tab.HOME)
-        }
     }
 
-    private fun setupIcons() {
-        val onSurface = getColorAttr(R.attr.colorOnSurface)
-        val primary   = getColorAttr(androidx.appcompat.R.attr.colorPrimary)
-        val variant   = getColorAttr(R.attr.colorOnSurfaceVariant)
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebView() {
+        binding.mainWebView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
+        }
+        binding.mainWebView.setBackgroundColor(Color.TRANSPARENT)
+        binding.mainWebView.isLongClickable = false
+        binding.mainWebView.isHapticFeedbackEnabled = false
 
-        binding.btnMenu.setImageDrawable(SvgIcon.load(this, "ui", "menu", dp(20), onSurface))
-        binding.fabNewCreation.setImageDrawable(SvgIcon.load(this, "ui", "add", dp(24), android.graphics.Color.WHITE))
+        binding.mainWebView.addJavascriptInterface(MainBridge(), "LooplyBridge")
 
-        binding.navHomeIcon.setImageDrawable(SvgIcon.load(this, "ui", "apps", dp(22), primary))
-        binding.navCreationsIcon.setImageDrawable(SvgIcon.load(this, "ui", "library", dp(22), variant))
-        binding.navTemplatesIcon.setImageDrawable(SvgIcon.load(this, "ui", "stacks", dp(22), variant))
+        binding.mainWebView.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                val isDark = isDarkMode()
+                binding.mainWebView.evaluateJavascript(
+                    "window.setTheme('${if (isDark) "dark" else "light"}')", null
+                )
+            }
+        }
+
+        binding.mainWebView.loadUrl("file:///android_asset/main.html")
     }
 
-    private fun setupBottomNav() {
-        binding.navHome.setOnClickListener { switchTab(Tab.HOME) }
-        binding.navCreations.setOnClickListener { switchTab(Tab.CREATIONS) }
-        binding.navTemplates.setOnClickListener { switchTab(Tab.TEMPLATES) }
-    }
-
-    private fun switchTab(tab: Tab) {
-        currentTab = tab
-        val fragment: Fragment = when (tab) {
-            Tab.HOME      -> HomeFragment()
-            Tab.CREATIONS -> CreationsFragment()
-            Tab.TEMPLATES -> TemplatesFragment()
-        }
-        supportFragmentManager.commit {
-            replace(R.id.fragmentContainer, fragment)
-        }
-        binding.topBarTitle.text = when (tab) {
-            Tab.HOME      -> getString(R.string.nav_home)
-            Tab.CREATIONS -> getString(R.string.nav_creations)
-            Tab.TEMPLATES -> getString(R.string.nav_templates)
-        }
-        updateNavHighlight()
-    }
-
-    private fun updateNavHighlight() {
-        val white = android.graphics.Color.WHITE
-        val muted = android.graphics.Color.parseColor("#99FFFFFF")
-
-        binding.navHome.background      = null
-        binding.navCreations.background = null
-        binding.navTemplates.background = null
-
-        val (homeColor, creationsColor, templatesColor) = when (currentTab) {
-            Tab.HOME      -> Triple(white, muted, muted).also { binding.navHome.setBackgroundResource(R.drawable.bg_nav_pill_active) }
-            Tab.CREATIONS -> Triple(muted, white, muted).also { binding.navCreations.setBackgroundResource(R.drawable.bg_nav_pill_active) }
-            Tab.TEMPLATES -> Triple(muted, muted, white).also { binding.navTemplates.setBackgroundResource(R.drawable.bg_nav_pill_active) }
+    inner class MainBridge {
+        @JavascriptInterface
+        fun openDrawer() {
+            runOnUiThread { binding.drawerLayout.openDrawer(Gravity.START) }
         }
 
-        binding.navHomeIcon.setImageDrawable(SvgIcon.load(this, "ui", "apps", dp(22), homeColor))
-        binding.navCreationsIcon.setImageDrawable(SvgIcon.load(this, "ui", "library", dp(22), creationsColor))
-        binding.navTemplatesIcon.setImageDrawable(SvgIcon.load(this, "ui", "stacks", dp(22), templatesColor))
+        @JavascriptInterface
+        fun openEditor() {
+            runOnUiThread { startActivity(Intent(this@MainActivity, EditorActivity::class.java)) }
+        }
 
-        binding.navHomeLabel.setTextColor(homeColor)
-        binding.navCreationsLabel.setTextColor(creationsColor)
-        binding.navTemplatesLabel.setTextColor(templatesColor)
+        @JavascriptInterface
+        fun openSettings() {
+            runOnUiThread { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) }
+        }
+
+        @JavascriptInterface
+        fun openPlayStore() {
+            runOnUiThread { this@MainActivity.openPlayStore() }
+        }
+
+        @JavascriptInterface
+        fun shareApp() {
+            runOnUiThread { this@MainActivity.shareApp() }
+        }
+
+        @JavascriptInterface
+        fun getStatusBarHeight(): Int {
+            val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+            return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else dp(24)
+        }
     }
 
     private fun setupDrawer() {
-        binding.btnMenu.setOnClickListener {
-            binding.drawerLayout.openDrawer(Gravity.START)
-        }
-
         val onSurface = getColorAttr(R.attr.colorOnSurface)
+        val onSurfaceVariant = getColorAttr(R.attr.colorOnSurfaceVariant)
 
-        bindDrawerItem(findViewById(R.id.drawerSettings), "settings", getString(R.string.drawer_settings), onSurface) {
+        binding.drawerItems.removeAllViews()
+
+        addDrawerItem(
+            icon = android.R.drawable.ic_menu_preferences,
+            label = getString(R.string.drawer_settings),
+            tint = onSurface
+        ) {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
-        bindDrawerItem(findViewById(R.id.drawerRate), "thumbs_up", getString(R.string.drawer_rate), onSurface) {
+
+        addDrawerItem(
+            icon = android.R.drawable.btn_star_big_on,
+            label = getString(R.string.drawer_rate),
+            tint = onSurface
+        ) {
             openPlayStore()
         }
-        bindDrawerItem(findViewById(R.id.drawerShare), "share1", getString(R.string.drawer_share), onSurface) {
+
+        addDrawerItem(
+            icon = android.R.drawable.ic_menu_share,
+            label = getString(R.string.drawer_share),
+            tint = onSurface
+        ) {
             shareApp()
         }
-        bindDrawerItem(findViewById(R.id.drawerExplore), "apps", getString(R.string.drawer_explore), onSurface) {}
+
+        addDrawerItem(
+            icon = android.R.drawable.ic_menu_compass,
+            label = getString(R.string.drawer_explore),
+            tint = onSurfaceVariant
+        ) {}
     }
 
-    private fun bindDrawerItem(root: android.view.View, iconName: String, label: String, tint: Int, onClick: () -> Unit) {
-        val drawerBinding = DrawerItemBinding.bind(root)
-        drawerBinding.drawerItemIcon.setImageDrawable(SvgIcon.load(this, "ui", iconName, dp(21), tint))
-        drawerBinding.drawerItemLabel.text = label
+    private fun addDrawerItem(
+        icon: Int,
+        label: String,
+        tint: Int,
+        onClick: () -> Unit
+    ) {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(52)
+            setPadding(dp(20), 0, dp(20), 0)
+            isClickable = true
+            isFocusable = true
+            background = resolveSelectableItemBackground()
+        }
+
+        val iconView = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(22), dp(22))
+            setImageResource(icon)
+            setColorFilter(tint)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            contentDescription = null
+        }
+
+        val labelView = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp(16)
+            }
+            text = label
+            textSize = 15f
+            setTextColor(onSurface)
+        }
+
+        root.addView(iconView)
+        root.addView(labelView)
         root.setOnClickListener {
             binding.drawerLayout.closeDrawers()
             onClick()
         }
+
+        binding.drawerItems.addView(root)
     }
 
-    private fun setupFab() {
-        binding.fabNewCreation.setOnClickListener {
-            startActivity(Intent(this, EditorActivity::class.java))
+    private fun resolveSelectableItemBackground(): android.graphics.drawable.Drawable? {
+        val typedValue = TypedValue()
+        theme.resolveAttribute(android.R.attr.selectableItemBackground, typedValue, true)
+        return if (typedValue.resourceId != 0) {
+            androidx.core.content.ContextCompat.getDrawable(this, typedValue.resourceId)
+        } else {
+            null
         }
     }
 
@@ -165,6 +202,18 @@ class MainActivity : AppCompatActivity() {
             putExtra(Intent.EXTRA_TEXT, "Experimenta o Looply: https://play.google.com/store/apps/details?id=$packageName")
         }
         startActivity(Intent.createChooser(intent, getString(R.string.drawer_share)))
+    }
+
+    private fun isDarkMode(): Boolean {
+        val prefs = getSharedPreferences("looply_settings", Context.MODE_PRIVATE)
+        return when (prefs.getString("theme_mode", "system")) {
+            "dark" -> true
+            "light" -> false
+            else -> {
+                val flags = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                flags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            }
+        }
     }
 
     private fun getColorAttr(attr: Int): Int {

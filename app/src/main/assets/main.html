@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --bg: #FFFFFF; --text: #1C1C1E; --muted: #6B6B70;
+    --nav-bg: #1C1C1E; --nav-pill: #3A3A3C;
+    --nav-icon: rgba(255,255,255,0.45); --nav-icon-active: #FFFFFF;
+    --fab-bg: #1C1C1E; --fab-icon: #FFFFFF;
+    --status-h: 44px;
+  }
+  .dark {
+    --bg: #101010; --text: #F2F2F3; --muted: #9B9BA1;
+    --nav-bg: #2C2C2E; --nav-pill: #48484A;
+  }
+
+  html, body { height: 100%; background: var(--bg); font-family: -apple-system, sans-serif; }
+
+  #topBar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center;
+    padding: calc(var(--status-h) + 10px) 12px 10px;
+    background: var(--bg);
+  }
+  #btnMenu {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  #btnMenu:active { opacity: 0.5; }
+  #btnMenu img { width: 20px; height: 20px; }
+  #topTitle {
+    flex: 1; margin-left: 12px;
+    font-size: 19px; font-weight: 700; color: var(--text);
+  }
+
+  #pageContent {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    padding-top: calc(var(--status-h) + 60px);
+    padding-bottom: 100px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .page { display: none; padding: 24px 20px; }
+  .page.active { display: block; }
+  .page h2 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .page p  { font-size: 14px; color: var(--muted); }
+
+  #bottomArea {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: center;
+    padding: 0 16px 28px;
+    pointer-events: none;
+  }
+  #bottomNav {
+    flex: 1; height: 64px; border-radius: 32px;
+    background: var(--nav-bg);
+    display: flex; align-items: center;
+    padding: 0 8px;
+    pointer-events: all;
+  }
+  .nav-item {
+    flex: 1; height: 100%; border-radius: 24px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .nav-item:active { opacity: 0.7; }
+  .nav-item.active { background: var(--nav-pill); }
+  .nav-item img { width: 22px; height: 22px; opacity: 0.45; }
+  .nav-item.active img { opacity: 1; }
+  .nav-item span {
+    font-size: 10px; margin-top: 3px;
+    color: var(--nav-icon); font-weight: 500;
+  }
+  .nav-item.active span { color: var(--nav-icon-active); }
+
+  #fab {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--fab-bg);
+    display: flex; align-items: center; justify-content: center;
+    margin-left: 12px; cursor: pointer;
+    pointer-events: all; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  #fab:active { opacity: 0.75; }
+  #fab img { width: 24px; height: 24px; }
+</style>
+</head>
+<body>
+
+<div id="topBar">
+  <button id="btnMenu" onclick="LooplyBridge.openDrawer()">
+    <img id="icoMenu" src="icons/menu.svg">
+  </button>
+  <span id="topTitle">Início</span>
+</div>
+
+<div id="pageContent">
+  <div class="page active" id="page-home">
+    <h2>Início</h2>
+    <p>O teu feed aparece aqui.</p>
+  </div>
+  <div class="page" id="page-creations">
+    <h2>Criações</h2>
+    <p>As tuas criações aparecem aqui.</p>
+  </div>
+  <div class="page" id="page-templates">
+    <h2>Modelos</h2>
+    <p>Os modelos disponíveis aparecem aqui.</p>
+  </div>
+</div>
+
+<div id="bottomArea">
+  <div id="bottomNav">
+    <div class="nav-item active" id="tab-home" onclick="switchTab('home')">
+      <img id="ico-home" src="icons/apps.svg">
+      <span>Início</span>
+    </div>
+    <div class="nav-item" id="tab-creations" onclick="switchTab('creations')">
+      <img id="ico-creations" src="icons/library.svg">
+      <span>Criações</span>
+    </div>
+    <div class="nav-item" id="tab-templates" onclick="switchTab('templates')">
+      <img id="ico-templates" src="icons/stacks.svg">
+      <span>Modelos</span>
+    </div>
+  </div>
+  <div id="fab" onclick="LooplyBridge.openEditor()">
+    <img src="icons/add.svg">
+  </div>
+</div>
+
+<script>
+  var tabs = ['home','creations','templates'];
+  var titles = { home:'Início', creations:'Criações', templates:'Modelos' };
+  var current = 'home';
+
+  function switchTab(tab) {
+    current = tab;
+    tabs.forEach(function(t) {
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+      document.getElementById('page-' + t).classList.toggle('active', t === tab);
+    });
+    document.getElementById('topTitle').textContent = titles[tab];
+  }
+
+  function setTheme(mode) {
+    document.body.classList.toggle('dark', mode === 'dark');
+  }
+
+  if (window.LooplyBridge && LooplyBridge.getStatusBarHeight) {
+    var h = LooplyBridge.getStatusBarHeight();
+    document.documentElement.style.setProperty('--status-h', h + 'px');
+  }
+</script>
+</body>
+</html>

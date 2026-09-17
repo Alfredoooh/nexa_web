@@ -1,181 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <WebView
+        android:id="@+id/mainWebView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="?attr/colorPageBackground"
-        android:fitsSystemWindows="false">
-
-        <LinearLayout
-            android:id="@+id/topBar"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="10dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <ImageButton
-                android:id="@+id/btnMenu"
-                style="@style/Widget.Looply.IconButton.Circular"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/ic_placeholder"
-                android:contentDescription="Menu"/>
-
-            <TextView
-                android:id="@+id/topBarTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="12dp"
-                android:text="@string/nav_home"
-                android:textSize="19sp"
-                android:textStyle="bold"
-                android:textColor="?attr/colorOnSurface"/>
-
-        </LinearLayout>
-
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/fragmentContainer"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/topBar"
-            app:layout_constraintBottom_toTopOf="@id/bottomBarContainer"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
-
-        <!-- Bottom bar flutuante + FAB lado a lado -->
-        <LinearLayout
-            android:id="@+id/bottomBarContainer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="20dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <!-- Pill do bottom nav -->
-            <LinearLayout
-                android:id="@+id/bottomNav"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:orientation="horizontal"
-                android:background="@drawable/bg_bottom_nav"
-                android:paddingHorizontal="8dp"
-                android:elevation="12dp">
-
-                <LinearLayout
-                    android:id="@+id/navHome"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <ImageView
-                        android:id="@+id/navHomeIcon"
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_placeholder"/>
-
-                    <TextView
-                        android:id="@+id/navHomeLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:text="@string/nav_home"
-                        android:textSize="10sp"
-                        android:textColor="?attr/colorOnSurface"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/navCreations"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <ImageView
-                        android:id="@+id/navCreationsIcon"
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_placeholder"/>
-
-                    <TextView
-                        android:id="@+id/navCreationsLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:text="@string/nav_creations"
-                        android:textSize="10sp"
-                        android:textColor="?attr/colorOnSurfaceVariant"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/navTemplates"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <ImageView
-                        android:id="@+id/navTemplatesIcon"
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_placeholder"/>
-
-                    <TextView
-                        android:id="@+id/navTemplatesLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:text="@string/nav_templates"
-                        android:textSize="10sp"
-                        android:textColor="?attr/colorOnSurfaceVariant"/>
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <!-- FAB ao lado do bottom nav -->
-            <ImageButton
-                android:id="@+id/fabNewCreation"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="12dp"
-                android:src="@drawable/ic_placeholder"
-                android:background="@drawable/bg_fab_circular"
-                android:padding="16dp"
-                android:contentDescription="Nova criação"
-                android:elevation="6dp"/>
-
-        </LinearLayout>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        android:layout_height="match_parent"/>
 
     <LinearLayout
+        android:id="@+id/drawerPanel"
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
@@ -185,6 +22,7 @@
         android:paddingTop="48dp">
 
         <TextView
+            android:id="@+id/drawerAppName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
@@ -194,10 +32,11 @@
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"/>
 
-        <include layout="@layout/drawer_item" android:id="@+id/drawerSettings"/>
-        <include layout="@layout/drawer_item" android:id="@+id/drawerRate"/>
-        <include layout="@layout/drawer_item" android:id="@+id/drawerShare"/>
-        <include layout="@layout/drawer_item" android:id="@+id/drawerExplore"/>
+        <LinearLayout
+            android:id="@+id/drawerItems"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"/>
 
     </LinearLayout>
 

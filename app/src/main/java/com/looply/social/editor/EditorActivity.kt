@@ -13,7 +13,6 @@ import android.widget.PopupMenu
 import androidx.appcompat.app.AppCompatActivity
 import com.looply.social.R
 import com.looply.social.databinding.ActivityEditorBinding
-import com.looply.social.icons.SvgIcon
 import org.json.JSONObject
 
 class EditorActivity : AppCompatActivity() {
@@ -97,11 +96,8 @@ class EditorActivity : AppCompatActivity() {
         val popup = PopupMenu(this, anchor, Gravity.END)
         popup.menuInflater.inflate(R.menu.menu_editor_more, popup.menu)
 
-        val onSurface = getColorAttr(R.attr.colorOnSurfaceVariant)
-        popup.menu.findItem(R.id.action_export)?.icon =
-            SvgIcon.load(this, "ui", "arrow_up", dp(18), onSurface)
-        popup.menu.findItem(R.id.action_clear)?.icon =
-            SvgIcon.load(this, "ui", "trash", dp(18), onSurface)
+        popup.menu.findItem(R.id.action_export)?.setIcon(android.R.drawable.ic_menu_upload)
+        popup.menu.findItem(R.id.action_clear)?.setIcon(android.R.drawable.ic_menu_delete)
 
         popup.setOnMenuItemClickListener { item ->
             val action = when (item.itemId) {

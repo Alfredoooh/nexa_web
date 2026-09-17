@@ -4,13 +4,13 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.PopupMenu
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import com.looply.social.R
 import com.looply.social.databinding.ActivityEditorBinding
 import com.looply.social.icons.SvgIcon
@@ -44,14 +44,11 @@ class EditorActivity : AppCompatActivity() {
         }
         webView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
-        // Bridge: o HTML chama window.LooplyBridge.onEditorEvent(json)
         webView.addJavascriptInterface(EditorBridge(), "LooplyBridge")
 
         webView.webViewClient = object : android.webkit.WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                // Aplica o tema atual assim que a página carrega —
-                // o HTML não decide o tema sozinho, o Kotlin é que manda.
                 val isDark = isDarkThemeActive()
                 webView.evaluateJavascript(
                     "window.setThemeMode('${if (isDark) "dark" else "light"}')",
@@ -64,8 +61,6 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun isDarkThemeActive(): Boolean {
-        // Lê a preferência definida em SettingsActivity; por defeito
-        // segue o tema do sistema.
         val mode = prefs.getString("theme_mode", "system")
         return when (mode) {
             "dark" -> true
@@ -78,11 +73,6 @@ class EditorActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Bridge JS -> Kotlin. O HTML nunca decide UI nativa sozinho —
-     * qualquer coisa que precise de aparência nativa (popup de menu,
-     * partilha, fechar ecrã) passa por aqui.
-     */
     inner class EditorBridge {
         @JavascriptInterface
         fun onEditorEvent(json: String) {
@@ -102,20 +92,12 @@ class EditorActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Popup ancorado NATIVO — PopupMenu real do Android, com
-     * elevação/sombra Material própria do sistema, não simulado
-     * em CSS. Ancorado ao botão de três pontos do próprio WebView
-     * (usamos um View invisível posicionado no canto para servir
-     * de anchor, já que o botão real vive dentro do HTML).
-     */
     private fun showMoreMenu() {
         val anchor = binding.moreMenuAnchor
         val popup = PopupMenu(this, anchor, Gravity.END)
         popup.menuInflater.inflate(R.menu.menu_editor_more, popup.menu)
 
-        // Ícones do menu via SvgIcon, tal como o resto do app
-        val onSurface = getColorAttr(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val onSurface = getColorAttr(R.attr.colorOnSurfaceVariant)
         popup.menu.findItem(R.id.action_export)?.icon =
             SvgIcon.load(this, "ui", "arrow_up", dp(18), onSurface)
         popup.menu.findItem(R.id.action_clear)?.icon =
@@ -136,20 +118,15 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun handleExport(base64Png: String) {
-        // TODO: decodificar base64, guardar em Creation via Room,
-        // ligado à Fase 3 (persistência das criações).
+        // TODO: decodificar base64, guardar em Creation via Room
     }
 
-    /**
-     * Overlay nativo mínimo: só o anchor invisível para o PopupMenu.
-     * Tudo o resto da UI do editor vive dentro do WebView.
-     */
     private fun setupNativeOverlay() {
         binding.moreMenuAnchor.visibility = View.INVISIBLE
     }
 
     private fun getColorAttr(attr: Int): Int {
-        val typedValue = android.util.TypedValue()
+        val typedValue = TypedValue()
         theme.resolveAttribute(attr, typedValue, true)
         return typedValue.data
     }

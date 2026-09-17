@@ -3,9 +3,11 @@ package com.looply.social.settings
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import com.looply.social.R
 import com.looply.social.databinding.ActivitySettingsBinding
 import com.looply.social.icons.SvgIcon
 
@@ -26,20 +28,13 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupHeader() {
-        val onSurface = getColorAttr(com.google.android.material.R.attr.colorOnSurface)
-        binding.btnBack.icon = SvgIcon.load(this, "ui", "back", dp(19), onSurface)
+        val onSurface = getColorAttr(R.attr.colorOnSurface)
+        binding.btnBack.setImageDrawable(SvgIcon.load(this, "ui", "back", dp(19), onSurface))
         binding.btnBack.setOnClickListener { finish() }
     }
 
-    /**
-     * Toggle nativo (mesmo design do resto do app) para
-     * escuro/claro/sistema. Ao mudar, aplica IMEDIATAMENTE via
-     * AppCompatDelegate — isto reconfigura toda a app nativa E,
-     * quando o utilizador voltar ao EditorActivity, o onPageFinished
-     * já vai ler a preferência nova e chamar setThemeMode() no HTML.
-     */
     private fun setupThemeToggle() {
-        val onSurface = getColorAttr(com.google.android.material.R.attr.colorOnSurface)
+        val onSurface = getColorAttr(R.attr.colorOnSurface)
         val checkIcon = SvgIcon.load(this, "ui", "check", dp(16), onSurface)
         binding.checkSystem.setImageDrawable(checkIcon)
         binding.checkLight.setImageDrawable(checkIcon)
@@ -65,11 +60,6 @@ class SettingsActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(nightMode)
     }
 
-    /**
-     * Mostra o tick (ImageView) só na opção atualmente selecionada;
-     * as outras ficam com o tick invisível mas ocupando o espaço
-     * (INVISIBLE, não GONE), para o layout não saltar ao trocar.
-     */
     private fun updateThemeSelection(mode: String?) {
         val effectiveMode = mode ?: "system"
         binding.checkSystem.visibility = if (effectiveMode == "system") View.VISIBLE else View.INVISIBLE
@@ -78,7 +68,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun getColorAttr(attr: Int): Int {
-        val typedValue = android.util.TypedValue()
+        val typedValue = TypedValue()
         theme.resolveAttribute(attr, typedValue, true)
         return typedValue.data
     }

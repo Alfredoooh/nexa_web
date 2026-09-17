@@ -3,8 +3,10 @@ package com.looply.social
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.Gravity
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import com.looply.social.databinding.ActivityMainBinding
 import com.looply.social.databinding.DrawerItemBinding
@@ -38,13 +40,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupIcons() {
-        val onSurface = getColorAttr(com.google.android.material.R.attr.colorOnSurface)
-        val primary = getColorAttr(com.google.android.material.R.attr.colorPrimary)
-        val variant = getColorAttr(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val onSurface = getColorAttr(R.attr.colorOnSurface)
+        val primary = getColorAttr(R.attr.colorPrimary)
+        val variant = getColorAttr(R.attr.colorOnSurfaceVariant)
 
-        binding.btnMenu.icon = SvgIcon.load(this, "ui", "menu", dp(20), onSurface)
+        binding.btnMenu.setImageDrawable(SvgIcon.load(this, "ui", "menu", dp(20), onSurface))
         binding.fabNewCreation.setImageDrawable(
-            SvgIcon.load(this, "ui", "add", dp(24), getColorAttr(com.google.android.material.R.attr.colorOnPrimary))
+            SvgIcon.load(this, "ui", "add", dp(24), getColorAttr(android.R.attr.colorForegroundInverse))
         )
 
         binding.navHomeIcon.setImageDrawable(SvgIcon.load(this, "ui", "apps", dp(22), primary))
@@ -60,7 +62,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun switchTab(tab: Tab) {
         currentTab = tab
-        val fragment = when (tab) {
+        val fragment: Fragment = when (tab) {
             Tab.HOME -> HomeFragment()
             Tab.CREATIONS -> CreationsFragment()
             Tab.TEMPLATES -> TemplatesFragment()
@@ -77,8 +79,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateNavHighlight() {
-        val primary = getColorAttr(com.google.android.material.R.attr.colorPrimary)
-        val variant = getColorAttr(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val primary = getColorAttr(R.attr.colorPrimary)
+        val variant = getColorAttr(R.attr.colorOnSurfaceVariant)
 
         binding.navHomeIcon.setImageDrawable(
             SvgIcon.load(this, "ui", "apps", dp(22), if (currentTab == Tab.HOME) primary else variant)
@@ -96,7 +98,7 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.openDrawer(Gravity.START)
         }
 
-        val onSurface = getColorAttr(com.google.android.material.R.attr.colorOnSurface)
+        val onSurface = getColorAttr(R.attr.colorOnSurface)
 
         bindDrawerItem(findViewById(R.id.drawerSettings), "settings", getString(R.string.drawer_settings), onSurface) {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -145,7 +147,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getColorAttr(attr: Int): Int {
-        val typedValue = android.util.TypedValue()
+        val typedValue = TypedValue()
         theme.resolveAttribute(attr, typedValue, true)
         return typedValue.data
     }

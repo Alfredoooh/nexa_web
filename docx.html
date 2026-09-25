@@ -2,45 +2,330 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ScoreZone</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ionicons/7.1.0/css/ionicons.min.css">
 <style>
+  :root {
+    --bg: #121212;
+    --bg-elevated: #1A1A1A;
+    --card: #1E1E1E;
+    --accent: #1B7A3D;
+    --accent-light: #25A052;
+    --gold: #F5B301;
+    --text: #FFFFFF;
+    --text-dim: #9A9A9A;
+    --border: #2A2A2A;
+  }
+
+  * { box-sizing: border-box; }
+
   body {
     margin: 0;
-    padding: 20px;
-    background: #121212;
-    color: #ffffff;
-    font-family: sans-serif;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
-  button {
-    padding: 10px 16px;
-    margin: 6px 6px 6px 0;
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  header h1 ion-icon {
+    color: var(--accent-light);
+    font-size: 22px;
+  }
+
+  .container {
+    padding: 4px 20px 32px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin: 24px 0 10px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .theme-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .theme-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+
+  .theme-btn:active {
+    transform: scale(0.96);
+  }
+
+  .theme-btn.active {
+    border-color: var(--accent-light);
+  }
+
+  .swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .field-label {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .input-wrap ion-icon {
+    color: var(--text-dim);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .input-wrap input {
+    flex: 1;
+    background: transparent;
     border: none;
-    border-radius: 4px;
-    background: #1B7A3D;
+    outline: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+
+  .input-wrap input::placeholder {
+    color: #5A5A5A;
+  }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    padding: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .save-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
     color: #fff;
     font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .save-btn:active {
+    transform: scale(0.98);
+    background: var(--accent-light);
+  }
+
+  .save-btn ion-icon {
+    font-size: 17px;
+  }
+
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-dim);
+    min-height: 18px;
+  }
+
+  .status-line.ok { color: var(--accent-light); }
+  .status-line ion-icon { font-size: 16px; }
+
+  .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-top: 10px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(37, 160, 82, 0.15);
+    color: var(--accent-light);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 100px;
   }
 </style>
 </head>
 <body>
 
-<h1>ScoreZone - Teste Status Bar</h1>
+<header>
+  <h1><ion-icon name="trophy"></ion-icon> ScoreZone</h1>
+  <span class="badge"><ion-icon name="flash"></ion-icon> Teste</span>
+</header>
 
-<button onclick="setBar('#1B7A3D', false)">Status Bar Verde</button>
-<button onclick="setBar('#121212', false)">Status Bar Preta</button>
-<button onclick="setBar('#F5B301', true)">Status Bar Dourada (icones escuros)</button>
-<button onclick="setBar('#FFFFFF', true)">Status Bar Branca (icones escuros)</button>
+<div class="container">
+
+  <div class="section-title">Barra de status</div>
+  <div class="card">
+    <div class="theme-row">
+      <button class="theme-btn" onclick="setBar('#1B7A3D', false, this)">
+        <span class="swatch" style="background:#1B7A3D"></span> Verde
+      </button>
+      <button class="theme-btn" onclick="setBar('#121212', false, this)">
+        <span class="swatch" style="background:#121212"></span> Preta
+      </button>
+      <button class="theme-btn" onclick="setBar('#F5B301', true, this)">
+        <span class="swatch" style="background:#F5B301"></span> Dourada
+      </button>
+      <button class="theme-btn" onclick="setBar('#FFFFFF', true, this)">
+        <span class="swatch" style="background:#FFFFFF"></span> Branca
+      </button>
+    </div>
+    <p class="hint">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      A barra de status e a barra de navegação seguem sempre a cor escolhida acima, com ícones claros ou escuros conforme o contraste.
+    </p>
+  </div>
+
+  <div class="section-title">Chave da API KLIPY</div>
+  <div class="card">
+    <div class="field-label">
+      <ion-icon name="key-outline"></ion-icon> Chave de teste
+    </div>
+    <div class="input-wrap">
+      <ion-icon name="lock-closed-outline"></ion-icon>
+      <input id="apiKeyInput" type="password" placeholder="Cole aqui a sua KLIPY API Key" autocomplete="off" spellcheck="false">
+      <button class="icon-btn" onclick="toggleVisibility()">
+        <ion-icon id="eyeIcon" name="eye-outline"></ion-icon>
+      </button>
+    </div>
+    <button class="save-btn" onclick="saveKey()">
+      <ion-icon name="save-outline"></ion-icon> Guardar chave
+    </button>
+    <div class="status-line" id="statusLine"></div>
+  </div>
+
+</div>
 
 <script>
-function setBar(color, isLight) {
-  if (window.Android) {
-    window.Android.setStatusBarColor(color);
-    window.Android.setStatusBarLight(isLight);
-    window.Android.setNavigationBarColor(color);
+  function setBar(color, isLight, btn) {
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    document.body.style.background = color === '#121212' ? '#121212' : document.body.style.background;
+
+    if (window.Android) {
+      window.Android.setStatusBarColor(color);
+      window.Android.setStatusBarLight(isLight);
+      window.Android.setNavigationBarColor(color);
+    }
+
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', color);
   }
-}
+
+  function toggleVisibility() {
+    var input = document.getElementById('apiKeyInput');
+    var icon = document.getElementById('eyeIcon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.setAttribute('name', 'eye-off-outline');
+    } else {
+      input.type = 'password';
+      icon.setAttribute('name', 'eye-outline');
+    }
+  }
+
+  function saveKey() {
+    var input = document.getElementById('apiKeyInput');
+    var status = document.getElementById('statusLine');
+    var key = input.value.trim();
+
+    if (!key) {
+      status.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon> Cole uma chave antes de guardar';
+      status.className = 'status-line';
+      return;
+    }
+
+    window.KLIPY_API_KEY = key;
+    status.innerHTML = '<ion-icon name="checkmark-circle"></ion-icon> Chave guardada para esta sessão';
+    status.className = 'status-line ok';
+  }
+
+  // Aplica o tema inicial (verde) assim que a página carrega
+  setBar('#1B7A3D', false, document.querySelector('.theme-btn'));
 </script>
 
 </body>

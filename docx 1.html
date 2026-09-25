@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScoreZone</title>
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    background: #121212;
+    color: #ffffff;
+    font-family: sans-serif;
+  }
+  button {
+    padding: 10px 16px;
+    margin: 6px 6px 6px 0;
+    border: none;
+    border-radius: 4px;
+    background: #1B7A3D;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h1>ScoreZone - Teste Status Bar</h1>
+
+<button onclick="setBar('#1B7A3D', false)">Status Bar Verde</button>
+<button onclick="setBar('#121212', false)">Status Bar Preta</button>
+<button onclick="setBar('#F5B301', true)">Status Bar Dourada (icones escuros)</button>
+<button onclick="setBar('#FFFFFF', true)">Status Bar Branca (icones escuros)</button>
+
+<script>
+function setBar(color, isLight) {
+  if (window.Android) {
+    window.Android.setStatusBarColor(color);
+    window.Android.setStatusBarLight(isLight);
+    window.Android.setNavigationBarColor(color);
+  }
+}
+</script>
+
+</body>
+</html>

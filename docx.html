@@ -3,26 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#121212">
+<meta name="theme-color" content="#0D1F26">
 <title>ScoreZone</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ionicons/7.1.0/css/ionicons.min.css">
 <style>
   :root {
-    --bg: #121212;
-    --bg-elevated: #1A1A1A;
-    --card: #1E1E1E;
-    --accent: #1B7A3D;
-    --accent-light: #25A052;
+    --accent: #0F5C6B;
+    --accent-light: #147A8C;
+    --danger: #E5484D;
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0D1F26;
+    --bg-elevated: #142E37;
+    --card: #17343E;
     --text: #FFFFFF;
-    --text-dim: #9A9A9A;
-    --border: #2A2A2A;
+    --text-dim: #8FA8AF;
+    --border: #234450;
+    --drawer-overlay: rgba(0,0,0,0.55);
+  }
+
+  :root[data-theme="light"] {
+    --bg: #F2F6F7;
+    --bg-elevated: #FFFFFF;
+    --card: #FFFFFF;
+    --text: #0D1F26;
+    --text-dim: #6B8189;
+    --border: #DCE6E8;
+    --drawer-overlay: rgba(0,0,0,0.3);
   }
 
   * { box-sizing: border-box; }
 
-  html, body {
-    background: var(--bg);
-  }
+  html, body { background: var(--bg); }
 
   body {
     margin: 0;
@@ -32,36 +45,89 @@
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s ease, color 0.2s ease;
   }
 
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 20px 14px;
+    padding: 16px 16px 12px;
     position: sticky;
     top: 0;
     background: var(--bg);
-    z-index: 10;
+    z-index: 20;
   }
 
+  header .left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .icon-tap {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 19px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .icon-tap:active { background: var(--border); }
+
   header h1 {
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 700;
     margin: 0;
     display: flex;
     align-items: center;
+    gap: 7px;
+  }
+
+  header h1 ion-icon { color: var(--accent-light); font-size: 21px; }
+
+  /* Category toggle pills */
+  .category-row {
+    display: flex;
     gap: 8px;
+    padding: 0 16px 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .category-row::-webkit-scrollbar { display: none; }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
   }
 
-  header h1 ion-icon {
-    color: var(--accent-light);
-    font-size: 22px;
+  .pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
   }
 
-  .container {
-    padding: 4px 20px 32px;
-  }
+  .pill ion-icon { font-size: 15px; }
+
+  .container { padding: 0 16px 32px; }
 
   .card {
     background: var(--card);
@@ -71,17 +137,19 @@
     margin-bottom: 16px;
   }
 
-  .field-label {
-    font-size: 13px;
-    color: var(--text-dim);
-    font-weight: 600;
-    margin-bottom: 8px;
+  .search-row {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    gap: 8px;
+    margin-bottom: 14px;
+    position: sticky;
+    top: 106px;
+    z-index: 10;
+    background: var(--bg);
+    padding-bottom: 4px;
   }
 
   .input-wrap {
+    flex: 1;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -91,11 +159,7 @@
     padding: 12px 14px;
   }
 
-  .input-wrap ion-icon {
-    color: var(--text-dim);
-    font-size: 18px;
-    flex-shrink: 0;
-  }
+  .input-wrap ion-icon { color: var(--text-dim); font-size: 18px; flex-shrink: 0; }
 
   .input-wrap input {
     flex: 1;
@@ -107,21 +171,173 @@
     font-family: inherit;
   }
 
-  .input-wrap input::placeholder {
-    color: #5A5A5A;
-  }
+  .input-wrap input::placeholder { color: var(--text-dim); opacity: 0.7; }
 
-  .icon-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 18px;
-    padding: 4px;
-    cursor: pointer;
+  .search-btn {
+    width: 46px;
     flex-shrink: 0;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .search-btn:active { background: var(--accent-light); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
-  .save-btn {
+  .result-item {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    cursor: pointer;
+  }
+
+  .result-item img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+  }
+
+  .result-meta {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 18px 8px 6px;
+    background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .result-item:active .result-meta { opacity: 1; }
+
+  .result-meta span {
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .sentinel {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 18px 0;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .sentinel ion-icon { font-size: 17px; animation: spin 0.9s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 10px;
+    color: var(--text-dim);
+  }
+  .empty-state ion-icon { font-size: 36px; margin-bottom: 8px; display: block; }
+  .empty-state p { margin: 0; font-size: 13px; }
+
+  /* Drawer */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--drawer-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 30;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 78%;
+    max-width: 300px;
+    background: var(--card);
+    z-index: 31;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    padding-top: env(safe-area-inset-top, 0px);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .drawer-header ion-icon { font-size: 24px; color: var(--accent-light); }
+  .drawer-header h2 { font-size: 17px; margin: 0; font-weight: 700; }
+
+  .drawer-section { padding: 16px 20px 6px; }
+  .drawer-section .label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .theme-toggle {
+    display: flex;
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .theme-toggle button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .theme-toggle button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .drawer-field { padding: 8px 20px 20px; }
+
+  .drawer-save {
     width: 100%;
     margin-top: 10px;
     padding: 13px;
@@ -137,131 +353,175 @@
     gap: 8px;
     cursor: pointer;
   }
-
-  .save-btn:active { background: var(--accent-light); }
-  .save-btn ion-icon { font-size: 17px; }
+  .drawer-save:active { background: var(--accent-light); }
 
   .status-line {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 12px;
-    font-size: 13px;
+    margin-top: 10px;
+    font-size: 12.5px;
     color: var(--text-dim);
-    min-height: 18px;
+    min-height: 16px;
   }
   .status-line.ok { color: var(--accent-light); }
-  .status-line.error { color: #E5484D; }
-  .status-line ion-icon { font-size: 16px; }
+  .status-line.error { color: var(--danger); }
+  .status-line ion-icon { font-size: 15px; }
 
-  .search-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-
-  .search-row .input-wrap { flex: 1; margin: 0; }
-
-  .search-btn {
-    width: 46px;
-    flex-shrink: 0;
-    border: none;
-    border-radius: 12px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 18px;
+  .drawer-item {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 12px;
+    padding: 13px 20px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
+    border-top: 1px solid var(--border);
   }
-
-  .search-btn:active { background: var(--accent-light); }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
-  .grid img {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    border-radius: 10px;
-    background: var(--bg-elevated);
-    display: block;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 30px 10px;
-    color: var(--text-dim);
-  }
-
-  .empty-state ion-icon {
-    font-size: 34px;
-    margin-bottom: 8px;
-    display: block;
-  }
-
-  .empty-state p {
-    margin: 0;
-    font-size: 13px;
-  }
+  .drawer-item ion-icon { font-size: 19px; color: var(--text-dim); }
+  .drawer-item:active { background: var(--bg-elevated); }
 </style>
 </head>
 <body>
 
-<header>
-  <h1><ion-icon name="trophy"></ion-icon> ScoreZone</h1>
-</header>
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 
-<div class="container">
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <ion-icon name="trophy"></ion-icon>
+    <h2>ScoreZone</h2>
+  </div>
 
-  <div class="card">
-    <div class="field-label">
-      <ion-icon name="key-outline"></ion-icon> Chave da API KLIPY
+  <div class="drawer-section">
+    <div class="label">Tema</div>
+    <div class="theme-toggle">
+      <button id="themeDarkBtn" onclick="setTheme('dark')">
+        <ion-icon name="moon"></ion-icon> Escuro
+      </button>
+      <button id="themeLightBtn" onclick="setTheme('light')">
+        <ion-icon name="sunny"></ion-icon> Claro
+      </button>
     </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="label">Chave da API KLIPY</div>
+  </div>
+  <div class="drawer-field">
     <div class="input-wrap">
       <ion-icon name="lock-closed-outline"></ion-icon>
-      <input id="apiKeyInput" type="password" placeholder="Cole aqui a sua KLIPY API Key" autocomplete="off" spellcheck="false">
-      <button class="icon-btn" onclick="toggleVisibility()">
+      <input id="apiKeyInput" type="password" placeholder="Cole a tua KLIPY API Key" autocomplete="off" spellcheck="false">
+      <button class="icon-tap" style="width:32px;height:32px;font-size:16px;background:transparent;" onclick="toggleVisibility()">
         <ion-icon id="eyeIcon" name="eye-outline"></ion-icon>
       </button>
     </div>
-    <button class="save-btn" onclick="saveKey()">
-      <ion-icon name="checkmark-outline"></ion-icon> Guardar e testar
+    <button class="drawer-save" onclick="saveKey()">
+      <ion-icon name="checkmark-outline"></ion-icon> Guardar chave
     </button>
     <div class="status-line" id="statusLine"></div>
   </div>
 
-  <div class="card">
-    <div class="field-label">
-      <ion-icon name="search-outline"></ion-icon> Procurar GIFs e stickers
+  <div class="drawer-item" onclick="clearResults()">
+    <ion-icon name="trash-outline"></ion-icon> Limpar resultados
+  </div>
+  <div class="drawer-item" onclick="closeDrawer()">
+    <ion-icon name="close-outline"></ion-icon> Fechar menu
+  </div>
+</div>
+
+<header>
+  <div class="left">
+    <button class="icon-tap" onclick="openDrawer()">
+      <ion-icon name="menu-outline"></ion-icon>
+    </button>
+    <h1><ion-icon name="trophy"></ion-icon> ScoreZone</h1>
+  </div>
+  <button class="icon-tap" onclick="toggleTheme()">
+    <ion-icon id="quickThemeIcon" name="moon-outline"></ion-icon>
+  </button>
+</header>
+
+<div class="category-row">
+  <button class="pill active" data-type="gifs" onclick="setCategory('gifs', this)">
+    <ion-icon name="film-outline"></ion-icon> GIFs
+  </button>
+  <button class="pill" data-type="stickers" onclick="setCategory('stickers', this)">
+    <ion-icon name="happy-outline"></ion-icon> Stickers
+  </button>
+  <button class="pill" data-type="memes" onclick="setCategory('memes', this)">
+    <ion-icon name="chatbox-ellipses-outline"></ion-icon> Memes
+  </button>
+  <button class="pill" data-type="clips" onclick="setCategory('clips', this)">
+    <ion-icon name="videocam-outline"></ion-icon> Clips
+  </button>
+</div>
+
+<div class="container">
+  <div class="search-row">
+    <div class="input-wrap">
+      <ion-icon name="search-outline"></ion-icon>
+      <input id="searchInput" type="text" placeholder="Ex: golo, festa, futebol..." onkeydown="if(event.key==='Enter') newSearch()">
     </div>
-    <div class="search-row">
-      <div class="input-wrap">
-        <ion-icon name="happy-outline"></ion-icon>
-        <input id="searchInput" type="text" placeholder="Ex: golo, festa, futebol..." onkeydown="if(event.key==='Enter') doSearch()">
-      </div>
-      <button class="search-btn" onclick="doSearch()">
-        <ion-icon name="arrow-forward"></ion-icon>
-      </button>
-    </div>
-    <div id="results">
-      <div class="empty-state">
-        <ion-icon name="images-outline"></ion-icon>
-        <p>Guarda a tua chave e faz uma pesquisa para veres os resultados aqui</p>
-      </div>
-    </div>
+    <button class="search-btn" onclick="newSearch()">
+      <ion-icon name="arrow-forward"></ion-icon>
+    </button>
   </div>
 
+  <div id="results">
+    <div class="empty-state">
+      <ion-icon name="images-outline"></ion-icon>
+      <p>Abre o menu, guarda a tua chave e faz uma pesquisa</p>
+    </div>
+  </div>
 </div>
 
 <script>
   var API_KEY = '';
+  var currentCategory = 'gifs';
+  var currentQuery = '';
+  var currentPage = 1;
+  var isLoading = false;
+  var hasMore = true;
+  var observer = null;
 
+  // ---------- Tema ----------
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    var color = theme === 'dark' ? '#0D1F26' : '#F2F6F7';
+
+    var meta = document.querySelector('meta[name="theme-color"]');
+    meta.setAttribute('content', color);
+
+    if (window.Android) {
+      window.Android.setStatusBarColor(color);
+      window.Android.setStatusBarLight(theme === 'light');
+      window.Android.setNavigationBarColor(color);
+    }
+
+    document.getElementById('themeDarkBtn').classList.toggle('active', theme === 'dark');
+    document.getElementById('themeLightBtn').classList.toggle('active', theme === 'light');
+    document.getElementById('quickThemeIcon').setAttribute('name', theme === 'dark' ? 'moon-outline' : 'sunny-outline');
+
+    localStorage.setItem('scorezone_theme', theme);
+  }
+
+  function toggleTheme() {
+    var current = document.documentElement.getAttribute('data-theme');
+    setTheme(current === 'dark' ? 'light' : 'dark');
+  }
+
+  // ---------- Drawer ----------
+  function openDrawer() {
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('open');
+  }
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('open');
+  }
+
+  // ---------- API Key ----------
   function toggleVisibility() {
     var input = document.getElementById('apiKeyInput');
     var icon = document.getElementById('eyeIcon');
@@ -280,7 +540,7 @@
     var key = input.value.trim();
 
     if (!key) {
-      status.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon> Cole uma chave antes de guardar';
+      status.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon> Cola uma chave antes de guardar';
       status.className = 'status-line error';
       return;
     }
@@ -290,52 +550,124 @@
     status.className = 'status-line ok';
   }
 
-  async function doSearch() {
-    var query = document.getElementById('searchInput').value.trim();
-    var results = document.getElementById('results');
-    var status = document.getElementById('statusLine');
+  // ---------- Categorias ----------
+  function setCategory(type, btn) {
+    document.querySelectorAll('.pill').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    currentCategory = type;
+    if (currentQuery) newSearch();
+  }
 
+  // ---------- Pesquisa ----------
+  function newSearch() {
+    var query = document.getElementById('searchInput').value.trim();
     if (!API_KEY) {
+      openDrawer();
+      var status = document.getElementById('statusLine');
       status.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon> Guarda a tua chave primeiro';
       status.className = 'status-line error';
       return;
     }
-
     if (!query) return;
 
-    results.innerHTML = '<div class="empty-state"><ion-icon name="hourglass-outline"></ion-icon><p>A procurar...</p></div>';
+    currentQuery = query;
+    currentPage = 1;
+    hasMore = true;
+    document.getElementById('results').innerHTML = '<div class="grid" id="grid"></div>';
+    loadMore();
+  }
+
+  function clearResults() {
+    currentQuery = '';
+    document.getElementById('searchInput').value = '';
+    document.getElementById('results').innerHTML = '<div class="empty-state"><ion-icon name="images-outline"></ion-icon><p>Faz uma nova pesquisa</p></div>';
+    closeDrawer();
+  }
+
+  async function loadMore() {
+    if (isLoading || !hasMore || !currentQuery) return;
+    isLoading = true;
+
+    var grid = document.getElementById('grid');
+    var sentinel = document.createElement('div');
+    sentinel.className = 'sentinel';
+    sentinel.id = 'sentinel';
+    sentinel.innerHTML = '<ion-icon name="reload-outline"></ion-icon> A carregar mais...';
+    grid.appendChild(sentinel);
 
     try {
-      // Endpoint de pesquisa da KLIPY (GIF search)
-      var url = 'https://api.klipy.co/api/v1/' + API_KEY + '/gifs/search?q=' + encodeURIComponent(query) + '&per_page=8';
-      var response = await fetch(url);
+      var url = 'https://api.klipy.co/api/v1/' + API_KEY + '/' + currentCategory + '/search'
+               + '?q=' + encodeURIComponent(currentQuery)
+               + '&page=' + currentPage
+               + '&per_page=20';
 
-      if (!response.ok) {
-        throw new Error('Resposta ' + response.status);
-      }
+      var response = await fetch(url);
+      if (!response.ok) throw new Error('Resposta ' + response.status);
 
       var data = await response.json();
-      var items = (data.data && data.data.data) || data.data || [];
+      var payload = (data.data && data.data.data) || data.data || [];
 
-      if (!items.length) {
-        results.innerHTML = '<div class="empty-state"><ion-icon name="sad-outline"></ion-icon><p>Nada encontrado para "' + query + '"</p></div>';
+      sentinel.remove();
+
+      if (currentPage === 1 && !payload.length) {
+        document.getElementById('results').innerHTML = '<div class="empty-state"><ion-icon name="sad-outline"></ion-icon><p>Nada encontrado para "' + currentQuery + '"</p></div>';
+        hasMore = false;
+        isLoading = false;
         return;
       }
 
-      var html = '<div class="grid">';
-      items.forEach(function(item) {
-        var src = item.file && item.file.sm && item.file.sm.gif && item.file.sm.gif.url;
-        if (src) html += '<img src="' + src + '" loading="lazy">';
+      if (!payload.length) {
+        hasMore = false;
+        isLoading = false;
+        return;
+      }
+
+      payload.forEach(function(item) {
+        var media = item.file && (item.file.sm || item.file.md || item.file.hd);
+        var src = media && media.gif && media.gif.url;
+        if (!src) return;
+
+        var el = document.createElement('div');
+        el.className = 'result-item';
+        el.innerHTML = '<img src="' + src + '" loading="lazy">'
+          + '<div class="result-meta">'
+          + '<span><ion-icon name="heart-outline"></ion-icon> ' + (item.likes || 0) + '</span>'
+          + '<span><ion-icon name="download-outline"></ion-icon></span>'
+          + '</div>';
+        grid.appendChild(el);
       });
-      html += '</div>';
-      results.innerHTML = html;
+
+      currentPage++;
+      isLoading = false;
+      observeSentinel();
 
     } catch (err) {
-      results.innerHTML = '<div class="empty-state"><ion-icon name="warning-outline"></ion-icon><p>Erro ao ligar à KLIPY — confirma a chave</p></div>';
-      status.innerHTML = '<ion-icon name="close-circle"></ion-icon> ' + err.message;
-      status.className = 'status-line error';
+      sentinel.innerHTML = '<ion-icon name="warning-outline"></ion-icon> Erro ao carregar — confirma a chave';
+      isLoading = false;
+      hasMore = false;
     }
   }
+
+  function observeSentinel() {
+    var trigger = document.createElement('div');
+    trigger.style.gridColumn = '1 / -1';
+    trigger.style.height = '1px';
+    trigger.id = 'scrollTrigger';
+    document.getElementById('grid').appendChild(trigger);
+
+    if (observer) observer.disconnect();
+    observer = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting) {
+        trigger.remove();
+        loadMore();
+      }
+    });
+    observer.observe(trigger);
+  }
+
+  // ---------- Inicialização ----------
+  var savedTheme = localStorage.getItem('scorezone_theme') || 'dark';
+  setTheme(savedTheme);
 </script>
 
 </body>

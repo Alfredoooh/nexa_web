@@ -1,333 +1,44 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML → DOCX</title>
-<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+<title>ScoreZone</title>
 <style>
-  * {
-    box-sizing: border-box;
-  }
   body {
-    font-family: Arial, sans-serif;
-    background: #666;
     margin: 0;
     padding: 20px;
+    background: #121212;
+    color: #ffffff;
+    font-family: sans-serif;
   }
-  #topBar {
-    max-width: 900px;
-    margin: 0 auto 15px auto;
-    background: white;
-    padding: 12px;
-    border-radius: 6px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-  }
-  #topBar input[type="text"] {
-    padding: 8px;
-    font-size: 14px;
-    border: 1px solid #ccc;
+  button {
+    padding: 10px 16px;
+    margin: 6px 6px 6px 0;
+    border: none;
     border-radius: 4px;
-    width: 200px;
-  }
-  #topBar button {
-    padding: 8px 14px;
+    background: #1B7A3D;
+    color: #fff;
     font-size: 14px;
     cursor: pointer;
-    border: none;
-    border-radius: 4px;
-    background: #2563eb;
-    color: white;
   }
-  #topBar button.secondary {
-    background: #555;
-  }
-  #status {
-    max-width: 900px;
-    margin: 0 auto 10px auto;
-    font-size: 13px;
-    color: white;
-    min-height: 18px;
-  }
-  #layout {
-    max-width: 900px;
-    margin: 0 auto;
-    display: flex;
-    gap: 15px;
-  }
-  #inputCol, #previewCol {
-    flex: 1;
-    min-width: 0;
-  }
-  #inputCol h3, #previewCol h3 {
-    color: white;
-    font-size: 13px;
-    margin: 0 0 6px 0;
-  }
-  #htmlInput {
-    width: 100%;
-    height: 500px;
-    font-family: monospace;
-    font-size: 13px;
-    padding: 10px;
-    border-radius: 6px;
-    border: none;
-    resize: vertical;
-  }
-
-  /* Preview em página A4 real */
-  #previewWrapper {
-    background: #444;
-    padding: 10px;
-    border-radius: 6px;
-    overflow: auto;
-    max-height: 520px;
-  }
-  .page {
-    width: 210mm;
-    min-height: 297mm;
-    background: white;
-    box-shadow: 0 0 8px rgba(0,0,0,0.4);
-    padding: 25mm 20mm;
-    margin: 0 auto;
-    transform-origin: top left;
-  }
-  #pageContent {
-    font-size: 12pt;
-    line-height: 1.5;
-    color: #111;
-  }
-  #pageContent h1 { font-size: 20pt; margin: 0 0 12pt 0; }
-  #pageContent h2 { font-size: 16pt; margin: 14pt 0 8pt 0; }
-  #pageContent p { margin: 0 0 10pt 0; }
-  #pageContent ul, #pageContent ol { margin: 0 0 10pt 0; padding-left: 22pt; }
-  #pageContent table { border-collapse: collapse; width: 100%; margin-bottom: 10pt; }
-  #pageContent table td, #pageContent table th { border: 1px solid #333; padding: 6pt; font-size: 11pt; }
 </style>
 </head>
 <body>
 
-<div id="topBar">
-  <input type="text" id="docTitle" value="documento" placeholder="nome do arquivo">
-  <button onclick="renderPreview()">Atualizar Preview</button>
-  <button onclick="generateDocx()">Baixar .docx</button>
-</div>
+<h1>ScoreZone - Teste Status Bar</h1>
 
-<div id="status"></div>
-
-<div id="layout">
-  <div id="inputCol">
-    <h3>HTML de entrada</h3>
-    <textarea id="htmlInput" spellcheck="false"></textarea>
-  </div>
-  <div id="previewCol">
-    <h3>Preview (página A4)</h3>
-    <div id="previewWrapper">
-      <div class="page">
-        <div id="pageContent"></div>
-      </div>
-    </div>
-  </div>
-</div>
+<button onclick="setBar('#1B7A3D', false)">Status Bar Verde</button>
+<button onclick="setBar('#121212', false)">Status Bar Preta</button>
+<button onclick="setBar('#F5B301', true)">Status Bar Dourada (icones escuros)</button>
+<button onclick="setBar('#FFFFFF', true)">Status Bar Branca (icones escuros)</button>
 
 <script>
-const htmlInput = document.getElementById('htmlInput');
-const pageContent = document.getElementById('pageContent');
-const status = document.getElementById('status');
-
-// Exemplo de HTML já dentro do textarea
-const exampleHtml = `<h1>Relatório de Exemplo</h1>
-<p>Este é um exemplo de HTML que será convertido em um documento .docx real, renderizado em página A4 (210mm x 297mm) com margens de 25mm/20mm.</p>
-
-<h2>Seção 1 — Introdução</h2>
-<p>Edite o HTML no campo ao lado e clique em "Atualizar Preview" para ver o resultado. Suporta <b>negrito</b>, <i>itálico</i> e <u>sublinhado</u>.</p>
-<ul>
-  <li>Item de lista número um</li>
-  <li>Item de lista número dois</li>
-  <li>Item de lista número três</li>
-</ul>
-
-<h2>Seção 2 — Tabela de Exemplo</h2>
-<table>
-  <tr><th>Item</th><th>Quantidade</th><th>Valor</th></tr>
-  <tr><td>Produto A</td><td>10</td><td>R$ 100,00</td></tr>
-  <tr><td>Produto B</td><td>5</td><td>R$ 50,00</td></tr>
-</table>
-
-<p>Clique em "Baixar .docx" para gerar o arquivo Word a partir deste HTML.</p>`;
-
-htmlInput.value = exampleHtml;
-
-function renderPreview() {
-  pageContent.innerHTML = htmlInput.value;
-}
-
-renderPreview();
-
-// ---------- Conversão HTML → DOCX ----------
-
-function getRuns(node, TextRun, baseBold, baseItalic, baseUnderline) {
-  let runs = [];
-
-  node.childNodes.forEach(child => {
-    if (child.nodeType === Node.TEXT_NODE) {
-      const text = child.textContent;
-      if (text.length > 0) {
-        runs.push(new TextRun({
-          text: text,
-          bold: baseBold,
-          italics: baseItalic,
-          underline: baseUnderline ? {} : undefined
-        }));
-      }
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      const tag = child.tagName.toLowerCase();
-      let bold = baseBold;
-      let italic = baseItalic;
-      let underline = baseUnderline;
-
-      if (tag === 'b' || tag === 'strong') bold = true;
-      if (tag === 'i' || tag === 'em') italic = true;
-      if (tag === 'u') underline = true;
-
-      if (tag === 'br') {
-        runs.push(new TextRun({ text: '', break: 1 }));
-      } else {
-        runs = runs.concat(getRuns(child, TextRun, bold, italic, underline));
-      }
-    }
-  });
-
-  return runs;
-}
-
-function htmlNodeToDocxElement(node, ctx) {
-  const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } = ctx;
-
-  if (node.nodeType === Node.TEXT_NODE) {
-    const text = node.textContent.trim();
-    if (!text) return null;
-    return new Paragraph({ children: [new TextRun(text)] });
-  }
-
-  if (node.nodeType !== Node.ELEMENT_NODE) return null;
-
-  const tag = node.tagName.toLowerCase();
-
-  if (tag === 'h1') {
-    return new Paragraph({ heading: HeadingLevel.HEADING_1, children: getRuns(node, TextRun, false, false, false) });
-  }
-  if (tag === 'h2') {
-    return new Paragraph({ heading: HeadingLevel.HEADING_2, children: getRuns(node, TextRun, false, false, false) });
-  }
-  if (tag === 'p') {
-    const runs = getRuns(node, TextRun, false, false, false);
-    return new Paragraph({ children: runs.length ? runs : [new TextRun('')] });
-  }
-  if (tag === 'ul' || tag === 'ol') {
-    const items = Array.from(node.children).filter(c => c.tagName.toLowerCase() === 'li');
-    return items.map(li => new Paragraph({
-      children: getRuns(li, TextRun, false, false, false),
-      bullet: tag === 'ul' ? { level: 0 } : undefined
-    }));
-  }
-  if (tag === 'table') {
-    const rows = Array.from(node.querySelectorAll('tr')).map(tr => {
-      const cells = Array.from(tr.children).map(td => new TableCell({
-        children: [new Paragraph({ children: getRuns(td, TextRun, td.tagName.toLowerCase() === 'th', false, false) })]
-      }));
-      return new TableRow({ children: cells });
-    });
-    return new Table({
-      rows: rows,
-      width: { size: 100, type: WidthType.PERCENTAGE }
-    });
-  }
-  if (tag === 'br') {
-    return new Paragraph({ children: [] });
-  }
-
-  // Fallback: trata como parágrafo simples
-  const runs = getRuns(node, TextRun, false, false, false);
-  if (runs.length) {
-    return new Paragraph({ children: runs });
-  }
-  return null;
-}
-
-async function generateDocx() {
-  if (typeof docx === 'undefined') {
-    status.textContent = 'Erro: a biblioteca docx não carregou. Verifique sua conexão e recarregue a página.';
-    return;
-  }
-
-  status.textContent = 'Gerando .docx...';
-
-  try {
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } = docx;
-
-    // Parseia o HTML digitado em um DOM temporário, sem afetar a preview
-    const parser = new DOMParser();
-    const parsed = parser.parseFromString(htmlInput.value, 'text/html');
-    const nodes = Array.from(parsed.body.childNodes);
-
-    const sectionsChildren = [];
-
-    nodes.forEach(node => {
-      const el = htmlNodeToDocxElement(node, { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType });
-      if (el) {
-        if (Array.isArray(el)) {
-          sectionsChildren.push(...el);
-        } else {
-          sectionsChildren.push(el);
-        }
-      }
-    });
-
-    if (sectionsChildren.length === 0) {
-      status.textContent = 'O HTML não gerou nenhum conteúdo. Verifique o texto de entrada.';
-      return;
-    }
-
-    const doc = new Document({
-      sections: [{
-        properties: {
-          page: {
-            size: {
-              width: 11906, // A4 em twips (210mm)
-              height: 16838 // A4 em twips (297mm)
-            },
-            margin: {
-              top: 1417,    // 25mm
-              bottom: 1417,
-              left: 1134,   // 20mm
-              right: 1134
-            }
-          }
-        },
-        children: sectionsChildren
-      }]
-    });
-
-    const blob = await Packer.toBlob(doc);
-    const filename = (document.getElementById('docTitle').value || 'documento') + '.docx';
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    status.textContent = 'Arquivo .docx gerado com sucesso!';
-  } catch (err) {
-    status.textContent = 'Erro ao gerar .docx: ' + err.message;
-    console.error(err);
+function setBar(color, isLight) {
+  if (window.Android) {
+    window.Android.setStatusBarColor(color);
+    window.Android.setStatusBarLight(isLight);
+    window.Android.setNavigationBarColor(color);
   }
 }
 </script>

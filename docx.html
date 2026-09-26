@@ -16,6 +16,8 @@
   --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
   --emphasized:cubic-bezier(.2,0,0,1);--emphasized-decel:cubic-bezier(.05,.7,.1,1);--ios:cubic-bezier(.32,.72,0,1);
   --bar-h:58px;--appbar-h:56px;--sheet-r:28px;
+  --input-font-size:14.5px;
+  --input-padding:13px 18px;
 }
 :root[data-theme="dark"]{
   --bg:#0D0D0D;--bg-elevated:#1A1A1A;--card:#1E1E1E;--card-elevated:#272727;
@@ -56,6 +58,7 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 .icon-tap{width:42px;height:42px;border-radius:50%;border:none;background:transparent;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s ease,transform .15s ease;}
 .icon-tap:active{background:var(--bg-elevated);transform:scale(.92);}
 .icon-tap .ic{width:23px;height:23px;}
+.icon-tap.hidden-action{visibility:hidden;pointer-events:none;}
 .header-actions{display:flex;align-items:center;gap:2px;}
 
 .category-row{display:flex;gap:8px;padding:2px 16px 12px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
@@ -74,7 +77,7 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 .masonry{display:flex;gap:8px;padding:10px 12px 24px;align-items:flex-start;}
 .masonry-col{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;}
 .masonry-item{position:relative;border-radius:14px;overflow:hidden;background:var(--skeleton);cursor:pointer;width:100%;}
-.masonry-item canvas,.masonry-item img,.masonry-item video{width:100%;height:100%;display:block;object-fit:cover;}
+.masonry-item img,.masonry-item video{width:100%;height:100%;display:block;object-fit:cover;}
 .masonry-item .rv-badge{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;}
 .masonry-item .rv-badge .ic{width:12px;height:12px;background-color:#fff;}
 .masonry-caption{position:absolute;left:0;right:0;bottom:0;padding:16px 9px 8px;background:linear-gradient(to top,rgba(0,0,0,.72),transparent);pointer-events:none;}
@@ -110,14 +113,25 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 .bb-item.active .bb-profile-avatar{border-color:var(--primary);}
 .bb-profile-avatar .ic{width:16px;height:16px;}
 
-/* ================= Search tab entry input ================= */
+/* ================= Search tab entry input — TAMANHO ÚNICO, herdado pelo overlay ================= */
 .search-row{padding:6px 16px 8px;}
-.input-wrap-round{display:flex;align-items:center;gap:10px;background:var(--input-bg);border:none;border-radius:999px;padding:13px 18px;cursor:pointer;width:100%;}
-.input-wrap-round .ic{color:var(--text-dim);width:16px;height:16px;flex-shrink:0;}
-.input-wrap-round span{color:var(--text-dim);font-size:13.5px;flex:1;text-align:left;}
+.searchbox{
+  display:flex;align-items:center;gap:10px;
+  background:var(--input-bg);border:none;border-radius:999px;
+  padding:var(--input-padding);
+  width:100%;
+}
+.searchbox .ic{color:var(--text-dim);width:16px;height:16px;flex-shrink:0;}
+.searchbox span, .searchbox input{
+  color:var(--text-dim);font-size:var(--input-font-size);font-weight:500;
+  flex:1;text-align:left;line-height:1.3;
+}
+button.searchbox{cursor:pointer;}
+.searchbox input{background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;}
+.searchbox input::placeholder{color:var(--text-dim);opacity:.85;}
 
 .section-title{font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--text-dim);padding:6px 16px 10px;}
-#cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 18px;}
+#cat-grid,#cat-grid-overlay{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 18px;}
 .cat-card{position:relative;height:110px;border-radius:18px;overflow:hidden;border:0;text-align:left;color:#fff;padding:14px 16px;font-size:15px;font-weight:800;letter-spacing:-.1px;cursor:pointer;background-size:cover;background-position:center;}
 .cat-card::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.55),rgba(0,0,0,.05));}
 .cat-card .cc-label{position:relative;z-index:1;}
@@ -125,15 +139,21 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 .trending-row{display:flex;gap:8px;padding:0 16px 8px;flex-wrap:wrap;}
 .trending-chip{padding:9px 15px;border-radius:100px;background:var(--card);color:var(--text);font-size:13px;font-weight:600;border:0;cursor:pointer;}
 
-/* ================= Search overlay: efeito "container transform" a partir do input ================= */
-#search-overlay{position:absolute;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;opacity:0;visibility:hidden;pointer-events:none;transform-origin:top center;}
-#search-overlay.morphing{visibility:visible;pointer-events:auto;transition:opacity .28s var(--emphasized-decel),transform .32s var(--ios);}
-#search-overlay.open{opacity:1;transform:scale(1) translateY(0);}
+/* ================= Search overlay: sobe a partir do input, animação simples e robusta ================= */
+#search-overlay{
+  position:absolute;inset:0;z-index:40;background:var(--bg);
+  display:flex;flex-direction:column;
+  visibility:hidden;opacity:0;
+  transform:translateY(14px);
+  transition:opacity .24s var(--emphasized-decel), transform .28s var(--ios), visibility 0s linear .28s;
+}
+#search-overlay.open{
+  visibility:visible;opacity:1;transform:translateY(0);
+  transition:opacity .24s var(--emphasized-decel), transform .28s var(--ios), visibility 0s;
+}
 .search-overlay-bar{display:flex;align-items:center;gap:8px;padding:calc(var(--safe-top) + 10px) 12px 10px;flex-shrink:0;background:var(--bg);}
-.search-overlay-input-wrap{flex:1;display:flex;align-items:center;gap:10px;background:var(--input-bg);border-radius:999px;padding:13px 18px;}
-.search-overlay-input-wrap .ic{color:var(--text-dim);width:16px;height:16px;flex-shrink:0;}
-.search-overlay-input-wrap input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13.5px;font-family:inherit;}
-.search-overlay-input-wrap input::placeholder{color:var(--text-dim);opacity:.8;}
+.search-overlay-input-wrap{flex:1;}
+.search-overlay-input-wrap input{width:100%;}
 .search-overlay-cancel{border:0;background:transparent;color:var(--primary);font-size:14px;font-weight:700;padding:8px 4px;cursor:pointer;flex-shrink:0;}
 .search-overlay-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 
@@ -265,12 +285,19 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 .status-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--text-dim);min-height:16px;}
 .status-line .ic{width:15px;height:15px;}
 
+/* ================= Auth page ================= */
+.auth-tabs{display:flex;background:var(--input-bg);border-radius:14px;padding:4px;gap:4px;margin:6px 16px 20px;}
+.auth-tab{flex:1;padding:11px;border-radius:11px;border:0;background:transparent;color:var(--text-dim);font-size:13.5px;font-weight:700;cursor:pointer;}
+.auth-tab.active{background:var(--primary);color:var(--on-primary);}
+.auth-identifier-toggle{display:flex;gap:8px;padding:0 16px 14px;}
+.auth-identifier-toggle .pill{flex:1;justify-content:center;}
+.auth-error{padding:0 16px 12px;color:var(--danger);font-size:12.5px;font-weight:600;min-height:16px;}
+
 .hidden-file-input{display:none;}
 .toast{position:fixed;bottom:calc(var(--bar-h) + var(--safe-bottom) + 16px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--primary);color:var(--on-primary);padding:12px 20px;border-radius:100px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;z-index:400;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.25);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast .ic{width:16px;height:16px;background-color:var(--on-primary);}
 
-/* ================= Loader dedicado para navegação editor/publicar (sem animação de página) ================= */
 #nav-loader-overlay{position:fixed;inset:0;z-index:950;background:var(--bg);display:none;align-items:center;justify-content:center;}
 #nav-loader-overlay.show{display:flex;}
 .nav-loader-card{width:96px;height:96px;border-radius:60%;background:var(--card);display:flex;align-items:center;justify-content:center;}
@@ -302,7 +329,7 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
   <header id="mainHeader">
     <div class="logo">Looply</div>
     <div class="header-actions">
-      <button class="icon-tap" id="actionBtn" aria-label="Criar"></button>
+      <button class="icon-tap" id="actionBtn" aria-label="Ação"></button>
     </div>
   </header>
 
@@ -337,7 +364,7 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
       <div class="tab-scroll" id="searchTabScrollArea">
         <div class="container">
           <div class="search-row">
-            <button class="input-wrap-round" id="searchEntryBtn" onclick="openSearchOverlay()">
+            <button class="searchbox" id="searchEntryBtn" onclick="openSearchOverlay()">
               <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/search.svg);mask-image:url(assets/icons/svg/search.svg)"></span>
               <span>Pesquisar GIFs, stickers, memes...</span>
             </button>
@@ -374,14 +401,14 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
               <span class="ic" id="profileAvatarPh" style="-webkit-mask-image:url(assets/icons/svg/profile.svg);mask-image:url(assets/icons/svg/profile.svg)"></span>
             </div>
             <div class="profile-stats-row">
-              <div class="profile-stat"><b>0</b><span>Seguidores</span></div>
-              <div class="profile-stat"><b>0</b><span>Seguindo</span></div>
+              <div class="profile-stat"><b id="profileFollowersCount">0</b><span>Seguidores</span></div>
+              <div class="profile-stat"><b id="profileFollowingCount">0</b><span>Seguindo</span></div>
               <div class="profile-stat"><b id="profilePostCount">0</b><span>Publicações</span></div>
             </div>
           </div>
           <div class="profile-name-block">
             <div class="pname" id="profileNameLabel">Convidado</div>
-            <div class="pbio">A criar no Looply</div>
+            <div class="pbio" id="profileBioLabel">A criar no Looply</div>
           </div>
           <button class="profile-edit-btn" onclick="goToPage('editprofile')">Editar perfil</button>
         </div>
@@ -410,12 +437,12 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
     </button>
   </div>
 
-  <!-- ===== SEARCH OVERLAY: container transform a partir do input da tab de pesquisa ===== -->
+  <!-- ===== SEARCH OVERLAY ===== -->
   <div id="search-overlay">
     <div class="search-overlay-bar">
-      <div class="search-overlay-input-wrap">
+      <div class="search-overlay-input-wrap searchbox">
         <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/search.svg);mask-image:url(assets/icons/svg/search.svg)"></span>
-        <input id="searchOverlayInput" type="text" placeholder="Pesquisar GIFs, stickers, memes..." autocomplete="off" oninput="onOverlayInputChange()" onkeydown="if(event.key==='Enter') submitOverlaySearch(this.value)">
+        <input id="searchOverlayInput" type="text" placeholder="Pesquisar GIFs, stickers, memes..." autocomplete="off" oninput="onOverlayInputChange()" onkeydown="if(event.key==='Enter') submitOverlaySearch()">
       </div>
       <button class="search-overlay-cancel" onclick="closeSearchOverlay()">Cancelar</button>
     </div>
@@ -483,11 +510,26 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
         <input id="editProfileNameInput" type="text" placeholder="O teu nome">
       </div>
     </div>
+    <div class="acc-field">
+      <div class="acc-label">Bio</div>
+      <div class="input-wrap">
+        <input id="editProfileBioInput" type="text" placeholder="Fala um pouco sobre ti" maxlength="150">
+      </div>
+    </div>
     <div style="padding:6px 16px 4px">
       <button class="btn-fill" style="width:100%;justify-content:center" onclick="saveProfileFields()">
         <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/check.svg);mask-image:url(assets/icons/svg/check.svg)"></span> Guardar perfil
       </button>
     </div>
+    <div class="set-group-title">Conta</div>
+    <button class="set-row" onclick="handleLogoutAllDevices()">
+      <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/lock.svg);mask-image:url(assets/icons/svg/lock.svg)"></span>
+      <div class="set-txt"><div class="set-t">Terminar sessão em todos os dispositivos</div></div>
+    </button>
+    <button class="set-row" onclick="handleLogout()">
+      <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/close.svg);mask-image:url(assets/icons/svg/close.svg)"></span>
+      <div class="set-txt"><div class="set-t">Terminar sessão</div></div>
+    </button>
   </div>
 </div>
 
@@ -499,7 +541,7 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
     <div class="page-title">Definições</div>
   </div>
   <div class="page-body">
-    <div class="set-group-title" style="padding-top:6px">Acesso</div>
+    <div class="set-group-title" style="padding-top:6px">Acesso KLIPY</div>
     <div class="acc-field">
       <div class="acc-label">Chave da API KLIPY</div>
       <div class="input-wrap">
@@ -537,6 +579,47 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
   </div>
 </div>
 
+<!-- ===== AUTH (login/registo) ===== -->
+<div class="page" id="page-auth">
+  <div class="page-bar">
+    <div class="page-title" style="text-align:center">Looply</div>
+  </div>
+  <div class="page-body">
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-authtab="login" onclick="setAuthTab('login', this)">Entrar</button>
+      <button class="auth-tab" data-authtab="register" onclick="setAuthTab('register', this)">Criar conta</button>
+    </div>
+    <div class="auth-identifier-toggle">
+      <button class="pill active" data-idtype="email" onclick="setAuthIdentifierType('email', this)">Email</button>
+      <button class="pill" data-idtype="phone" onclick="setAuthIdentifierType('phone', this)">Número</button>
+    </div>
+
+    <div class="field" style="padding:0 16px" id="authUsernameField" style="display:none">
+      <div class="acc-label">Nome de utilizador</div>
+      <div class="input-wrap"><input id="authUsernameInput" type="text" placeholder="teuusername" autocomplete="off"></div>
+    </div>
+    <div style="padding:0 16px 12px" id="authUsernameFieldWrap" style="display:none">
+      <div class="acc-label">Nome de utilizador</div>
+      <div class="input-wrap"><input id="authUsernameInput2" type="text" placeholder="teuusername" autocomplete="off"></div>
+    </div>
+
+    <div style="padding:14px 16px 12px">
+      <div class="acc-label" id="authIdentifierLabel">Email</div>
+      <div class="input-wrap"><input id="authIdentifierInput" type="text" placeholder="ex: tu@email.com" autocomplete="off"></div>
+    </div>
+    <div style="padding:0 16px 12px">
+      <div class="acc-label">Palavra-passe</div>
+      <div class="input-wrap">
+        <input id="authPasswordInput" type="password" placeholder="Mínimo 8 caracteres" autocomplete="off">
+      </div>
+    </div>
+    <div class="auth-error" id="authErrorLine"></div>
+    <div style="padding:6px 16px 4px">
+      <button class="btn-fill" style="width:100%;justify-content:center" id="authSubmitBtn" onclick="submitAuth()">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="swipe-edge"></div>
 <div id="sheet-host"></div>
 <div class="toast" id="toast"></div>
@@ -544,27 +627,37 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 <input type="file" id="cameraInput" class="hidden-file-input" accept="image/*" capture="environment">
 
 <script>
-/* ============== Storage ============== */
+/* ============================================================
+   Looply API — ligado ao teu Worker
+   ============================================================ */
+var LOOPLY_API_BASE = 'https://connectionssvronline.alfredopjonas.workers.dev';
+
 function loadJSON(key, fb){ try{ var v=localStorage.getItem(key); return v?JSON.parse(v):fb; }catch(e){ return fb; } }
 function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
 function getApiKey(){ return localStorage.getItem('looply_api_key') || ''; }
 function setApiKeyLS(k){ localStorage.setItem('looply_api_key', k); }
 function getContent(){ return loadJSON('looply_content', {gifs:[],stickers:[],memes:[],clips:[]}); }
 function setContent(c){ saveJSON('looply_content', c); }
-function getProfile(){ return loadJSON('looply_profile', {name:'Convidado', avatar:''}); }
-function setProfile(p){ saveJSON('looply_profile', p); }
-function getSearchHistory(){ return loadJSON('looply_search_history', []); }
-function addSearchHistory(q){
-  q=(q||'').trim(); if(!q) return;
-  var h=getSearchHistory().filter(function(x){return x.toLowerCase()!==q.toLowerCase();});
-  h.unshift(q); saveJSON('looply_search_history', h.slice(0,20));
-}
-function removeSearchHistory(q){ saveJSON('looply_search_history', getSearchHistory().filter(function(x){return x!==q;})); }
-function clearSearchHistory(){ saveJSON('looply_search_history', []); }
 function getLikes(){ return loadJSON('looply_likes', {}); }
 function setLikeState(srcKey, liked){ var l=getLikes(); if(liked) l[srcKey]=true; else delete l[srcKey]; saveJSON('looply_likes', l); }
 function isLiked(srcKey){ return !!getLikes()[srcKey]; }
 function likeKeyFor(src){ return 'k_'+(src||'').slice(0,120); }
+
+function getAuthToken(){ return localStorage.getItem('looply_auth_token') || ''; }
+function setAuthToken(t){ localStorage.setItem('looply_auth_token', t); }
+function clearAuthToken(){ localStorage.removeItem('looply_auth_token'); }
+function getCachedUser(){ return loadJSON('looply_user', null); }
+function setCachedUser(u){ saveJSON('looply_user', u); }
+function clearCachedUser(){ localStorage.removeItem('looply_user'); }
+
+function apiFetch(path, opts){
+  opts = opts || {};
+  var headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  var token = getAuthToken();
+  if(token) headers['Authorization'] = 'Bearer ' + token;
+  return fetch(LOOPLY_API_BASE + path, Object.assign({}, opts, {headers: headers}))
+    .then(function(r){ return r.json().then(function(data){ return {ok:r.ok, status:r.status, data:data}; }); });
+}
 
 var CATEGORY_ENDPOINTS = { gifs:'gifs', stickers:'stickers', memes:'memes', clips:'clips' };
 var HOME_DEFAULT_TERM = 'trending';
@@ -576,7 +669,6 @@ function dimStatusBar(on){
   document.getElementById('statusbar-dim-overlay').classList.toggle('on', on);
 }
 
-/* ============== Toast ============== */
 var toastTimer=null;
 function showToast(msg, iconFile){
   var el=document.getElementById('toast');
@@ -585,7 +677,6 @@ function showToast(msg, iconFile){
   toastTimer=setTimeout(function(){ el.classList.remove('show'); }, 2200);
 }
 
-/* ============== Tema ============== */
 function setTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
   var color = theme==='dark' ? '#0D0D0D' : '#FFFFFF';
@@ -597,15 +688,29 @@ function setTheme(theme){
   var lbl=document.getElementById('themeValLabel'); if(lbl) lbl.textContent = theme==='dark' ? 'Escuro' : 'Claro';
 }
 
-/* ============== Botão de ação do appbar: nó único, nunca recriado ============== */
+/* ============================================================
+   Botão de ação do appbar — nó único, nunca recriado.
+   Biblioteca fica SEM ação (só o clock pertence à Pesquisa).
+   ============================================================ */
 var actionBtnEl = document.getElementById('actionBtn');
 function setActionBtn(iconFile, label, handler){
+  actionBtnEl.classList.remove('hidden-action');
   actionBtnEl.setAttribute('aria-label', label);
   actionBtnEl.innerHTML = '<span class="ic" style="width:23px;height:23px;-webkit-mask-image:url(assets/icons/svg/'+iconFile+'.svg);mask-image:url(assets/icons/svg/'+iconFile+'.svg)"></span>';
   actionBtnEl.onclick = handler;
 }
+function hideActionBtn(){
+  actionBtnEl.classList.add('hidden-action');
+  actionBtnEl.onclick = null;
+}
 
-/* ============== Tabs ============== */
+/* ============================================================
+   TABS
+   home     → botão "+"
+   search   → botão "clock" (histórico completo de pesquisas)
+   library  → SEM botão (biblioteca é só para ver guardado/baixado)
+   profile  → botão "settings"
+   ============================================================ */
 var activeTab='home';
 var currentHomeCategory='gifs';
 var currentLibFilter='all';
@@ -613,8 +718,8 @@ var mixAllOn=true;
 
 var TAB_ACTION = {
   home:    function(){ setActionBtn('add','Criar', openAddSheet); },
-  search:  function(){ setActionBtn('clock','Histórico', function(){ openSearchOverlay(); }); },
-  library: function(){ setActionBtn('clock','Histórico', function(){ openSearchOverlay(); }); },
+  search:  function(){ setActionBtn('clock','Histórico de pesquisas', openSearchHistorySheet); },
+  library: function(){ hideActionBtn(); },
   profile: function(){ setActionBtn('settings','Definições', function(){ goToPage('settings'); }); }
 };
 
@@ -644,117 +749,14 @@ function syncBbIcons(tab){
 }
 
 /* ============================================================
-   DECODER DE GIF LEVE (sem dependências externas)
-   Objetivo: extrair só o PRIMEIRO frame para desenhar num canvas
-   estático, e só decodificar tudo (via <img> real) quando a
-   pessoa tocar no item — assim o browser não faz autoplay do
-   ficheiro completo em segundo plano, poupando dados reais.
+   Thumbnail via Worker: /thumb?url=<gif original>
    ============================================================ */
-var gifFirstFrameCache = {}; // src -> dataURL do 1º frame
-function isGifSrc(url){ return /\.gif(\?|$)/i.test(url||''); }
+function thumbUrlFor(originalSrc){
+  if(!/\.gif(\?|$)/i.test(originalSrc||'')) return originalSrc;
+  return LOOPLY_API_BASE + '/thumb?url=' + encodeURIComponent(originalSrc);
+}
 function isVideoSrc(url){ return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url||''); }
 
-async function extractGifFirstFrame(src){
-  if(gifFirstFrameCache[src]) return gifFirstFrameCache[src];
-  try{
-    var resp = await fetch(src);
-    var buf = await resp.arrayBuffer();
-    var bytes = new Uint8Array(buf);
-    var frame = decodeFirstGifFrame(bytes);
-    if(frame){ gifFirstFrameCache[src] = frame; return frame; }
-  }catch(e){}
-  return null;
-}
-// Decoder mínimo GIF89a: lê apenas o cabeçalho + Global Color Table + primeiro Image Descriptor,
-// faz LZW decode desse bloco e devolve um dataURL PNG do 1º frame. Ignora frames seguintes de propósito.
-function decodeFirstGifFrame(bytes){
-  var p=0;
-  function u8(){ return bytes[p++]; }
-  function u16(){ var v=bytes[p]|(bytes[p+1]<<8); p+=2; return v; }
-  if(String.fromCharCode(bytes[0],bytes[1],bytes[2])!=='GIF') return null;
-  p=6;
-  var width=u16(), height=u16();
-  var packed=u8(); p++; p++; // background+aspect
-  var gctFlag=(packed&0x80)!==0, gctSize=2<<(packed&0x07);
-  var gct=null;
-  if(gctFlag){ gct=[]; for(var i=0;i<gctSize;i++){ gct.push([u8(),u8(),u8()]); } }
-  var localCt=gct, transparentIndex=-1;
-  while(p<bytes.length){
-    var block=u8();
-    if(block===0x21){ // extension
-      var label=u8();
-      if(label===0xF9){ var bs=u8(); var flags=u8(); p+=2; var ti=u8(); if(flags&1) transparentIndex=ti; p++; }
-      else { var sz; while((sz=u8())!==0){ p+=sz; } }
-    } else if(block===0x2C){ // image descriptor — este é o primeiro frame
-      var ix=u16(), iy=u16(), iw=u16(), ih=u16();
-      var ipacked=u8();
-      var lctFlag=(ipacked&0x80)!==0, interlace=(ipacked&0x40)!==0, lctSize=2<<(ipacked&0x07);
-      if(lctFlag){ localCt=[]; for(var j=0;j<lctSize;j++){ localCt.push([u8(),u8(),u8()]); } }
-      var minCodeSize=u8();
-      var dataBytes=[];
-      var sz2;
-      while((sz2=u8())!==0){ for(var k=0;k<sz2;k++) dataBytes.push(u8()); }
-      var indices=lzwDecode(dataBytes, minCodeSize, iw*ih);
-      var canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height;
-      var ctx=canvas.getContext('2d');
-      var imgData=ctx.createImageData(width,height);
-      // preenche transparente por defeito
-      for(var px=0; px<width*height; px++){ imgData.data[px*4+3]=0; }
-      var table=localCt||gct||[];
-      var rowOrder=[];
-      if(interlace){
-        var passes=[[0,8],[4,8],[2,4],[1,2]];
-        passes.forEach(function(pass){ for(var r=pass[0]; r<ih; r+=pass[1]) rowOrder.push(r); });
-      } else { for(var r2=0;r2<ih;r2++) rowOrder.push(r2); }
-      for(var rIdx=0; rIdx<ih; rIdx++){
-        var realRow=rowOrder[rIdx];
-        for(var col=0; col<iw; col++){
-          var srcIdx=rIdx*iw+col;
-          var colorIndex=indices[srcIdx];
-          if(colorIndex===undefined || colorIndex===transparentIndex) continue;
-          var color=table[colorIndex]; if(!color) continue;
-          var destX=ix+col, destY=iy+realRow;
-          if(destX>=width||destY>=height) continue;
-          var di=(destY*width+destX)*4;
-          imgData.data[di]=color[0]; imgData.data[di+1]=color[1]; imgData.data[di+2]=color[2]; imgData.data[di+3]=255;
-        }
-      }
-      ctx.putImageData(imgData,0,0);
-      return canvas.toDataURL('image/png');
-    } else if(block===0x3B){ break; }
-    else { break; }
-  }
-  return null;
-}
-function lzwDecode(data, minCodeSize, pixelCount){
-  var clearCode=1<<minCodeSize, eoiCode=clearCode+1;
-  var codeSize=minCodeSize+1, nextCode=eoiCode+1;
-  var dict=[]; 
-  function resetDict(){ dict=[]; for(var i=0;i<clearCode;i++) dict[i]=[i]; dict[clearCode]=[]; dict[eoiCode]=[]; codeSize=minCodeSize+1; nextCode=eoiCode+1; }
-  resetDict();
-  var out=[]; var bitBuf=0, bitCount=0, bytePos=0, prev=null;
-  function readCode(){
-    while(bitCount<codeSize && bytePos<data.length){ bitBuf |= data[bytePos++]<<bitCount; bitCount+=8; }
-    var code=bitBuf & ((1<<codeSize)-1);
-    bitBuf >>= codeSize; bitCount -= codeSize;
-    return code;
-  }
-  while(out.length<pixelCount && bytePos<=data.length){
-    var code=readCode();
-    if(code===clearCode){ resetDict(); prev=null; continue; }
-    if(code===eoiCode) break;
-    var entry;
-    if(dict[code]) entry=dict[code];
-    else if(code===nextCode && prev) entry=prev.concat([prev[0]]);
-    else break;
-    out=out.concat(entry);
-    if(prev){ dict[nextCode++]=prev.concat([entry[0]]); if(nextCode===(1<<codeSize) && codeSize<12) codeSize++; }
-    prev=entry;
-  }
-  return out;
-}
-
-/* ============== Media helpers ============== */
 function extractMediaUrl(item){
   if(!item) return '';
   var file=item.file;
@@ -802,48 +804,7 @@ function extractDetails(item){
     tags: item.tags || []
   };
 }
-function toggleLikeInline(btn, key){
-  var liked=btn.classList.toggle('liked');
-  setLikeState(key, liked);
-}
-
-/* Renderiza um item "parado até ao clique": GIF → canvas com 1º frame; vídeo → <video preload=metadata> sem autoplay; outros → <img> normal */
-function fillPausedMedia(container, src, isVideo, isGif){
-  if(isGif){
-    var canvas=document.createElement('canvas');
-    container.appendChild(canvas);
-    extractGifFirstFrame(src).then(function(dataUrl){
-      if(!dataUrl) return;
-      var img=new Image();
-      img.onload=function(){ canvas.width=img.width; canvas.height=img.height; canvas.getContext('2d').drawImage(img,0,0); };
-      img.src=dataUrl;
-    });
-    return canvas;
-  }
-  if(isVideo){
-    var v=document.createElement('video');
-    v.src=src; v.muted=true; v.playsInline=true; v.preload='metadata'; v.loop=true;
-    container.appendChild(v);
-    return v;
-  }
-  var img=document.createElement('img');
-  img.loading='lazy'; img.src=src;
-  container.appendChild(img);
-  return img;
-}
-function activatePausedMedia(container){
-  var canvas=container.querySelector('canvas');
-  if(canvas && canvas.dataset.activated!=='1'){
-    canvas.dataset.activated='1';
-    var src=container.dataset.src;
-    var img=document.createElement('img');
-    img.src=src; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover'; img.style.display='block';
-    canvas.replaceWith(img);
-    return;
-  }
-  var v=container.querySelector('video');
-  if(v){ v.play().catch(function(){}); }
-}
+function escapeHtml(str){ var d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
 
 /* ============================================================
    STAGGERED GRID
@@ -858,16 +819,19 @@ function buildMasonryItemNode(entry){
   var wrap=document.createElement('div');
   wrap.className='masonry-item';
   wrap.style.aspectRatio='1/'+ratio;
-  wrap.dataset.src=entry.src;
   wrap.setAttribute('onclick', entry.onclick);
-  wrap.addEventListener('touchstart', function(){ activatePausedMedia(wrap); }, {passive:true});
-
-  fillPausedMedia(wrap, entry.src, entry.isVideo, entry.isGif);
 
   if(entry.isVideo){
+    var v=document.createElement('video');
+    v.src=entry.src; v.muted=true; v.playsInline=true; v.preload='metadata'; v.loop=true;
+    wrap.appendChild(v);
     var badge=document.createElement('div'); badge.className='rv-badge';
     badge.innerHTML='<span class="ic" style="-webkit-mask-image:url(assets/icons/svg/play.svg);mask-image:url(assets/icons/svg/play.svg)"></span>';
     wrap.appendChild(badge);
+  } else {
+    var img=document.createElement('img');
+    img.loading='lazy'; img.src=thumbUrlFor(entry.src);
+    wrap.appendChild(img);
   }
   if(entry.title){
     var cap=document.createElement('div'); cap.className='masonry-caption';
@@ -921,7 +885,7 @@ function remoteEntry(item, category){
     id:'r_'+src.slice(0,60), src:src,
     ratio: dims ? (dims.h/dims.w) : null,
     title: d.title,
-    isVideo: isVideoSrc(src), isGif: isGifSrc(src),
+    isVideo: isVideoSrc(src),
     liked: isLiked(key), likeKey: key,
     onclick: "openViewerFromRemote('"+payload+"')"
   };
@@ -930,7 +894,7 @@ function localEntry(item){
   var key=likeKeyFor(item.src);
   return {
     id: item.id, src: item.src, ratio: item.ratio || null,
-    title: item.title, isVideo: isVideoSrc(item.src), isGif: isGifSrc(item.src),
+    title: item.title, isVideo: isVideoSrc(item.src),
     liked: isLiked(key), likeKey: key,
     onclick: "openViewerFromLocal('"+item.id+"')"
   };
@@ -1004,7 +968,7 @@ function setHomeCategory(type, btn){
 }
 
 /* ============================================================
-   PESQUISA: categorias TEMÁTICAS reais (não gifs/stickers/memes/clips)
+   PESQUISA: categorias temáticas + entrada
    ============================================================ */
 var SEARCH_TOPIC_CATEGORIES = [
   {label:'Amor', query:'love', img:'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400&q=60'},
@@ -1018,49 +982,36 @@ var searchCatGridRendered=false;
 function renderSearchTabEntry(){
   searchCatGridRendered=true;
   document.getElementById('cat-grid').innerHTML=SEARCH_TOPIC_CATEGORIES.map(function(c){
-    return '<button class="cat-card" style="background-image:url('+c.img+')" onclick="openSearchOverlay();setTimeout(function(){submitOverlaySearch(\''+c.query+'\');},360)"><span class="cc-label">'+c.label+'<small>Explorar</small></span></button>';
+    return '<button class="cat-card" style="background-image:url('+c.img+')" onclick="openSearchOverlay();setTimeout(function(){submitOverlaySearch(\''+c.query+'\');},280)"><span class="cc-label">'+c.label+'<small>Explorar</small></span></button>';
   }).join('');
   document.getElementById('trendingRow').innerHTML=['golo','feliz aniversário','bom dia','ok','sim','não'].map(function(t){
-    return '<button class="trending-chip" onclick="openSearchOverlay();setTimeout(function(){submitOverlaySearch(\''+t+'\');},360)">'+t+'</button>';
+    return '<button class="trending-chip" onclick="openSearchOverlay();setTimeout(function(){submitOverlaySearch(\''+t+'\');},280)">'+t+'</button>';
   }).join('');
 }
 
 /* ============================================================
-   SEARCH OVERLAY com container transform a partir do input
+   SEARCH OVERLAY — animação simples (visibility+opacity+translateY),
+   sempre confiável independentemente de timing de layout
    ============================================================ */
 var searchOverlayOpen=false;
 function openSearchOverlay(){
+  if(searchOverlayOpen) return;
   searchOverlayOpen=true;
-  var entryBtn=document.getElementById('searchEntryBtn');
   var overlay=document.getElementById('search-overlay');
-  var rect = entryBtn ? entryBtn.getBoundingClientRect() : {top:60,left:16,width:window.innerWidth-32,height:48};
-
-  overlay.style.transformOrigin='top center';
-  overlay.classList.add('morphing');
-  overlay.style.transform='translateY('+(rect.top-8)+'px) scale('+(rect.width/window.innerWidth)+','+(rect.height/window.innerHeight)+')';
-  overlay.style.opacity='0';
-  void overlay.offsetWidth;
-  requestAnimationFrame(function(){
-    overlay.classList.add('open');
-    overlay.style.transform='translateY(0) scale(1,1)';
-  });
+  overlay.classList.add('open');
 
   renderPreSearchContent();
   document.getElementById('searchOverlayResultsWrap').style.display='none';
   document.getElementById('preSearchBox').style.display='block';
   document.getElementById('liveSuggestBox').style.display='none';
-  setTimeout(function(){ document.getElementById('searchOverlayInput').focus(); }, 260);
+  setTimeout(function(){ document.getElementById('searchOverlayInput').focus(); }, 300);
   pushSheetHistory();
 }
 function closeSearchOverlay(fromHistory){
+  if(!searchOverlayOpen) return;
   searchOverlayOpen=false;
   var overlay=document.getElementById('search-overlay');
-  var entryBtn=document.getElementById('searchEntryBtn');
-  var rect = entryBtn ? entryBtn.getBoundingClientRect() : {top:60,left:16,width:window.innerWidth-32,height:48};
   overlay.classList.remove('open');
-  overlay.style.transform='translateY('+(rect.top-8)+'px) scale('+(rect.width/window.innerWidth)+','+(rect.height/window.innerHeight)+')';
-  overlay.style.opacity='0';
-  setTimeout(function(){ overlay.classList.remove('morphing'); overlay.style.transform=''; }, 340);
   document.getElementById('searchOverlayInput').value='';
   document.getElementById('searchOverlayInput').blur();
   if(!fromHistory) historyBackSilently();
@@ -1076,14 +1027,61 @@ function renderPreSearchContent(){
       return '<button class="recent-chip" onclick="submitOverlaySearch(\''+safe+'\')"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/clock.svg);mask-image:url(assets/icons/svg/clock.svg)"></span>'+escapeHtml(q)+'<span class="ic rc-x" onclick="event.stopPropagation();removeSearchHistory(\''+safe+'\');renderPreSearchContent();" style="-webkit-mask-image:url(assets/icons/svg/close.svg);mask-image:url(assets/icons/svg/close.svg)"></span></button>';
     }).join('') + '</div>';
   }
-  html += '<div class="section-title">Categorias de pesquisa</div><div id="cat-grid-overlay" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 18px"></div>';
+  html += '<div class="section-title">Categorias de pesquisa</div><div id="cat-grid-overlay"></div>';
   box.innerHTML=html;
   document.getElementById('cat-grid-overlay').innerHTML=SEARCH_TOPIC_CATEGORIES.map(function(c){
     return '<button class="cat-card" style="background-image:url('+c.img+');height:92px" onclick="submitOverlaySearch(\''+c.query+'\')"><span class="cc-label">'+c.label+'</span></button>';
   }).join('');
 }
 
-/* Sugestões de pesquisa enquanto se escreve — via Google Suggest (mesma API pública usada pela caixa de pesquisa do Chrome) */
+/* ============== Histórico de pesquisas ============== */
+function getSearchHistory(){ return loadJSON('looply_search_history', []); }
+function addSearchHistory(q){
+  q=(q||'').trim(); if(!q) return;
+  var h=getSearchHistory().filter(function(x){return x.toLowerCase()!==q.toLowerCase();});
+  h.unshift(q); saveJSON('looply_search_history', h.slice(0,50));
+}
+function removeSearchHistory(q){ saveJSON('looply_search_history', getSearchHistory().filter(function(x){return x!==q;})); }
+function clearSearchHistory(){ saveJSON('looply_search_history', []); }
+
+/* Sheet de histórico completo — acionado pelo botão "clock" no appbar da tab Pesquisa */
+function openSearchHistorySheet(){
+  var h=getSearchHistory();
+  var html='<div class="sheet-title">Histórico de pesquisas</div>';
+  if(!h.length){
+    html += '<div class="empty-state" style="padding-top:10px"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/clock.svg);mask-image:url(assets/icons/svg/clock.svg)"></span><div class="es-title">Sem pesquisas recentes</div><p>O que pesquisares vai aparecer aqui</p></div>';
+    var entry=openSheet(html);
+    return;
+  }
+  html += h.map(function(q){
+    var safe=escapeHtml(q).replace(/'/g,"\\'");
+    return '<div class="suggest-row" data-hq="'+safe+'"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/clock.svg);mask-image:url(assets/icons/svg/clock.svg)"></span><span>'+escapeHtml(q)+'</span><button class="suggest-remove" data-hqx="'+safe+'"><span class="ic" style="width:15px;height:15px;-webkit-mask-image:url(assets/icons/svg/close.svg);mask-image:url(assets/icons/svg/close.svg)"></span></button></div>';
+  }).join('');
+  html += '<div class="sheet-sep"></div><button class="sheet-item danger" id="clearAllHistoryBtn"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/trash.svg);mask-image:url(assets/icons/svg/trash.svg)"></span><span>Limpar tudo</span></button>';
+
+  var entry=openSheet(html);
+  entry.content.querySelectorAll('[data-hq]').forEach(function(row){
+    row.addEventListener('click', function(e){
+      if(e.target.closest('[data-hqx]')) return;
+      var q=row.dataset.hq;
+      closeSheet(entry);
+      openSearchOverlay();
+      setTimeout(function(){ document.getElementById('searchOverlayInput').value=q; submitOverlaySearch(q); }, 320);
+    });
+  });
+  entry.content.querySelectorAll('[data-hqx]').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      removeSearchHistory(btn.dataset.hqx);
+      closeSheet(entry);
+      setTimeout(openSearchHistorySheet, 460);
+    });
+  });
+  var clearBtn=entry.content.querySelector('#clearAllHistoryBtn');
+  if(clearBtn) clearBtn.addEventListener('click', function(){ clearSearchHistory(); closeSheet(entry); showToast('Histórico limpo','trash'); });
+}
+
+/* Sugestões de pesquisa enquanto se escreve — via Google Suggest */
 var suggestDebounce=null, suggestAbort=null;
 function onOverlayInputChange(){
   var v=document.getElementById('searchOverlayInput').value.trim();
@@ -1110,7 +1108,7 @@ function fetchLiveSuggestions(query){
       var safe=String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');
       return '<div class="suggest-row" onclick="document.getElementById(\'searchOverlayInput\').value=\''+safe+'\';submitOverlaySearch(\''+safe+'\')"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/search.svg);mask-image:url(assets/icons/svg/search.svg)"></span><span>'+escapeHtml(String(s))+'</span></div>';
     }).join('');
-  }).catch(function(){ /* rede indisponível ou pedido cancelado: sem sugestões, sem quebrar a UI */ });
+  }).catch(function(){});
 }
 
 var overlaySearchPage=1, overlaySearchHasMore=true, overlaySearchQuery='', overlaySearchCategory='all';
@@ -1181,7 +1179,7 @@ function runOverlaySearchSingleCat(cat){
   });
 }
 
-/* ============== fetchCategoryPage ============== */
+/* ============== fetchCategoryPage (KLIPY) ============== */
 function fetchCategoryPage(category, query, page, cb){
   var apiKey=getApiKey();
   var endpoint=CATEGORY_ENDPOINTS[category] || category;
@@ -1208,7 +1206,6 @@ function attachInfiniteScrollBox(box, loadFn, hasMoreFn){
   });
   obs.observe(trigger);
 }
-function escapeHtml(str){ var d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
 function confirmClearResults(){
   openConfirmSheet('Limpar resultados', 'Isto limpa apenas os resultados em ecrã, não a tua biblioteca nem o histórico de pesquisas.', 'Limpar', function(){
     document.getElementById('homeResults').innerHTML='';
@@ -1240,16 +1237,25 @@ function renderLibrary(){
   renderMasonryList(m, all.map(localEntry));
 }
 
-/* ============== Perfil ============== */
+/* ============== Perfil (agora com dados reais da API quando autenticado) ============== */
 function renderProfileTab(){
-  var p=getProfile();
-  document.getElementById('profileNameLabel').textContent=p.name||'Convidado';
-  reflectAvatarInto('profileAvatarImg','profileAvatarPh', p.avatar);
+  var user = getCachedUser();
+  if(user){
+    document.getElementById('profileNameLabel').textContent = user.display_name || user.username || 'Utilizador';
+    document.getElementById('profileBioLabel').textContent = user.bio || 'Sem bio ainda';
+    document.getElementById('profileFollowersCount').textContent = user.followers_count || 0;
+    document.getElementById('profileFollowingCount').textContent = user.following_count || 0;
+    document.getElementById('profilePostCount').textContent = user.posts_count || 0;
+    reflectAvatarInto('profileAvatarImg','profileAvatarPh', user.avatar_url);
+  } else {
+    document.getElementById('profileNameLabel').textContent = 'Convidado';
+    document.getElementById('profileBioLabel').textContent = 'Cria uma conta para guardar o teu perfil';
+  }
 
   var content=getContent();
   var all=[];
   Object.keys(content).forEach(function(t){ (content[t]||[]).forEach(function(it){ it.type=t; all.push(it); }); });
-  document.getElementById('profilePostCount').textContent=all.length;
+  if(!user) document.getElementById('profilePostCount').textContent=all.length;
 
   var box=document.getElementById('profileMasonry');
   if(!all.length){
@@ -1268,7 +1274,7 @@ function reflectAvatarInto(imgId, phId, avatarSrc){
 }
 
 /* ============================================================
-   VIEWER — conteúdo semelhante baseado nas TAGS reais do item
+   VIEWER
    ============================================================ */
 var currentViewerItem=null;
 function openViewerFromRemote(payloadStr){
@@ -1335,7 +1341,9 @@ function editCurrentViewerItem(){
   goToExternalWithLoader('editor.html');
 }
 
-/* ============== Push pages internas ============== */
+/* ============================================================
+   Push pages internas
+   ============================================================ */
 var pageStack=[];
 var swipeEdgeEl=document.getElementById('swipe-edge');
 var rootEl=document.getElementById('root');
@@ -1395,7 +1403,7 @@ document.querySelectorAll('[data-back]').forEach(function(b){ b.addEventListener
   swipeEdgeEl.addEventListener('touchcancel', function(){ end(false); });
 })();
 
-/* ============== Histórico ============== */
+/* ============== Histórico do browser (partilhado) ============== */
 var ignorePop=0;
 function pushSheetHistory(){ try{ history.pushState({looply:1},''); }catch(e){} }
 function historyBackSilently(){ ignorePop++; try{ history.back(); }catch(e){ ignorePop=Math.max(0,ignorePop-1); } setTimeout(function(){ ignorePop=Math.max(0,ignorePop-1); },700); }
@@ -1412,12 +1420,6 @@ function handleBack(){
 window.onNativeBack = handleBack;
 try{ history.replaceState({base:1},''); }catch(e){}
 
-/* ============================================================
-   Navegação para editor.html / publicar.html: SEM animação de
-   página — só o loader iOS num card 60% curvo, com duração
-   variável (fica visível até a página seguinte estar pronta,
-   via evento 'load' da navegação real do browser).
-   ============================================================ */
 function goToExternalWithLoader(url){
   document.getElementById('nav-loader-overlay').classList.add('show');
   location.href=url;
@@ -1488,7 +1490,7 @@ function openConfirmSheet(title, msg, actionLabel, onConfirm){
   entry.content.querySelector('#confirmBtn').addEventListener('click', function(){ closeSheet(entry); onConfirm(); });
 }
 
-/* ============== Add sheet: editor vs publicação são páginas DIFERENTES ============== */
+/* ============== Add sheet ============== */
 function openAddSheet(){
   var html='<div class="sheet-title">Criar</div><div class="add-cards-row">'
     + '<button class="add-card" data-act="editor"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/edit.svg);mask-image:url(assets/icons/svg/edit.svg)"></span><span>Abrir editor</span></button>'
@@ -1633,43 +1635,145 @@ function openLangSheet(){
   });
 }
 
+/* ============================================================
+   AUTENTICAÇÃO — liga ao Worker (/auth/register, /auth/login)
+   ============================================================ */
+var authMode='login'; // 'login' | 'register'
+var authIdentifierType='email'; // 'email' | 'phone'
+
+function setAuthTab(mode, btn){
+  authMode=mode;
+  document.querySelectorAll('.auth-tab').forEach(function(t){ t.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('authSubmitBtn').textContent = mode==='login' ? 'Entrar' : 'Criar conta';
+  document.getElementById('authUsernameFieldWrap').style.display = mode==='register' ? 'block' : 'none';
+  document.getElementById('authErrorLine').textContent='';
+}
+function setAuthIdentifierType(type, btn){
+  authIdentifierType=type;
+  document.querySelectorAll('.auth-identifier-toggle .pill').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  var label=document.getElementById('authIdentifierLabel'), input=document.getElementById('authIdentifierInput');
+  if(type==='email'){ label.textContent='Email'; input.placeholder='ex: tu@email.com'; input.type='email'; }
+  else { label.textContent='Número (formato +351912345678)'; input.placeholder='+351912345678'; input.type='tel'; }
+}
+function submitAuth(){
+  var identifier=document.getElementById('authIdentifierInput').value.trim();
+  var password=document.getElementById('authPasswordInput').value;
+  var errLine=document.getElementById('authErrorLine');
+  errLine.textContent='';
+
+  if(!identifier || !password){ errLine.textContent='Preenche todos os campos'; return; }
+
+  if(authMode==='login'){
+    apiFetch('/auth/login', {
+      method:'POST',
+      body: JSON.stringify({ identifierType: authIdentifierType, identifier: identifier, password: password })
+    }).then(function(res){
+      if(!res.ok){ errLine.textContent = describeAuthError(res.data.error); return; }
+      setAuthToken(res.data.token);
+      setCachedUser(res.data.user);
+      popPage();
+      renderProfileTab();
+      showToast('Sessão iniciada','check-circle');
+    }).catch(function(){ errLine.textContent='Não foi possível ligar ao servidor'; });
+  } else {
+    var username=document.getElementById('authUsernameInput2').value.trim();
+    if(!username){ errLine.textContent='Escolhe um nome de utilizador'; return; }
+    if(password.length<8){ errLine.textContent='A palavra-passe precisa de pelo menos 8 caracteres'; return; }
+
+    apiFetch('/auth/register', {
+      method:'POST',
+      body: JSON.stringify({ identifierType: authIdentifierType, identifier: identifier, password: password, username: username, display_name: username })
+    }).then(function(res){
+      if(!res.ok){ errLine.textContent = describeAuthError(res.data.error); return; }
+      setAuthToken(res.data.token);
+      setCachedUser(res.data.user);
+      popPage();
+      renderProfileTab();
+      showToast('Conta criada com sucesso','check-circle');
+    }).catch(function(){ errLine.textContent='Não foi possível ligar ao servidor'; });
+  }
+}
+function describeAuthError(code){
+  var map = {
+    invalid_credentials: 'Email/número ou palavra-passe incorretos',
+    username_taken: 'Esse nome de utilizador já está em uso',
+    email_taken: 'Já existe uma conta com esse email',
+    phone_taken: 'Já existe uma conta com esse número',
+    invalid_email: 'Email inválido',
+    invalid_phone: 'Número inválido (usa o formato +351912345678)',
+    weak_password: 'Palavra-passe demasiado curta',
+    invalid_username: 'Nome de utilizador inválido (3-20 caracteres)'
+  };
+  return map[code] || 'Ocorreu um erro, tenta novamente';
+}
+function requireAuthOrOpen(){
+  if(getAuthToken() && getCachedUser()) return true;
+  pushPage('page-auth');
+  return false;
+}
+function handleLogout(){
+  apiFetch('/auth/logout', {method:'POST'}).finally(function(){
+    clearAuthToken(); clearCachedUser();
+    popPage();
+    renderProfileTab();
+    showToast('Sessão terminada','check-circle');
+  });
+}
+function handleLogoutAllDevices(){
+  openConfirmSheet('Terminar tudo', 'Isto termina a sessão em todos os dispositivos onde tens a tua conta iniciada.', 'Terminar tudo', function(){
+    apiFetch('/auth/logout-all', {method:'POST'}).finally(function(){
+      clearAuthToken(); clearCachedUser();
+      popPage();
+      renderProfileTab();
+      showToast('Sessões terminadas em todos os dispositivos','check-circle');
+    });
+  });
+}
+
 /* ============== Editar perfil ============== */
 function openEditProfilePage(){
-  var p=getProfile();
-  reflectAvatarInto('editProfileAvatarImg','editProfileAvatarPh', p.avatar);
-  document.getElementById('editProfileNameInput').value=p.name||'';
+  var user = getCachedUser();
+  if(!user){ popPage(); requireAuthOrOpen(); return; }
+  reflectAvatarInto('editProfileAvatarImg','editProfileAvatarPh', user.avatar_url);
+  document.getElementById('editProfileNameInput').value = user.display_name || '';
+  document.getElementById('editProfileBioInput').value = user.bio || '';
 }
 document.getElementById('editProfileAvatarBtn').addEventListener('click', function(){ document.getElementById('avatarFileInput').click(); });
 document.getElementById('avatarFileInput').addEventListener('change', function(e){
   var f=e.target.files && e.target.files[0]; if(!f) return;
   var reader=new FileReader();
   reader.onload=function(ev){
-    var p=getProfile(); p.avatar=ev.target.result; setProfile(p);
+    var user=getCachedUser(); if(!user) return;
+    user.avatar_url=ev.target.result; setCachedUser(user);
     reflectProfileEverywhere();
-    showToast('Foto de perfil atualizada','check-circle');
+    showToast('Foto de perfil atualizada (localmente)','check-circle');
   };
   reader.readAsDataURL(f);
 });
 function saveProfileFields(){
-  var p=getProfile();
-  p.name=document.getElementById('editProfileNameInput').value.trim()||'Convidado';
-  setProfile(p);
+  var user=getCachedUser();
+  if(!user){ showToast('Inicia sessão primeiro','warning'); return; }
+  user.display_name = document.getElementById('editProfileNameInput').value.trim() || user.username;
+  user.bio = document.getElementById('editProfileBioInput').value.trim();
+  setCachedUser(user);
   reflectProfileEverywhere();
   showToast('Perfil guardado','check-circle');
 }
 function reflectProfileEverywhere(){
-  var p=getProfile();
-  reflectAvatarInto('editProfileAvatarImg','editProfileAvatarPh', p.avatar);
-  reflectAvatarInto('profileAvatarImg','profileAvatarPh', p.avatar);
+  var user=getCachedUser();
+  if(!user) return;
+  reflectAvatarInto('editProfileAvatarImg','editProfileAvatarPh', user.avatar_url);
+  reflectAvatarInto('profileAvatarImg','profileAvatarPh', user.avatar_url);
   var bImg=document.getElementById('bbProfileAvatarImg'), bPh=document.getElementById('bbProfileAvatarPh');
-  if(p.avatar){ bImg.src=p.avatar; bImg.style.display='block'; bPh.style.display='none'; }
+  if(user.avatar_url){ bImg.src=user.avatar_url; bImg.style.display='block'; bPh.style.display='none'; }
   else { bImg.style.display='none'; bPh.style.display='block'; }
-  document.getElementById('profileNameLabel').textContent=p.name||'Convidado';
+  document.getElementById('profileNameLabel').textContent=user.display_name||user.username;
 }
 
 /* ============== Init ============== */
 (function init(){
-  // Se voltámos de editor.html / publicar.html, o overlay de loader pode ter ficado marcado — remove-o
   document.getElementById('nav-loader-overlay').classList.remove('show');
 
   var savedTheme=localStorage.getItem('looply_theme')||'dark';
@@ -1679,6 +1783,7 @@ function reflectProfileEverywhere(){
   reflectProfileEverywhere();
   var apiKey=getApiKey();
   if(apiKey) document.getElementById('apiKeyInput').value=apiKey;
+
   var savedTab=localStorage.getItem('looply_active_tab')||'home';
   activeTab=''; switchTab(savedTab);
 

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0D0D0D">
+<title>Looply — Publicar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --danger:#E5484D;--success:#2AC569;
+  --font-main:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
+  --ios:cubic-bezier(.32,.72,0,1);
+}
+:root[data-theme="dark"]{
+  --bg:#0D0D0D;--bg-elevated:#1A1A1A;--card:#1E1E1E;--text:#FFFFFF;--text-dim:#A8A8A8;--border:#292929;
+  --primary:#FFFFFF;--on-primary:#0D0D0D;--input-bg:#1E1E1E;--statusbar-dim:rgba(0,0,0,.35);
+}
+:root[data-theme="light"]{
+  --bg:#FFFFFF;--bg-elevated:#F7F7F8;--card:#F1F1F3;--text:#0A0A0A;--text-dim:#737373;--border:#ECECEC;
+  --primary:#000000;--on-primary:#FFFFFF;--input-bg:#F2F2F2;--statusbar-dim:rgba(0,0,0,.15);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{background:var(--bg);height:100%;overflow:hidden;}
+body{margin:0;padding-top:var(--safe-top);padding-bottom:var(--safe-bottom);color:var(--text);font-family:var(--font-main);-webkit-user-select:none;user-select:none;position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);}
+input,textarea{-webkit-user-select:text;user-select:text;font-family:inherit;}
+.ic{display:inline-block;vertical-align:middle;flex-shrink:0;background-color:currentColor;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;}
+
+#statusbar-dim-overlay{position:fixed;top:0;left:0;right:0;height:var(--safe-top);background:var(--statusbar-dim);z-index:500;opacity:0;pointer-events:none;transition:opacity .22s ease;}
+#statusbar-dim-overlay.on{opacity:1;}
+
+.page-bar{display:flex;align-items:center;gap:2px;height:56px;padding:0 6px;flex-shrink:0;background:var(--bg);}
+.icon-tap{width:42px;height:42px;border-radius:50%;border:none;background:transparent;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.icon-tap:active{background:var(--bg-elevated);}
+.icon-tap .ic{width:23px;height:23px;}
+.page-title{font-size:17px;font-weight:800;flex:1;}
+
+.page-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 16px calc(var(--safe-bottom) + 30px);}
+
+.preview-box{width:100%;aspect-ratio:1;border-radius:20px;background:var(--input-bg);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:20px;position:relative;border:1.5px dashed var(--border);cursor:pointer;}
+.preview-box img{width:100%;height:100%;object-fit:cover;}
+.preview-box .ph{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text-dim);}
+.preview-box .ph .ic{width:32px;height:32px;}
+.preview-box .ph span{font-size:13px;font-weight:600;}
+.preview-edit-badge{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;border-radius:100px;padding:8px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;}
+.preview-edit-badge .ic{width:14px;height:14px;background-color:#fff;}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px;}
+.field input,.field textarea{width:100%;background:var(--input-bg);border:none;border-radius:12px;padding:13px 14px;color:var(--text);font-size:14.5px;font-family:inherit;outline:none;}
+.field textarea{resize:none;min-height:100px;line-height:1.5;}
+.char-count{text-align:right;font-size:11.5px;color:var(--text-dim);margin-top:6px;}
+
+.type-row{display:flex;gap:8px;flex-wrap:wrap;}
+.type-chip{padding:9px 16px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;}
+.type-chip.active{background:var(--primary);border-color:var(--primary);color:var(--on-primary);}
+
+.tags-input-row{display:flex;flex-wrap:wrap;gap:6px;background:var(--input-bg);border-radius:12px;padding:10px 12px;align-items:center;}
+.tag-pill{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:100px;background:var(--card);font-size:12px;font-weight:700;}
+.tag-pill .ic{width:12px;height:12px;color:var(--text-dim);cursor:pointer;}
+.tags-input-row input{flex:1;min-width:80px;background:transparent;border:0;outline:none;color:var(--text);font-size:13.5px;padding:6px 4px;}
+
+.submit-btn{width:100%;padding:15px;border:none;border-radius:14px;background:var(--primary);color:var(--on-primary);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;margin-top:8px;}
+.submit-btn:active{opacity:.85;}
+.submit-btn .ic{background-color:var(--on-primary);}
+.submit-btn:disabled{opacity:.4;}
+.hidden-file-input{display:none;}
+
+.toast{position:fixed;bottom:calc(var(--safe-bottom) + 20px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--primary);color:var(--on-primary);padding:12px 20px;border-radius:100px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;z-index:400;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.25);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast .ic{width:16px;height:16px;background-color:var(--on-primary);}
+</style>
+</head>
+<body>
+
+<div id="statusbar-dim-overlay"></div>
+
+<div class="page-bar">
+  <button class="icon-tap" onclick="cancelPublish()">
+    <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/close.svg);mask-image:url(assets/icons/svg/close.svg)"></span>
+  </button>
+  <div class="page-title">Publicar</div>
+</div>
+
+<div class="page-body">
+  <div class="preview-box" id="previewBox" onclick="goToEditorFromPublish()">
+    <img id="previewImg" src="" alt="" style="display:none">
+    <div class="ph" id="previewPh">
+      <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/image.svg);mask-image:url(assets/icons/svg/image.svg)"></span>
+      <span>Toca para escolher ou editar uma imagem</span>
+    </div>
+    <div class="preview-edit-badge" id="previewEditBadge" style="display:none">
+      <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/edit.svg);mask-image:url(assets/icons/svg/edit.svg)"></span> Editar
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Categoria</label>
+    <div class="type-row" id="typeRow">
+      <button class="type-chip active" data-t="gifs">GIF</button>
+      <button class="type-chip" data-t="stickers">Sticker</button>
+      <button class="type-chip" data-t="memes">Meme</button>
+      <button class="type-chip" data-t="clips">Clip</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Título</label>
+    <input id="titleInput" type="text" placeholder="Dá um título à tua publicação" maxlength="100">
+  </div>
+
+  <div class="field">
+    <label>Descrição</label>
+    <textarea id="descInput" placeholder="Escreve algo sobre esta publicação..." maxlength="500"></textarea>
+    <div class="char-count"><span id="descCount">0</span>/500</div>
+  </div>
+
+  <div class="field">
+    <label>Etiquetas</label>
+    <div class="tags-input-row" id="tagsRow">
+      <input id="tagInput" type="text" placeholder="Escreve e prime Enter..." onkeydown="onTagKeydown(event)">
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitPublish()">
+    <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/check-circle.svg);mask-image:url(assets/icons/svg/check-circle.svg)"></span>
+    Publicar
+  </button>
+</div>
+
+<input type="file" id="pickFileInput" class="hidden-file-input" accept="image/*,image/gif">
+<div class="toast" id="toast"></div>
+
+<script>
+function loadJSON(key, fb){ try{ var v=localStorage.getItem(key); return v?JSON.parse(v):fb; }catch(e){ return fb; } }
+function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+function getContent(){ return loadJSON('looply_content', {gifs:[],stickers:[],memes:[],clips:[]}); }
+function setContent(c){ saveJSON('looply_content', c); }
+
+var isApp = typeof Android !== 'undefined';
+function has(fn){ return isApp && typeof Android[fn]==='function'; }
+function setTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', theme==='dark'?'#0D0D0D':'#FFFFFF');
+  if(has('setStatusBarColor')) Android.setStatusBarColor(theme==='dark'?'#0D0D0D':'#FFFFFF');
+  if(has('setStatusBarLight')) Android.setStatusBarLight(theme==='light');
+}
+var toastTimer=null;
+function showToast(msg, iconFile){
+  var el=document.getElementById('toast');
+  el.innerHTML='<span class="ic" style="-webkit-mask-image:url(assets/icons/svg/'+(iconFile||'check-circle')+'.svg);mask-image:url(assets/icons/svg/'+(iconFile||'check-circle')+'.svg)"></span> '+msg;
+  el.classList.add('show'); clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ el.classList.remove('show'); }, 2200);
+}
+
+var postType='gifs', imageData='', tags=[];
+
+document.querySelectorAll('#typeRow .type-chip').forEach(function(chip){
+  chip.addEventListener('click', function(){
+    postType=chip.dataset.t;
+    document.querySelectorAll('#typeRow .type-chip').forEach(function(c){ c.classList.remove('active'); });
+    chip.classList.add('active');
+  });
+});
+document.getElementById('descInput').addEventListener('input', function(){
+  document.getElementById('descCount').textContent=this.value.length;
+});
+
+function setPreviewImage(dataUrl){
+  imageData=dataUrl;
+  document.getElementById('previewImg').src=dataUrl;
+  document.getElementById('previewImg').style.display='block';
+  document.getElementById('previewPh').style.display='none';
+  document.getElementById('previewEditBadge').style.display='flex';
+}
+function goToEditorFromPublish(){
+  if(imageData){
+    // já há imagem: reabre o editor sobre ela para continuar a editar
+    sessionStorage.setItem('looply_pending_image', imageData);
+    sessionStorage.setItem('looply_publish_draft', JSON.stringify({title:document.getElementById('titleInput').value, description:document.getElementById('descInput').value, type:postType, tags:tags}));
+    location.href='editor.html?returnToPublish=1';
+    return;
+  }
+  document.getElementById('pickFileInput').click();
+}
+document.getElementById('pickFileInput').addEventListener('change', function(e){
+  var f=e.target.files && e.target.files[0]; if(!f) return;
+  var reader=new FileReader();
+  reader.onload=function(ev){ setPreviewImage(ev.target.result); };
+  reader.readAsDataURL(f);
+});
+
+function renderTags(){
+  var row=document.getElementById('tagsRow');
+  var input=document.getElementById('tagInput');
+  row.querySelectorAll('.tag-pill').forEach(function(p){ p.remove(); });
+  tags.forEach(function(tg){
+    var pill=document.createElement('span'); pill.className='tag-pill';
+    pill.innerHTML=escapeHtml(tg)+'<span class="ic" style="-webkit-mask-image:url(assets/icons/svg/close.svg);mask-image:url(assets/icons/svg/close.svg)" data-tag="'+escapeHtml(tg)+'"></span>';
+    row.insertBefore(pill, input);
+  });
+  row.querySelectorAll('[data-tag]').forEach(function(x){
+    x.addEventListener('click', function(){ tags=tags.filter(function(t){return t!==x.dataset.tag;}); renderTags(); });
+  });
+}
+function onTagKeydown(e){
+  if(e.key==='Enter' || e.key===','){
+    e.preventDefault();
+    var v=e.target.value.trim().replace(/,$/,'');
+    if(v && tags.indexOf(v)===-1){ tags.push(v); renderTags(); }
+    e.target.value='';
+  } else if(e.key==='Backspace' && !e.target.value && tags.length){
+    tags.pop(); renderTags();
+  }
+}
+function escapeHtml(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+function submitPublish(){
+  if(!imageData){ showToast('Escolhe uma imagem primeiro','warning'); return; }
+  var title=document.getElementById('titleInput').value.trim();
+  if(!title){ showToast('Dá um título à publicação','warning'); return; }
+  var desc=document.getElementById('descInput').value.trim();
+
+  var content=getContent();
+  if(!content[postType]) content[postType]=[];
+  content[postType].push({
+    id:'post_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+    src:imageData, title:title, description:desc, caption:desc,
+    tags:tags, createdAt:Date.now(), kind:'post'
+  });
+  setContent(content);
+  localStorage.setItem('looply_active_tab','library');
+
+  sessionStorage.removeItem('looply_publish_draft');
+  sessionStorage.removeItem('looply_composed_image');
+  showToast('Publicado com sucesso','check-circle');
+  setTimeout(function(){ document.body.style.opacity='0'; setTimeout(function(){ location.href='index.html'; },140); }, 550);
+}
+function cancelPublish(){
+  sessionStorage.removeItem('looply_publish_draft');
+  sessionStorage.removeItem('looply_composed_image');
+  document.body.style.opacity='0';
+  setTimeout(function(){ location.href='index.html'; }, 140);
+}
+
+/* ============== Init: recebe imagem composta do editor OU restaura rascunho ============== */
+(function init(){
+  setTheme(localStorage.getItem('looply_theme')||'dark');
+
+  var composed=sessionStorage.getItem('looply_composed_image');
+  var draftRaw=sessionStorage.getItem('looply_publish_draft');
+  if(composed){ setPreviewImage(composed); sessionStorage.removeItem('looply_composed_image'); }
+  if(draftRaw){
+    try{
+      var draft=JSON.parse(draftRaw);
+      document.getElementById('titleInput').value=draft.title||'';
+      document.getElementById('descInput').value=draft.description||'';
+      document.getElementById('descCount').textContent=(draft.description||'').length;
+      postType=draft.type||'gifs';
+      tags=draft.tags||[];
+      document.querySelectorAll('#typeRow .type-chip').forEach(function(c){ c.classList.toggle('active', c.dataset.t===postType); });
+      renderTags();
+    }catch(e){}
+    sessionStorage.removeItem('looply_publish_draft');
+  }
+})();
+</script>
+
+</body>
+</html>

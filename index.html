@@ -23,15 +23,17 @@
   --bg:#0D0D0D;--bg-elevated:#1A1A1A;--card:#1E1E1E;--card-elevated:#272727;
   --text:#FFFFFF;--text-dim:#A8A8A8;--border:#292929;
   --sheet-overlay:rgba(0,0,0,.6);--primary:#FFFFFF;--on-primary:#0D0D0D;
-  --input-bg:#1E1E1E;--skeleton:#232323;--statusbar-dim:rgba(0,0,0,.35);
+  --input-bg:#1E1E1E;--skeleton:#232323;
   --accent-gold:#E0A62B;
+  --grad-a:#6C5CE7;--grad-b:#00CEC9;--grad-c:#FF7675;
 }
 :root[data-theme="light"]{
   --bg:#FFFFFF;--bg-elevated:#F7F7F8;--card:#F1F1F3;--card-elevated:#E8E8EB;
   --text:#0A0A0A;--text-dim:#737373;--border:#ECECEC;
   --sheet-overlay:rgba(0,0,0,.35);--primary:#000000;--on-primary:#FFFFFF;
-  --input-bg:#F2F2F2;--skeleton:#EDEDED;--statusbar-dim:rgba(0,0,0,.15);
+  --input-bg:#F2F2F2;--skeleton:#EDEDED;
   --accent-gold:#B8860B;
+  --grad-a:#6C5CE7;--grad-b:#00CEC9;--grad-c:#FF7675;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{background:var(--bg);height:100%;overflow:hidden;}
@@ -44,9 +46,6 @@ body{
 }
 input,textarea{-webkit-user-select:text;user-select:text;font-family:inherit;}
 .ic{display:inline-block;vertical-align:middle;flex-shrink:0;background-color:currentColor;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;}
-
-#statusbar-dim-overlay{position:fixed;top:0;left:0;right:0;height:var(--safe-top);background:var(--statusbar-dim);z-index:900;opacity:0;pointer-events:none;transition:opacity .22s ease;}
-#statusbar-dim-overlay.on{opacity:1;}
 
 /* ================= ROOT ================= */
 #root{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);transition:transform .38s var(--ios);will-change:transform;overflow:hidden;}
@@ -82,6 +81,9 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 .masonry-item .rv-badge .ic{width:12px;height:12px;background-color:#fff;}
 .masonry-caption{position:absolute;left:0;right:0;bottom:0;padding:16px 9px 8px;background:linear-gradient(to top,rgba(0,0,0,.72),transparent);pointer-events:none;}
 .masonry-caption .mc-title{color:#fff;font-size:12px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.masonry-like-btn{position:absolute;bottom:8px;right:8px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.masonry-like-btn .ic{width:15px;height:15px;color:#fff;}
+.masonry-like-btn.liked .ic{color:var(--danger);background-color:var(--danger);}
 
 .sentinel{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;padding:20px 0;color:var(--text-dim);font-size:13px;width:100%;}
 .sentinel .ic{width:16px;height:16px;animation:spin .9s linear infinite;}
@@ -113,19 +115,11 @@ header{display:flex;align-items:center;justify-content:space-between;height:var(
 .bb-item.active .bb-profile-avatar{border-color:var(--primary);}
 .bb-profile-avatar .ic{width:16px;height:16px;}
 
-/* ================= Search tab entry input — TAMANHO ÚNICO, herdado pelo overlay ================= */
+/* ================= Search entry / overlay ================= */
 .search-row{padding:6px 16px 8px;}
-.searchbox{
-  display:flex;align-items:center;gap:10px;
-  background:var(--input-bg);border:none;border-radius:999px;
-  padding:var(--input-padding);
-  width:100%;
-}
+.searchbox{display:flex;align-items:center;gap:10px;background:var(--input-bg);border:none;border-radius:999px;padding:var(--input-padding);width:100%;}
 .searchbox .ic{color:var(--text-dim);width:16px;height:16px;flex-shrink:0;}
-.searchbox span, .searchbox input{
-  color:var(--text-dim);font-size:var(--input-font-size);font-weight:500;
-  flex:1;text-align:left;line-height:1.3;
-}
+.searchbox span,.searchbox input{color:var(--text-dim);font-size:var(--input-font-size);font-weight:500;flex:1;text-align:left;line-height:1.3;}
 button.searchbox{cursor:pointer;}
 .searchbox input{background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;}
 .searchbox input::placeholder{color:var(--text-dim);opacity:.85;}
@@ -139,18 +133,8 @@ button.searchbox{cursor:pointer;}
 .trending-row{display:flex;gap:8px;padding:0 16px 8px;flex-wrap:wrap;}
 .trending-chip{padding:9px 15px;border-radius:100px;background:var(--card);color:var(--text);font-size:13px;font-weight:600;border:0;cursor:pointer;}
 
-/* ================= Search overlay: sobe a partir do input, animação simples e robusta ================= */
-#search-overlay{
-  position:absolute;inset:0;z-index:40;background:var(--bg);
-  display:flex;flex-direction:column;
-  visibility:hidden;opacity:0;
-  transform:translateY(14px);
-  transition:opacity .24s var(--emphasized-decel), transform .28s var(--ios), visibility 0s linear .28s;
-}
-#search-overlay.open{
-  visibility:visible;opacity:1;transform:translateY(0);
-  transition:opacity .24s var(--emphasized-decel), transform .28s var(--ios), visibility 0s;
-}
+#search-overlay{position:absolute;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;visibility:hidden;opacity:0;transform:translateY(14px);transition:opacity .24s var(--emphasized-decel),transform .28s var(--ios),visibility 0s linear .28s;}
+#search-overlay.open{visibility:visible;opacity:1;transform:translateY(0);transition:opacity .24s var(--emphasized-decel),transform .28s var(--ios),visibility 0s;}
 .search-overlay-bar{display:flex;align-items:center;gap:8px;padding:calc(var(--safe-top) + 10px) 12px 10px;flex-shrink:0;background:var(--bg);}
 .search-overlay-input-wrap{flex:1;}
 .search-overlay-input-wrap input{width:100%;}
@@ -173,11 +157,10 @@ button.searchbox{cursor:pointer;}
 .result-filter-row{display:flex;gap:8px;padding:2px 16px 12px;overflow-x:auto;scrollbar-width:none;}
 .result-filter-row::-webkit-scrollbar{display:none;}
 
-/* ================= Library tab ================= */
 .lib-filter-row{display:flex;gap:8px;padding:2px 16px 14px;overflow-x:auto;scrollbar-width:none;}
 .lib-filter-row::-webkit-scrollbar{display:none;}
 
-/* ================= Profile tab ================= */
+/* ================= Profile ================= */
 .profile-header{padding:14px 20px 6px;flex-shrink:0;}
 .profile-top-row{display:flex;align-items:center;gap:22px;}
 .profile-avatar-lg{width:82px;height:82px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;border:2px solid var(--border);position:relative;cursor:pointer;}
@@ -192,6 +175,10 @@ button.searchbox{cursor:pointer;}
 .profile-name-block .pbio{font-size:12.5px;color:var(--text-dim);margin-top:3px;}
 .profile-edit-btn{margin-top:14px;width:100%;height:38px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text);font-size:13px;font-weight:700;cursor:pointer;}
 .profile-edit-btn:active{background:var(--bg-elevated);}
+.profile-guest-banner{margin:14px 20px 0;padding:14px 16px;border-radius:16px;background:var(--card);display:flex;align-items:center;gap:12px;}
+.profile-guest-banner .ic{width:24px;height:24px;color:var(--text-dim);flex-shrink:0;}
+.profile-guest-banner .txt{flex:1;font-size:12.5px;color:var(--text-dim);line-height:1.4;}
+.profile-guest-banner button{border:0;background:var(--primary);color:var(--on-primary);font-size:12px;font-weight:700;padding:9px 14px;border-radius:100px;cursor:pointer;flex-shrink:0;}
 
 /* ================= Sheets ================= */
 .sheet-layer{position:fixed;inset:0;z-index:100;visibility:hidden;background:rgba(0,0,0,0);display:flex;align-items:flex-end;transition:background .3s linear,visibility 0s linear .42s;}
@@ -245,7 +232,7 @@ button.searchbox{cursor:pointer;}
 #swipe-edge{position:absolute;left:0;top:0;bottom:0;width:22px;z-index:65;display:none;touch-action:none;}
 #swipe-edge.on{display:block;}
 
-/* ================= Viewer page ================= */
+/* ================= Viewer ================= */
 .viewer-media-lg{width:100%;padding:6px 16px 14px;flex-shrink:0;}
 .viewer-media-lg .inner{position:relative;width:100%;border-radius:22px;overflow:hidden;background:var(--skeleton);display:flex;align-items:center;justify-content:center;max-height:52vh;}
 .viewer-media-lg img,.viewer-media-lg video,.viewer-media-lg canvas{width:100%;max-height:52vh;object-fit:contain;display:block;}
@@ -264,7 +251,7 @@ button.searchbox{cursor:pointer;}
 .viewer-tag{font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:100px;background:var(--card);color:var(--text-dim);}
 .similar-section-title{padding:22px 20px 12px;font-size:15px;font-weight:800;}
 
-/* ================= Settings / Edit profile page ================= */
+/* ================= Settings / edit profile ================= */
 .set-row{width:100%;display:flex;align-items:center;gap:14px;padding:14px 16px;background:transparent;border:0;color:var(--text);text-align:left;cursor:pointer;transition:background .15s ease;}
 .set-row:active{background:var(--bg-elevated);}
 .set-row .ic{width:22px;height:22px;color:var(--text-dim);flex-shrink:0;}
@@ -285,45 +272,31 @@ button.searchbox{cursor:pointer;}
 .status-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--text-dim);min-height:16px;}
 .status-line .ic{width:15px;height:15px;}
 
-/* ================= Auth page ================= */
-.auth-tabs{display:flex;background:var(--input-bg);border-radius:14px;padding:4px;gap:4px;margin:6px 16px 20px;}
+/* ================= Auth (login/registo) — SEMPRE dentro de sheet, com botão de fechar ================= */
+.auth-tabs{display:flex;background:var(--input-bg);border-radius:14px;padding:4px;gap:4px;margin:4px 20px 18px;}
 .auth-tab{flex:1;padding:11px;border-radius:11px;border:0;background:transparent;color:var(--text-dim);font-size:13.5px;font-weight:700;cursor:pointer;}
 .auth-tab.active{background:var(--primary);color:var(--on-primary);}
-.auth-identifier-toggle{display:flex;gap:8px;padding:0 16px 14px;}
+.auth-identifier-toggle{display:flex;gap:8px;padding:0 20px 14px;}
 .auth-identifier-toggle .pill{flex:1;justify-content:center;}
-.auth-error{padding:0 16px 12px;color:var(--danger);font-size:12.5px;font-weight:600;min-height:16px;}
+.auth-error{padding:0 20px 12px;color:var(--danger);font-size:12.5px;font-weight:600;min-height:16px;}
+.auth-field-wrap{padding:0 20px 12px;}
 
 .hidden-file-input{display:none;}
 .toast{position:fixed;bottom:calc(var(--bar-h) + var(--safe-bottom) + 16px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--primary);color:var(--on-primary);padding:12px 20px;border-radius:100px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;z-index:400;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.25);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast .ic{width:16px;height:16px;background-color:var(--on-primary);}
 
+/* ================= Loader: card quadrado 60% curvo, anel gradiente centrado ================= */
 #nav-loader-overlay{position:fixed;inset:0;z-index:950;background:var(--bg);display:none;align-items:center;justify-content:center;}
 #nav-loader-overlay.show{display:flex;}
-.nav-loader-card{width:96px;height:96px;border-radius:60%;background:var(--card);display:flex;align-items:center;justify-content:center;}
-.ios-spinner{width:34px;height:34px;position:relative;}
-.ios-spinner div{position:absolute;left:47%;top:38%;width:8%;height:24%;border-radius:4px;background:var(--text-dim);animation:iosSpinFade 1s linear infinite;transform-origin:50% 130%;}
-.ios-spinner div:nth-child(1){transform:rotate(0deg);animation-delay:-0.916s;}
-.ios-spinner div:nth-child(2){transform:rotate(30deg);animation-delay:-0.833s;}
-.ios-spinner div:nth-child(3){transform:rotate(60deg);animation-delay:-0.75s;}
-.ios-spinner div:nth-child(4){transform:rotate(90deg);animation-delay:-0.666s;}
-.ios-spinner div:nth-child(5){transform:rotate(120deg);animation-delay:-0.583s;}
-.ios-spinner div:nth-child(6){transform:rotate(150deg);animation-delay:-0.5s;}
-.ios-spinner div:nth-child(7){transform:rotate(180deg);animation-delay:-0.416s;}
-.ios-spinner div:nth-child(8){transform:rotate(210deg);animation-delay:-0.333s;}
-.ios-spinner div:nth-child(9){transform:rotate(240deg);animation-delay:-0.25s;}
-.ios-spinner div:nth-child(10){transform:rotate(270deg);animation-delay:-0.166s;}
-.ios-spinner div:nth-child(11){transform:rotate(300deg);animation-delay:-0.083s;}
-.ios-spinner div:nth-child(12){transform:rotate(330deg);animation-delay:0s;}
-@keyframes iosSpinFade{0%{opacity:1;}100%{opacity:.15;}}
+.nav-loader-card{width:96px;height:96px;border-radius:60% / 60%;background:var(--card);display:flex;align-items:center;justify-content:center;}
+.ring-spinner{width:36px;height:36px;border-radius:50%;background:conic-gradient(from 0deg, var(--grad-a), var(--grad-b), var(--grad-c), var(--grad-a));animation:ringSpin .9s linear infinite;-webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));}
+@keyframes ringSpin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
 
-<div id="statusbar-dim-overlay"></div>
-<div id="nav-loader-overlay"><div class="nav-loader-card"><div class="ios-spinner">
-  <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
-</div></div></div>
+<div id="nav-loader-overlay"><div class="nav-loader-card"><div class="ring-spinner"></div></div></div>
 
 <div id="root">
   <header id="mainHeader">
@@ -396,7 +369,7 @@ button.searchbox{cursor:pointer;}
       <div class="tab-scroll" id="profileScrollArea">
         <div class="profile-header">
           <div class="profile-top-row">
-            <div class="profile-avatar-lg" id="profileAvatarBtn" onclick="goToPage('editprofile')">
+            <div class="profile-avatar-lg" id="profileAvatarBtn" onclick="onProfileAvatarTap()">
               <img id="profileAvatarImg" src="" alt="" style="display:none">
               <span class="ic" id="profileAvatarPh" style="-webkit-mask-image:url(assets/icons/svg/profile.svg);mask-image:url(assets/icons/svg/profile.svg)"></span>
             </div>
@@ -408,9 +381,14 @@ button.searchbox{cursor:pointer;}
           </div>
           <div class="profile-name-block">
             <div class="pname" id="profileNameLabel">Convidado</div>
-            <div class="pbio" id="profileBioLabel">A criar no Looply</div>
+            <div class="pbio" id="profileBioLabel">A explorar o Looply</div>
           </div>
-          <button class="profile-edit-btn" onclick="goToPage('editprofile')">Editar perfil</button>
+          <button class="profile-edit-btn" id="profileEditBtn" onclick="onEditProfileTap()">Editar perfil</button>
+        </div>
+        <div class="profile-guest-banner" id="profileGuestBanner" style="display:none">
+          <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/lock.svg);mask-image:url(assets/icons/svg/lock.svg)"></span>
+          <div class="txt">Cria uma conta para guardar o teu perfil, seguir pessoas e publicar</div>
+          <button onclick="openAuthSheet('register')">Criar conta</button>
         </div>
         <div class="section-title" style="padding-top:20px">O que já criaste</div>
         <div id="profileMasonry"></div>
@@ -470,7 +448,7 @@ button.searchbox{cursor:pointer;}
   <div class="page-body">
     <div class="viewer-media-lg"><div class="inner" id="viewerMedia"></div></div>
     <div class="viewer-actions-row">
-      <button class="viewer-like-big" id="viewerLikeBtn" onclick="toggleCurrentLike()">
+      <button class="viewer-like-big" id="viewerLikeBtn" onclick="toggleCurrentLike()" style="display:none">
         <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/heart.svg);mask-image:url(assets/icons/svg/heart.svg)"></span>
       </button>
       <button class="viewer-action-pill" onclick="openShareSheet()">
@@ -541,23 +519,7 @@ button.searchbox{cursor:pointer;}
     <div class="page-title">Definições</div>
   </div>
   <div class="page-body">
-    <div class="set-group-title" style="padding-top:6px">Acesso KLIPY</div>
-    <div class="acc-field">
-      <div class="acc-label">Chave da API KLIPY</div>
-      <div class="input-wrap">
-        <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/lock.svg);mask-image:url(assets/icons/svg/lock.svg)"></span>
-        <input id="apiKeyInput" type="password" placeholder="Cole a tua KLIPY API Key" autocomplete="off" spellcheck="false">
-        <button class="icon-tap" style="width:32px;height:32px" onclick="toggleKeyVisibility()">
-          <span class="ic" id="eyeIcon" style="width:18px;height:18px;-webkit-mask-image:url(assets/icons/svg/eye.svg);mask-image:url(assets/icons/svg/eye.svg)"></span>
-        </button>
-      </div>
-      <button class="btn-fill" style="width:100%;justify-content:center;margin-top:12px" onclick="saveApiKey()">
-        <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/check.svg);mask-image:url(assets/icons/svg/check.svg)"></span> Guardar chave
-      </button>
-      <div class="status-line" id="statusLine"></div>
-    </div>
-
-    <div class="set-group-title">Preferências</div>
+    <div class="set-group-title" style="padding-top:6px">Preferências</div>
     <button class="set-row" onclick="openThemeSheet()">
       <span class="ic" style="-webkit-mask-image:url(assets/icons/svg/theme.svg);mask-image:url(assets/icons/svg/theme.svg)"></span>
       <div class="set-txt"><div class="set-t">Tema</div></div>
@@ -579,47 +541,6 @@ button.searchbox{cursor:pointer;}
   </div>
 </div>
 
-<!-- ===== AUTH (login/registo) ===== -->
-<div class="page" id="page-auth">
-  <div class="page-bar">
-    <div class="page-title" style="text-align:center">Looply</div>
-  </div>
-  <div class="page-body">
-    <div class="auth-tabs">
-      <button class="auth-tab active" data-authtab="login" onclick="setAuthTab('login', this)">Entrar</button>
-      <button class="auth-tab" data-authtab="register" onclick="setAuthTab('register', this)">Criar conta</button>
-    </div>
-    <div class="auth-identifier-toggle">
-      <button class="pill active" data-idtype="email" onclick="setAuthIdentifierType('email', this)">Email</button>
-      <button class="pill" data-idtype="phone" onclick="setAuthIdentifierType('phone', this)">Número</button>
-    </div>
-
-    <div class="field" style="padding:0 16px" id="authUsernameField" style="display:none">
-      <div class="acc-label">Nome de utilizador</div>
-      <div class="input-wrap"><input id="authUsernameInput" type="text" placeholder="teuusername" autocomplete="off"></div>
-    </div>
-    <div style="padding:0 16px 12px" id="authUsernameFieldWrap" style="display:none">
-      <div class="acc-label">Nome de utilizador</div>
-      <div class="input-wrap"><input id="authUsernameInput2" type="text" placeholder="teuusername" autocomplete="off"></div>
-    </div>
-
-    <div style="padding:14px 16px 12px">
-      <div class="acc-label" id="authIdentifierLabel">Email</div>
-      <div class="input-wrap"><input id="authIdentifierInput" type="text" placeholder="ex: tu@email.com" autocomplete="off"></div>
-    </div>
-    <div style="padding:0 16px 12px">
-      <div class="acc-label">Palavra-passe</div>
-      <div class="input-wrap">
-        <input id="authPasswordInput" type="password" placeholder="Mínimo 8 caracteres" autocomplete="off">
-      </div>
-    </div>
-    <div class="auth-error" id="authErrorLine"></div>
-    <div style="padding:6px 16px 4px">
-      <button class="btn-fill" style="width:100%;justify-content:center" id="authSubmitBtn" onclick="submitAuth()">Entrar</button>
-    </div>
-  </div>
-</div>
-
 <div id="swipe-edge"></div>
 <div id="sheet-host"></div>
 <div class="toast" id="toast"></div>
@@ -628,14 +549,13 @@ button.searchbox{cursor:pointer;}
 
 <script>
 /* ============================================================
-   Looply API — ligado ao teu Worker
+   Looply API — Worker faz proxy TANTO da auth/dados sociais
+   COMO da KLIPY. O app nunca conhece a chave KLIPY.
    ============================================================ */
 var LOOPLY_API_BASE = 'https://connectionssvronline.alfredopjonas.workers.dev';
 
 function loadJSON(key, fb){ try{ var v=localStorage.getItem(key); return v?JSON.parse(v):fb; }catch(e){ return fb; } }
 function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
-function getApiKey(){ return localStorage.getItem('looply_api_key') || ''; }
-function setApiKeyLS(k){ localStorage.setItem('looply_api_key', k); }
 function getContent(){ return loadJSON('looply_content', {gifs:[],stickers:[],memes:[],clips:[]}); }
 function setContent(c){ saveJSON('looply_content', c); }
 function getLikes(){ return loadJSON('looply_likes', {}); }
@@ -649,6 +569,7 @@ function clearAuthToken(){ localStorage.removeItem('looply_auth_token'); }
 function getCachedUser(){ return loadJSON('looply_user', null); }
 function setCachedUser(u){ saveJSON('looply_user', u); }
 function clearCachedUser(){ localStorage.removeItem('looply_user'); }
+function isAuthed(){ return !!(getAuthToken() && getCachedUser()); }
 
 function apiFetch(path, opts){
   opts = opts || {};
@@ -659,15 +580,12 @@ function apiFetch(path, opts){
     .then(function(r){ return r.json().then(function(data){ return {ok:r.ok, status:r.status, data:data}; }); });
 }
 
-var CATEGORY_ENDPOINTS = { gifs:'gifs', stickers:'stickers', memes:'memes', clips:'clips' };
-var HOME_DEFAULT_TERM = 'trending';
-
-var isApp = typeof Android !== 'undefined';
-function has(fn){ return isApp && typeof Android[fn] === 'function'; }
-function dimStatusBar(on){
-  if(has('setStatusBarDimmed')){ try{ Android.setStatusBarDimmed(on); return; }catch(e){} }
-  document.getElementById('statusbar-dim-overlay').classList.toggle('on', on);
-}
+/* ============================================================
+   Bridge nativa Looply — nomes exatos do looply.md
+   ============================================================ */
+var isApp = typeof Android !== 'undefined' && typeof Android.isLooplyApp === 'function' && Android.isLooplyApp();
+function has(fn){ return typeof Android !== 'undefined' && typeof Android[fn] === 'function'; }
+function nativeDim(on){ if(has('setStatusBarDimmed')) Android.setStatusBarDimmed(on, 0.15); }
 
 var toastTimer=null;
 function showToast(msg, iconFile){
@@ -677,20 +595,19 @@ function showToast(msg, iconFile){
   toastTimer=setTimeout(function(){ el.classList.remove('show'); }, 2200);
 }
 
+/* setThemeMode faz tudo de uma vez: status bar, nav bar, splash persistido */
 function setTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
   var color = theme==='dark' ? '#0D0D0D' : '#FFFFFF';
   document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
-  if(has('setStatusBarColor')) Android.setStatusBarColor(color);
-  if(has('setStatusBarLight')) Android.setStatusBarLight(theme==='light');
-  if(has('setNavigationBarColor')) Android.setNavigationBarColor(color);
+  if(has('setThemeMode')) Android.setThemeMode(theme);
+  if(has('setSplashBackgroundColor')) Android.setSplashBackgroundColor(color);
   localStorage.setItem('looply_theme', theme);
   var lbl=document.getElementById('themeValLabel'); if(lbl) lbl.textContent = theme==='dark' ? 'Escuro' : 'Claro';
 }
 
 /* ============================================================
-   Botão de ação do appbar — nó único, nunca recriado.
-   Biblioteca fica SEM ação (só o clock pertence à Pesquisa).
+   Botão de ação do appbar — nó único, nunca recriado
    ============================================================ */
 var actionBtnEl = document.getElementById('actionBtn');
 function setActionBtn(iconFile, label, handler){
@@ -699,25 +616,15 @@ function setActionBtn(iconFile, label, handler){
   actionBtnEl.innerHTML = '<span class="ic" style="width:23px;height:23px;-webkit-mask-image:url(assets/icons/svg/'+iconFile+'.svg);mask-image:url(assets/icons/svg/'+iconFile+'.svg)"></span>';
   actionBtnEl.onclick = handler;
 }
-function hideActionBtn(){
-  actionBtnEl.classList.add('hidden-action');
-  actionBtnEl.onclick = null;
-}
+function hideActionBtn(){ actionBtnEl.classList.add('hidden-action'); actionBtnEl.onclick = null; }
 
-/* ============================================================
-   TABS
-   home     → botão "+"
-   search   → botão "clock" (histórico completo de pesquisas)
-   library  → SEM botão (biblioteca é só para ver guardado/baixado)
-   profile  → botão "settings"
-   ============================================================ */
 var activeTab='home';
 var currentHomeCategory='gifs';
 var currentLibFilter='all';
 var mixAllOn=true;
 
 var TAB_ACTION = {
-  home:    function(){ setActionBtn('add','Criar', openAddSheet); },
+  home:    function(){ setActionBtn('add','Criar', function(){ if(guardAuth('publicar conteúdo')) openAddSheet(); }); },
   search:  function(){ setActionBtn('clock','Histórico de pesquisas', openSearchHistorySheet); },
   library: function(){ hideActionBtn(); },
   profile: function(){ setActionBtn('settings','Definições', function(){ goToPage('settings'); }); }
@@ -747,6 +654,18 @@ function syncBbIcons(tab){
   libIc.style.webkitMaskImage='url(assets/icons/svg/'+(tab==='library'?'library_filled':'library')+'.svg)';
   libIc.style.maskImage='url(assets/icons/svg/'+(tab==='library'?'library_filled':'library')+'.svg)';
 }
+
+/* ============================================================
+   Gate de autenticação — SÓ para ações de escrita (publicar,
+   editar perfil, seguir, gostar). Ver/navegar é sempre livre.
+   ============================================================ */
+function guardAuth(actionLabel){
+  if(isAuthed()) return true;
+  openAuthSheet('login', actionLabel);
+  return false;
+}
+function onEditProfileTap(){ if(guardAuth('editar o teu perfil')) goToPage('editprofile'); }
+function onProfileAvatarTap(){ if(guardAuth('editar o teu perfil')) goToPage('editprofile'); }
 
 /* ============================================================
    Thumbnail via Worker: /thumb?url=<gif original>
@@ -807,7 +726,7 @@ function extractDetails(item){
 function escapeHtml(str){ var d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
 
 /* ============================================================
-   STAGGERED GRID
+   STAGGERED GRID — botão de like só aparece com sessão iniciada
    ============================================================ */
 function stableFallbackRatio(id){
   var h=0; for(var i=0;i<id.length;i++){ h=(h*31+id.charCodeAt(i))>>>0; }
@@ -838,7 +757,18 @@ function buildMasonryItemNode(entry){
     cap.innerHTML='<div class="mc-title">'+escapeHtml(entry.title)+'</div>';
     wrap.appendChild(cap);
   }
+  if(isAuthed() && entry.likeKey){
+    var likeBtn=document.createElement('button');
+    likeBtn.className='masonry-like-btn'+(entry.liked?' liked':'');
+    likeBtn.innerHTML='<span class="ic" style="-webkit-mask-image:url(assets/icons/svg/heart.svg);mask-image:url(assets/icons/svg/heart.svg)"></span>';
+    likeBtn.addEventListener('click', function(e){ e.stopPropagation(); toggleLikeInline(likeBtn, entry.likeKey); });
+    wrap.appendChild(likeBtn);
+  }
   return wrap;
+}
+function toggleLikeInline(btn, key){
+  var liked=btn.classList.toggle('liked');
+  setLikeState(key, liked);
 }
 function renderMasonryList(box, entries){
   var colA=document.createElement('div'); colA.className='masonry-col';
@@ -900,6 +830,23 @@ function localEntry(item){
   };
 }
 
+/* ============================================================
+   fetchCategoryPage — agora chama o Worker (/klipy/:categoria),
+   nunca api.klipy.co diretamente. Sem chave nenhuma no app.
+   ============================================================ */
+function fetchCategoryPage(category, query, page, cb){
+  var url = LOOPLY_API_BASE + '/klipy/' + category + '?q=' + encodeURIComponent(query) + '&page=' + page;
+  fetch(url).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(data){
+    var payload=(data.data && data.data.data) || data.data || [];
+    cb(true, payload, null);
+  }).catch(function(err){
+    cb(false, [], 'Não foi possível carregar "'+category+'" ('+err.message+').');
+  });
+}
+
 /* ============== Home feed ============== */
 var homeLoadedOnce=false;
 var homePage=1, homeHasMore=true, homeResultsCache=[];
@@ -910,22 +857,16 @@ function setMixAll(on){
   if(on) loadHomeFeed(null, true);
 }
 function loadHomeFeed(category, reset){
-  var apiKey=getApiKey();
   var box=document.getElementById('homeResults');
-  if(!apiKey){
-    box.innerHTML='<div class="empty-state"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/lock.svg);mask-image:url(assets/icons/svg/lock.svg)"></span><div class="es-title">Falta a tua chave da API</div><p>Vai às Definições e guarda a tua chave KLIPY para veres conteúdo aqui</p><button class="btn-fill" onclick="switchTab(\'profile\');setTimeout(function(){goToPage(\'settings\');},260)"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/lock.svg);mask-image:url(assets/icons/svg/lock.svg)"></span> Ir às Definições</button></div>';
-    homeLoadedOnce=true;
-    return;
-  }
   if(reset!==false){ homePage=1; homeHasMore=true; homeResultsCache=[]; box.innerHTML='<div id="homeMasonry" class="masonry"></div>'; showMasonrySkeleton(document.getElementById('homeMasonry'), 8); }
   homeLoadedOnce=true;
 
   if(mixAllOn){ loadMixedHomePage(); return; }
-  fetchCategoryPage(category, HOME_DEFAULT_TERM, homePage, function(ok, items, errMsg){
+  fetchCategoryPage(category, 'trending', homePage, function(ok, items, errMsg){
     var m=document.getElementById('homeMasonry');
     if(!m) return;
     if(!ok){
-      box.innerHTML='<div class="empty-state"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/warning.svg);mask-image:url(assets/icons/svg/warning.svg)"></span><div class="es-title">Não foi possível carregar</div><p>'+escapeHtml(errMsg||'Verifica a chave ou o endpoint da categoria.')+'</p><button class="btn-outline" onclick="loadHomeFeed(currentHomeCategory,true)"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/refresh.svg);mask-image:url(assets/icons/svg/refresh.svg)"></span> Recarregar</button></div>';
+      box.innerHTML='<div class="empty-state"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/warning.svg);mask-image:url(assets/icons/svg/warning.svg)"></span><div class="es-title">Não foi possível carregar</div><p>'+escapeHtml(errMsg||'')+'</p><button class="btn-outline" onclick="loadHomeFeed(currentHomeCategory,true)"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/refresh.svg);mask-image:url(assets/icons/svg/refresh.svg)"></span> Recarregar</button></div>';
       return;
     }
     if(homePage===1 && !items.length){
@@ -942,10 +883,10 @@ function loadHomeFeed(category, reset){
 }
 function loadMixedHomePage(){
   var box=document.getElementById('homeResults');
-  var cats=Object.keys(CATEGORY_ENDPOINTS);
+  var cats=['gifs','stickers','memes','clips'];
   var pending=cats.length, allEntries=[], anyOk=false, lastErr=null;
   cats.forEach(function(cat){
-    fetchCategoryPage(cat, HOME_DEFAULT_TERM, 1, function(ok, items){
+    fetchCategoryPage(cat, 'trending', 1, function(ok, items){
       pending--;
       if(ok){ anyOk=true; items.slice(0,10).forEach(function(it){ homeResultsCache.push({it:it, cat:cat}); var e=remoteEntry(it, cat); if(e) allEntries.push(e); }); }
       else lastErr='Falha em "'+cat+'"';
@@ -968,7 +909,7 @@ function setHomeCategory(type, btn){
 }
 
 /* ============================================================
-   PESQUISA: categorias temáticas + entrada
+   PESQUISA
    ============================================================ */
 var SEARCH_TOPIC_CATEGORIES = [
   {label:'Amor', query:'love', img:'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400&q=60'},
@@ -989,17 +930,11 @@ function renderSearchTabEntry(){
   }).join('');
 }
 
-/* ============================================================
-   SEARCH OVERLAY — animação simples (visibility+opacity+translateY),
-   sempre confiável independentemente de timing de layout
-   ============================================================ */
 var searchOverlayOpen=false;
 function openSearchOverlay(){
   if(searchOverlayOpen) return;
   searchOverlayOpen=true;
-  var overlay=document.getElementById('search-overlay');
-  overlay.classList.add('open');
-
+  document.getElementById('search-overlay').classList.add('open');
   renderPreSearchContent();
   document.getElementById('searchOverlayResultsWrap').style.display='none';
   document.getElementById('preSearchBox').style.display='block';
@@ -1010,8 +945,7 @@ function openSearchOverlay(){
 function closeSearchOverlay(fromHistory){
   if(!searchOverlayOpen) return;
   searchOverlayOpen=false;
-  var overlay=document.getElementById('search-overlay');
-  overlay.classList.remove('open');
+  document.getElementById('search-overlay').classList.remove('open');
   document.getElementById('searchOverlayInput').value='';
   document.getElementById('searchOverlayInput').blur();
   if(!fromHistory) historyBackSilently();
@@ -1034,7 +968,6 @@ function renderPreSearchContent(){
   }).join('');
 }
 
-/* ============== Histórico de pesquisas ============== */
 function getSearchHistory(){ return loadJSON('looply_search_history', []); }
 function addSearchHistory(q){
   q=(q||'').trim(); if(!q) return;
@@ -1044,13 +977,12 @@ function addSearchHistory(q){
 function removeSearchHistory(q){ saveJSON('looply_search_history', getSearchHistory().filter(function(x){return x!==q;})); }
 function clearSearchHistory(){ saveJSON('looply_search_history', []); }
 
-/* Sheet de histórico completo — acionado pelo botão "clock" no appbar da tab Pesquisa */
 function openSearchHistorySheet(){
   var h=getSearchHistory();
   var html='<div class="sheet-title">Histórico de pesquisas</div>';
   if(!h.length){
     html += '<div class="empty-state" style="padding-top:10px"><span class="ic" style="-webkit-mask-image:url(assets/icons/svg/clock.svg);mask-image:url(assets/icons/svg/clock.svg)"></span><div class="es-title">Sem pesquisas recentes</div><p>O que pesquisares vai aparecer aqui</p></div>';
-    var entry=openSheet(html);
+    openSheet(html);
     return;
   }
   html += h.map(function(q){
@@ -1081,7 +1013,6 @@ function openSearchHistorySheet(){
   if(clearBtn) clearBtn.addEventListener('click', function(){ clearSearchHistory(); closeSheet(entry); showToast('Histórico limpo','trash'); });
 }
 
-/* Sugestões de pesquisa enquanto se escreve — via Google Suggest */
 var suggestDebounce=null, suggestAbort=null;
 function onOverlayInputChange(){
   var v=document.getElementById('searchOverlayInput').value.trim();
@@ -1116,8 +1047,6 @@ function submitOverlaySearch(qArg){
   var q=(typeof qArg==='string' ? qArg : document.getElementById('searchOverlayInput').value).trim();
   if(!q) return;
   document.getElementById('searchOverlayInput').value=q;
-  var apiKey=getApiKey();
-  if(!apiKey){ closeSearchOverlay(); switchTab('profile'); setTimeout(function(){ goToPage('settings'); }, 260); return; }
   addSearchHistory(q);
   overlaySearchQuery=q; overlaySearchPage=1; overlaySearchHasMore=true; overlaySearchCategory='all';
   document.getElementById('preSearchBox').style.display='none';
@@ -1147,7 +1076,7 @@ function setOverlaySearchCategory(catId, btn){
   else runOverlaySearchSingleCat(catId);
 }
 function runOverlaySearchAllCats(){
-  var cats=Object.keys(CATEGORY_ENDPOINTS);
+  var cats=['gifs','stickers','memes','clips'];
   var pending=cats.length, allEntries=[], anyOk=false;
   cats.forEach(function(cat){
     fetchCategoryPage(cat, overlaySearchQuery, 1, function(ok, items){
@@ -1179,24 +1108,6 @@ function runOverlaySearchSingleCat(cat){
   });
 }
 
-/* ============== fetchCategoryPage (KLIPY) ============== */
-function fetchCategoryPage(category, query, page, cb){
-  var apiKey=getApiKey();
-  var endpoint=CATEGORY_ENDPOINTS[category] || category;
-  var url='https://api.klipy.co/api/v1/'+apiKey+'/'+endpoint+'/search'
-        +'?q='+encodeURIComponent(query)
-        +'&page='+page
-        +'&per_page=20';
-  fetch(url).then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.json();
-  }).then(function(data){
-    var payload=(data.data && data.data.data) || data.data || [];
-    cb(true, payload, null);
-  }).catch(function(err){
-    cb(false, [], 'Endpoint "'+endpoint+'" falhou ('+err.message+'). Confirma o nome em CATEGORY_ENDPOINTS.');
-  });
-}
 function attachInfiniteScrollBox(box, loadFn, hasMoreFn){
   var trigger=document.createElement('div');
   trigger.style.height='1px'; trigger.style.width='100%';
@@ -1237,10 +1148,14 @@ function renderLibrary(){
   renderMasonryList(m, all.map(localEntry));
 }
 
-/* ============== Perfil (agora com dados reais da API quando autenticado) ============== */
+/* ============== Perfil ============== */
 function renderProfileTab(){
   var user = getCachedUser();
+  var banner = document.getElementById('profileGuestBanner');
+  var editBtn = document.getElementById('profileEditBtn');
   if(user){
+    banner.style.display='none';
+    editBtn.textContent='Editar perfil';
     document.getElementById('profileNameLabel').textContent = user.display_name || user.username || 'Utilizador';
     document.getElementById('profileBioLabel').textContent = user.bio || 'Sem bio ainda';
     document.getElementById('profileFollowersCount').textContent = user.followers_count || 0;
@@ -1248,8 +1163,13 @@ function renderProfileTab(){
     document.getElementById('profilePostCount').textContent = user.posts_count || 0;
     reflectAvatarInto('profileAvatarImg','profileAvatarPh', user.avatar_url);
   } else {
+    banner.style.display='flex';
+    editBtn.textContent='Entrar / Criar conta';
     document.getElementById('profileNameLabel').textContent = 'Convidado';
-    document.getElementById('profileBioLabel').textContent = 'Cria uma conta para guardar o teu perfil';
+    document.getElementById('profileBioLabel').textContent = 'A explorar o Looply';
+    document.getElementById('profileFollowersCount').textContent = 0;
+    document.getElementById('profileFollowingCount').textContent = 0;
+    reflectAvatarInto('profileAvatarImg','profileAvatarPh', null);
   }
 
   var content=getContent();
@@ -1274,7 +1194,7 @@ function reflectAvatarInto(imgId, phId, avatarSrc){
 }
 
 /* ============================================================
-   VIEWER
+   VIEWER — botão de like escondido sem sessão
    ============================================================ */
 var currentViewerItem=null;
 function openViewerFromRemote(payloadStr){
@@ -1300,8 +1220,14 @@ function showViewer(){
     mediaBox.appendChild(img);
   }
 
-  var key=likeKeyFor(currentViewerItem.src);
-  document.getElementById('viewerLikeBtn').classList.toggle('liked', isLiked(key));
+  var likeBtn=document.getElementById('viewerLikeBtn');
+  if(isAuthed()){
+    likeBtn.style.display='flex';
+    var key=likeKeyFor(currentViewerItem.src);
+    likeBtn.classList.toggle('liked', isLiked(key));
+  } else {
+    likeBtn.style.display='none';
+  }
 
   var d={ title: currentViewerItem.title||'Sem título', description: currentViewerItem.description||currentViewerItem.caption||'Sem descrição disponível', tags: currentViewerItem.tags||[] };
   var html='<div class="viewer-title">'+escapeHtml(d.title)+'</div>';
@@ -1314,6 +1240,7 @@ function showViewer(){
 }
 function toggleCurrentLike(){
   if(!currentViewerItem) return;
+  if(!guardAuth('dar like')) return;
   var key=likeKeyFor(currentViewerItem.src);
   var nowLiked=!isLiked(key);
   setLikeState(key, nowLiked);
@@ -1325,7 +1252,7 @@ function loadRealSimilarContent(){
   var tags=currentViewerItem.tags||[];
   var searchTerm = tags.length ? tags.slice(0,2).join(' ') : (currentViewerItem.title||'');
   var cat = currentViewerItem.type || 'gifs';
-  if(!searchTerm || !getApiKey()) return;
+  if(!searchTerm) return;
   showMasonrySkeleton(box, 6);
   titleEl.style.display='block';
   fetchCategoryPage(cat, searchTerm, 1, function(ok, items){
@@ -1337,6 +1264,7 @@ function loadRealSimilarContent(){
 }
 function editCurrentViewerItem(){
   if(!currentViewerItem) return;
+  if(!guardAuth('editar este conteúdo')) return;
   sessionStorage.setItem('looply_edit_item', JSON.stringify(currentViewerItem));
   goToExternalWithLoader('editor.html');
 }
@@ -1375,10 +1303,7 @@ function popPage(opts){
   if(!opts.fromHistory) historyBackSilently();
   return true;
 }
-function goToPage(name){
-  pushPage('page-'+name);
-  if(name==='editprofile') openEditProfilePage();
-}
+function goToPage(name){ pushPage('page-'+name); if(name==='editprofile') openEditProfilePage(); }
 document.querySelectorAll('[data-back]').forEach(function(b){ b.addEventListener('click', function(){ popPage(); }); });
 
 (function(){
@@ -1403,7 +1328,6 @@ document.querySelectorAll('[data-back]').forEach(function(b){ b.addEventListener
   swipeEdgeEl.addEventListener('touchcancel', function(){ end(false); });
 })();
 
-/* ============== Histórico do browser (partilhado) ============== */
 var ignorePop=0;
 function pushSheetHistory(){ try{ history.pushState({looply:1},''); }catch(e){} }
 function historyBackSilently(){ ignorePop++; try{ history.back(); }catch(e){ ignorePop=Math.max(0,ignorePop-1); } setTimeout(function(){ ignorePop=Math.max(0,ignorePop-1); },700); }
@@ -1429,7 +1353,7 @@ function goToExternalWithLoader(url){
 var sheetHost=document.getElementById('sheet-host');
 var sheetStack=[];
 function openSheet(html){
-  dimStatusBar(true);
+  nativeDim(true);
   var layer=document.createElement('div');
   layer.className='sheet-layer';
   layer.innerHTML='<div class="sheet-panel"><div class="sheet-handle-wrap"><div class="sheet-handle"></div></div><div class="sheet-content">'+html+'</div></div>';
@@ -1451,7 +1375,7 @@ function closeSheet(entry, fromHistory){
   entry.panel.classList.remove('dragging'); entry.panel.style.transform=''; entry.layer.style.background='';
   entry.layer.classList.remove('open'); entry.layer.classList.add('closing');
   setTimeout(function(){ entry.layer.remove(); }, 440);
-  if(!sheetStack.length) dimStatusBar(false);
+  if(!sheetStack.length) nativeDim(false);
   if(!fromHistory) historyBackSilently();
 }
 function bindSheetDrag(entry){
@@ -1509,7 +1433,7 @@ function openAddSheet(){
   });
 }
 function openCameraFlow(){
-  if(has('openCamera')){ try{ Android.openCamera(); return; }catch(e){} }
+  if(has('requestPermission')) Android.requestPermission('camera');
   document.getElementById('cameraInput').click();
 }
 document.getElementById('cameraInput').addEventListener('change', function(e){
@@ -1522,7 +1446,7 @@ document.getElementById('cameraInput').addEventListener('change', function(e){
   reader.readAsDataURL(f);
 });
 
-/* ============== Partilhar / baixar ============== */
+/* ============== Partilhar / baixar — usa shareText/copyText nativos quando disponíveis ============== */
 function openShareSheet(){
   if(!currentViewerItem) return;
   var html='<div class="sheet-title">Partilhar via</div><div class="share-apps-row">'
@@ -1540,7 +1464,17 @@ function openShareSheet(){
 async function shareVia(app){
   if(!currentViewerItem) return;
   var src=currentViewerItem.src, text=currentViewerItem.title||'Vê isto no Looply!';
-  if(app!=='copy' && navigator.canShare){
+
+  if(app==='copy'){
+    copyToClipboard(src);
+    showToast('Link copiado','check-circle');
+    return;
+  }
+  if(has('shareText')){
+    Android.shareText(text+' '+src, 'Partilhar via Looply');
+    return;
+  }
+  if(navigator.canShare){
     try{
       var resp=await fetch(src); var blob=await resp.blob();
       var ext=blob.type.indexOf('gif')>-1?'gif':(blob.type.indexOf('video')>-1?'mp4':'png');
@@ -1554,10 +1488,10 @@ async function shareVia(app){
     case 'twitter': window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(text)+'&url='+encodeURIComponent(src),'_blank'); break;
     case 'email': window.open('mailto:?subject=Looply&body='+encodeURIComponent(text+' '+src),'_blank'); break;
     case 'instagram': showToast('Copiámos o link — cola-o na app','copy'); copyToClipboard(src); break;
-    case 'copy': copyToClipboard(src); showToast('Link copiado','check-circle'); break;
   }
 }
 function copyToClipboard(text){
+  if(has('copyText')){ Android.copyText(text); return; }
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).catch(function(){ fallbackCopy(text); }); }
   else fallbackCopy(text);
 }
@@ -1570,7 +1504,8 @@ function fallbackCopy(text){
 async function downloadCurrent(){
   if(!currentViewerItem) return;
   var src=currentViewerItem.src;
-  if(has('downloadFile')){ try{ Android.downloadFile(src, 'looply_'+Date.now()); showToast('A baixar...','download'); return; }catch(e){} }
+  // WebView já trata downloads via Android DownloadManager automaticamente para links diretos;
+  // para blob local, criamos link temporário como fallback universal.
   try{
     var resp=await fetch(src); var blob=await resp.blob();
     var ext=blob.type.indexOf('gif')>-1?'gif':(blob.type.indexOf('video')>-1?'mp4':'png');
@@ -1583,25 +1518,12 @@ async function downloadCurrent(){
     if(!content[t]) content[t]=[];
     content[t].push({id:'dl_'+Date.now(), src:src, title:currentViewerItem.title||'Sem título', description:currentViewerItem.description||'', caption:currentViewerItem.description||'', tags:currentViewerItem.tags||[], createdAt:Date.now(), kind:'downloaded'});
     setContent(content);
+    if(has('vibrate')) Android.vibrate(30);
     showToast('Ficheiro guardado','check-circle');
   }catch(e){ showToast('Não foi possível baixar','warning'); }
 }
 
 /* ============== Definições ============== */
-function toggleKeyVisibility(){
-  var input=document.getElementById('apiKeyInput'), icon=document.getElementById('eyeIcon');
-  if(input.type==='password'){ input.type='text'; icon.style.webkitMaskImage='url(assets/icons/svg/eye-hidden.svg)'; icon.style.maskImage='url(assets/icons/svg/eye-hidden.svg)'; }
-  else { input.type='password'; icon.style.webkitMaskImage='url(assets/icons/svg/eye.svg)'; icon.style.maskImage='url(assets/icons/svg/eye.svg)'; }
-}
-function saveApiKey(){
-  var input=document.getElementById('apiKeyInput'), status=document.getElementById('statusLine');
-  var apiKey=input.value.trim();
-  if(!apiKey){ status.innerHTML='<span class="ic" style="background-color:var(--danger);-webkit-mask-image:url(assets/icons/svg/alert.svg);mask-image:url(assets/icons/svg/alert.svg)"></span> Cola uma chave antes de guardar'; status.style.color='var(--danger)'; return; }
-  setApiKeyLS(apiKey);
-  status.innerHTML='<span class="ic" style="background-color:var(--success);-webkit-mask-image:url(assets/icons/svg/check-circle.svg);mask-image:url(assets/icons/svg/check-circle.svg)"></span> Chave guardada — já podes ver conteúdo';
-  status.style.color='var(--success)';
-  homeLoadedOnce=false;
-}
 function openThemeSheet(){
   var cur=document.documentElement.getAttribute('data-theme');
   var html='<div class="sheet-title">Tema</div><div class="theme-toggle">'
@@ -1636,31 +1558,79 @@ function openLangSheet(){
 }
 
 /* ============================================================
-   AUTENTICAÇÃO — liga ao Worker (/auth/register, /auth/login)
+   AUTENTICAÇÃO — sempre dentro de um SHEET (nunca page cheia),
+   com botão de fechar explícito. Fechar cancela e volta ao app
+   normal, sem forçar login.
    ============================================================ */
-var authMode='login'; // 'login' | 'register'
-var authIdentifierType='email'; // 'email' | 'phone'
+var authMode='login', authIdentifierType='email', authPendingLabel='';
 
-function setAuthTab(mode, btn){
-  authMode=mode;
-  document.querySelectorAll('.auth-tab').forEach(function(t){ t.classList.remove('active'); });
-  btn.classList.add('active');
-  document.getElementById('authSubmitBtn').textContent = mode==='login' ? 'Entrar' : 'Criar conta';
-  document.getElementById('authUsernameFieldWrap').style.display = mode==='register' ? 'block' : 'none';
-  document.getElementById('authErrorLine').textContent='';
+function openAuthSheet(mode, actionLabel){
+  authMode = mode || 'login';
+  authIdentifierType = 'email';
+  authPendingLabel = actionLabel || '';
+
+  var subtitle = actionLabel ? ('Precisas de uma conta para ' + actionLabel + '.') : '';
+
+  var html = ''
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 20px 4px">'
+    +   '<div class="sheet-title" style="padding:0">' + (authMode==='login' ? 'Entrar' : 'Criar conta') + '</div>'
+    +   '<button class="icon-tap" id="authCloseBtn" style="width:36px;height:36px"><span class="ic" style="width:18px;height:18px;-webkit-mask-image:url(assets/icons/svg/close.svg);mask-image:url(assets/icons/svg/close.svg)"></span></button>'
+    + '</div>'
+    + (subtitle ? '<div style="padding:0 20px 14px;font-size:12.5px;color:var(--text-dim)">'+escapeHtml(subtitle)+'</div>' : '')
+    + '<div class="auth-tabs">'
+    +   '<button class="auth-tab'+(authMode==='login'?' active':'')+'" data-authtab="login">Entrar</button>'
+    +   '<button class="auth-tab'+(authMode==='register'?' active':'')+'" data-authtab="register">Criar conta</button>'
+    + '</div>'
+    + '<div class="auth-identifier-toggle">'
+    +   '<button class="pill active" data-idtype="email">Email</button>'
+    +   '<button class="pill" data-idtype="phone">Número</button>'
+    + '</div>'
+    + '<div class="auth-field-wrap" id="authUsernameFieldWrap" style="display:none">'
+    +   '<div class="acc-label">Nome de utilizador</div>'
+    +   '<div class="input-wrap"><input id="authUsernameInput" type="text" placeholder="teuusername" autocomplete="off"></div>'
+    + '</div>'
+    + '<div class="auth-field-wrap">'
+    +   '<div class="acc-label" id="authIdentifierLabel">Email</div>'
+    +   '<div class="input-wrap"><input id="authIdentifierInput" type="email" placeholder="ex: tu@email.com" autocomplete="off"></div>'
+    + '</div>'
+    + '<div class="auth-field-wrap">'
+    +   '<div class="acc-label">Palavra-passe</div>'
+    +   '<div class="input-wrap"><input id="authPasswordInput" type="password" placeholder="Mínimo 8 caracteres" autocomplete="off"></div>'
+    + '</div>'
+    + '<div class="auth-error" id="authErrorLine"></div>'
+    + '<div class="sheet-actions"><button class="btn-fill" id="authSubmitBtn">'+(authMode==='login'?'Entrar':'Criar conta')+'</button></div>';
+
+  var entry = openSheet(html);
+  entry.content.querySelector('#authCloseBtn').addEventListener('click', function(){ closeSheet(entry); });
+  entry.content.querySelectorAll('[data-authtab]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      authMode = btn.dataset.authtab;
+      entry.content.querySelectorAll('[data-authtab]').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      entry.content.querySelector('#authUsernameFieldWrap').style.display = authMode==='register' ? 'block' : 'none';
+      entry.content.querySelector('#authSubmitBtn').textContent = authMode==='login' ? 'Entrar' : 'Criar conta';
+      entry.content.querySelector('#authErrorLine').textContent='';
+    });
+  });
+  entry.content.querySelectorAll('[data-idtype]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      authIdentifierType = btn.dataset.idtype;
+      entry.content.querySelectorAll('[data-idtype]').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var label=entry.content.querySelector('#authIdentifierLabel'), input=entry.content.querySelector('#authIdentifierInput');
+      if(authIdentifierType==='email'){ label.textContent='Email'; input.placeholder='ex: tu@email.com'; input.type='email'; }
+      else { label.textContent='Número (ex: +351912345678)'; input.placeholder='+351912345678'; input.type='tel'; }
+    });
+  });
+  entry.content.querySelector('#authSubmitBtn').addEventListener('click', function(){ submitAuth(entry); });
+  return entry;
 }
-function setAuthIdentifierType(type, btn){
-  authIdentifierType=type;
-  document.querySelectorAll('.auth-identifier-toggle .pill').forEach(function(p){ p.classList.remove('active'); });
-  btn.classList.add('active');
-  var label=document.getElementById('authIdentifierLabel'), input=document.getElementById('authIdentifierInput');
-  if(type==='email'){ label.textContent='Email'; input.placeholder='ex: tu@email.com'; input.type='email'; }
-  else { label.textContent='Número (formato +351912345678)'; input.placeholder='+351912345678'; input.type='tel'; }
-}
-function submitAuth(){
-  var identifier=document.getElementById('authIdentifierInput').value.trim();
-  var password=document.getElementById('authPasswordInput').value;
-  var errLine=document.getElementById('authErrorLine');
+
+function submitAuth(entry){
+  var c = entry.content;
+  var identifier=c.querySelector('#authIdentifierInput').value.trim();
+  var password=c.querySelector('#authPasswordInput').value;
+  var errLine=c.querySelector('#authErrorLine');
   errLine.textContent='';
 
   if(!identifier || !password){ errLine.textContent='Preenche todos os campos'; return; }
@@ -1673,12 +1643,13 @@ function submitAuth(){
       if(!res.ok){ errLine.textContent = describeAuthError(res.data.error); return; }
       setAuthToken(res.data.token);
       setCachedUser(res.data.user);
-      popPage();
+      closeSheet(entry);
       renderProfileTab();
+      if(activeTab==='profile') TAB_ACTION.profile();
       showToast('Sessão iniciada','check-circle');
     }).catch(function(){ errLine.textContent='Não foi possível ligar ao servidor'; });
   } else {
-    var username=document.getElementById('authUsernameInput2').value.trim();
+    var username=c.querySelector('#authUsernameInput').value.trim();
     if(!username){ errLine.textContent='Escolhe um nome de utilizador'; return; }
     if(password.length<8){ errLine.textContent='A palavra-passe precisa de pelo menos 8 caracteres'; return; }
 
@@ -1689,8 +1660,9 @@ function submitAuth(){
       if(!res.ok){ errLine.textContent = describeAuthError(res.data.error); return; }
       setAuthToken(res.data.token);
       setCachedUser(res.data.user);
-      popPage();
+      closeSheet(entry);
       renderProfileTab();
+      if(activeTab==='profile') TAB_ACTION.profile();
       showToast('Conta criada com sucesso','check-circle');
     }).catch(function(){ errLine.textContent='Não foi possível ligar ao servidor'; });
   }
@@ -1708,16 +1680,12 @@ function describeAuthError(code){
   };
   return map[code] || 'Ocorreu um erro, tenta novamente';
 }
-function requireAuthOrOpen(){
-  if(getAuthToken() && getCachedUser()) return true;
-  pushPage('page-auth');
-  return false;
-}
 function handleLogout(){
   apiFetch('/auth/logout', {method:'POST'}).finally(function(){
     clearAuthToken(); clearCachedUser();
     popPage();
     renderProfileTab();
+    if(activeTab==='profile') TAB_ACTION.profile();
     showToast('Sessão terminada','check-circle');
   });
 }
@@ -1727,15 +1695,17 @@ function handleLogoutAllDevices(){
       clearAuthToken(); clearCachedUser();
       popPage();
       renderProfileTab();
+      if(activeTab==='profile') TAB_ACTION.profile();
       showToast('Sessões terminadas em todos os dispositivos','check-circle');
     });
   });
 }
 
+
 /* ============== Editar perfil ============== */
 function openEditProfilePage(){
   var user = getCachedUser();
-  if(!user){ popPage(); requireAuthOrOpen(); return; }
+  if(!user) return;
   reflectAvatarInto('editProfileAvatarImg','editProfileAvatarPh', user.avatar_url);
   document.getElementById('editProfileNameInput').value = user.display_name || '';
   document.getElementById('editProfileBioInput').value = user.bio || '';
@@ -1748,7 +1718,7 @@ document.getElementById('avatarFileInput').addEventListener('change', function(e
     var user=getCachedUser(); if(!user) return;
     user.avatar_url=ev.target.result; setCachedUser(user);
     reflectProfileEverywhere();
-    showToast('Foto de perfil atualizada (localmente)','check-circle');
+    showToast('Foto de perfil atualizada','check-circle');
   };
   reader.readAsDataURL(f);
 });
@@ -1781,8 +1751,6 @@ function reflectProfileEverywhere(){
   var savedLang=localStorage.getItem('looply_lang')||'pt';
   document.getElementById('langValLabel').textContent=(LANGS.find(function(l){return l.id===savedLang;})||LANGS[0]).name;
   reflectProfileEverywhere();
-  var apiKey=getApiKey();
-  if(apiKey) document.getElementById('apiKeyInput').value=apiKey;
 
   var savedTab=localStorage.getItem('looply_active_tab')||'home';
   activeTab=''; switchTab(savedTab);

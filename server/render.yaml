@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: angola-news-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GDELT_TIMESPAN
+        value: 15min
+      - key: GDELT_MAX_RECORDS
+        value: 250
+      - key: GDELT_TIMEOUT_MS
+        value: 15000
+      - key: CACHE_TTL_MS
+        value: 720000

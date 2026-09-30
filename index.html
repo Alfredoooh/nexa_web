@@ -9,7 +9,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
-/* ícones (máscaras) + tratamento de imagens que falham; corre antes do body */
 (function(){
   var s=document.createElement('style');
   s.textContent='profile search home home_filled library library_filled menu settings chevron-right language chat back link share lock edit close check check-circle theme trash mail phone clock warning moon sun send'.split(' ').map(function(n){return'.i-'+n+'{--i:url(assets/icons/svg/'+n+'.svg)}'}).join('');
@@ -28,9 +27,9 @@
 })();
 </script>
 <style>
-:root{--danger:#E5484D;--font:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--ios:cubic-bezier(.32,.72,0,1);--out:cubic-bezier(.22,1,.36,1);--spring:cubic-bezier(.34,1.45,.64,1)}
-:root[data-theme=dark]{--bg:#0D0F12;--card:#1A1E23;--card2:#22272D;--text:#fff;--dim:#B0B5BC;--line:#242830;--scrim:rgba(0,0,0,.6);--pri:#fff;--onpri:#0D0F12;--pop:#22272D;--shadow:0 18px 44px rgba(0,0,0,.6)}
-:root[data-theme=light]{--bg:#fff;--card:#F2F2F2;--card2:#EBEBEB;--text:#000;--dim:#666;--line:#E5E5E5;--scrim:rgba(0,0,0,.34);--pri:#000;--onpri:#fff;--pop:#fff;--shadow:0 18px 44px rgba(0,0,0,.2)}
+:root{--danger:#E5484D;--font:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--ios:cubic-bezier(.32,.72,0,1);--out:cubic-bezier(.22,1,.36,1);--smooth:cubic-bezier(.22,1,.36,1);--spring:cubic-bezier(.34,1.45,.64,1)}
+:root[data-theme=dark]{--bg:#0D0F12;--card:#1A1E23;--card2:#22272D;--card-elevated:#22272D;--text:#fff;--dim:#B0B5BC;--text-dim:#B0B5BC;--line:#242830;--border:#242830;--scrim:rgba(0,0,0,.6);--pri:#fff;--primary:#fff;--onpri:#0D0F12;--on-primary:#0D0F12;--pop:#22272D;--shadow:0 18px 44px rgba(0,0,0,.6)}
+:root[data-theme=light]{--bg:#fff;--card:#F2F2F2;--card2:#EBEBEB;--card-elevated:#fff;--text:#000;--dim:#666;--text-dim:#666;--line:#E5E5E5;--border:#E5E5E5;--scrim:rgba(0,0,0,.34);--pri:#000;--primary:#000;--onpri:#fff;--on-primary:#fff;--pop:#fff;--shadow:0 18px 44px rgba(0,0,0,.2)}
 
 /* base */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
@@ -142,6 +141,7 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
 .fld option{color:#000}
 .fld .dv{width:1px;height:22px;background:var(--line);flex:none}
 .fld span{color:var(--dim);font-size:15px;font-weight:500}
+.fld .rq{flex:1;min-width:0;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fld[hidden],.qx[hidden]{display:none}
 .sf{width:calc(100% - 32px);margin:0 16px 4px;height:50px;border-radius:99px}
 .qx{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;flex:none;color:var(--dim)}
@@ -209,6 +209,7 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
 .ac blockquote{margin:0 0 16px;padding:2px 0 2px 16px;border-left:3px solid var(--text);font-size:16px;line-height:1.65;font-style:italic}
 .cmh{display:flex;align-items:center;gap:8px;margin-top:12px;padding:20px 20px 8px;border-top:1px solid var(--line);font-size:16px;font-weight:800}
 .cmh .ic{width:20px;height:20px}
+#cL{padding-bottom:96px}
 #cL .hint{padding:4px 20px 12px}
 .cmi{display:flex;gap:12px;padding:10px 20px;animation:pin .45s var(--out)}
 @keyframes pin{from{opacity:0;transform:translate3d(0,8px,0)}}
@@ -217,13 +218,39 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
 .nm{font-size:13px;font-weight:800}
 .nm span{margin-left:6px;font-size:11.5px;font-weight:600;color:var(--dim)}
 .ct{margin-top:3px;font-size:14.5px;line-height:1.5;word-break:break-word}
-.cbar{flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px calc(10px + var(--sb));border-top:1px solid var(--line);background:var(--bg)}
-.cbar .av{width:36px;height:36px}
-.cbar .fld{flex:1;height:46px;border-radius:99px}
-.send{display:grid;place-items:center;flex:none;width:46px;height:46px;border-radius:50%;background:var(--pri);color:var(--onpri);transition:transform .35s var(--spring),opacity .25s}
-.send:active{transform:scale(.88)}
-.send:disabled{opacity:.35;pointer-events:none}
-.send .ic{width:20px;height:20px}
+
+/* barra de comentário flutuante */
+.article-comment-bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:70;
+  display:flex;justify-content:center;
+  padding:0 14px calc(14px + var(--sb));
+  pointer-events:none;
+  transform:translate3d(0,140%,0);transition:transform .35s var(--smooth);
+}
+.article-comment-bar.show{transform:translate3d(0,0,0);}
+.cfloat{
+  pointer-events:auto;display:flex;align-items:center;
+  width:150px;height:48px;padding:0 5px 0 18px;border-radius:999px;
+  background:var(--card-elevated);border:1px solid var(--border);
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  transition:width .5s var(--smooth),background .25s ease;
+}
+.cfloat.open{width:100%;}
+.cfloat input{
+  flex:1;min-width:0;height:100%;background:transparent;border:0;outline:none;
+  color:var(--text);font-size:14.5px;font-family:inherit;
+}
+.cfloat input::placeholder{color:var(--text-dim);opacity:.9;}
+.cfloat-send{
+  flex-shrink:0;width:0;height:38px;margin:0;padding:0;border:0;border-radius:50%;overflow:hidden;
+  background:var(--pri);color:var(--onpri);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  opacity:0;transform:scale(.4);pointer-events:none;
+  transition:width .45s var(--smooth),opacity .25s ease,transform .45s var(--spring);
+}
+.cfloat.open .cfloat-send{width:38px;opacity:1;transform:scale(1);pointer-events:auto;}
+.cfloat-send:active{transform:scale(.9)!important;}
+.cfloat-send .ic{width:19px;height:19px;flex-shrink:0;}
 
 /* login */
 #auth{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;background:var(--bg);transform:translate3d(0,100%,0);visibility:hidden;transition:transform .5s var(--ios),visibility 0s .5s}
@@ -291,7 +318,7 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
     <section class="pane" id="p-search">
       <div class="scroll">
         <h1 class="h1">Pesquisar</h1>
-        <button class="fld sf" id="sEntry"><i class="ic i-search"></i><span>Pesquisar notícias</span></button>
+        <button class="fld sf" id="sEntry" type="button"><i class="ic i-search"></i><span>Pesquisar notícias</span></button>
         <div class="lbl">Temas</div>
         <div class="chips" id="topics"></div>
         <div class="lbl">Em alta</div>
@@ -319,12 +346,29 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
   <div id="dim"></div>
 </div>
 
-<section class="page" id="pg-search">
+<section class="page" id="page-search">
   <div class="sbar">
-    <button class="hb" data-back aria-label="Voltar"><i class="ic i-back"></i></button>
-    <label class="fld"><i class="ic i-search"></i><input id="q" type="search" placeholder="Pesquisar notícias" enterkeyhint="search" autocomplete="off" autocapitalize="none"><button class="qx" id="qx" hidden aria-label="Limpar"><i class="ic i-close"></i></button></label>
+    <button class="hb" type="button" data-back aria-label="Voltar"><i class="ic i-back"></i></button>
+    <label class="fld">
+      <i class="ic i-search"></i>
+      <input id="q" type="search" placeholder="Pesquisar notícias" enterkeyhint="search" autocomplete="off" autocapitalize="none">
+      <button class="qx" id="qx" type="button" hidden aria-label="Limpar"><i class="ic i-close"></i></button>
+    </label>
   </div>
   <div class="pbody" id="sBody"></div>
+</section>
+
+<section class="page" id="page-results">
+  <div class="sbar">
+    <button class="hb" type="button" data-back aria-label="Voltar"><i class="ic i-back"></i></button>
+    <button class="fld" type="button" id="rField">
+      <i class="ic i-search"></i>
+      <span class="rq" id="rQuery"></span>
+    </button>
+  </div>
+  <div class="pbody" id="rBody">
+    <div class="feed" id="rList"></div>
+  </div>
 </section>
 
 <section class="page" id="pg-article">
@@ -335,11 +379,6 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
     <button class="hb" id="aShare" aria-label="Partilhar"><i class="ic i-share"></i></button>
   </div>
   <div class="pbody" id="aBody"></div>
-  <div class="cbar">
-    <span class="av"><i class="ic i-profile"></i><img data-av alt=""></span>
-    <label class="fld"><input id="cIn" placeholder="Escreve um comentário…" autocomplete="off" enterkeyhint="send"></label>
-    <button class="send" id="cSend" disabled aria-label="Enviar"><i class="ic i-send"></i></button>
-  </div>
 </section>
 
 <section class="page" id="pg-profile">
@@ -383,6 +422,15 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
   </div>
 </div>
 
+<div class="article-comment-bar" id="articleCommentBar">
+  <div class="cfloat" id="cFloat">
+    <input id="articleCommentInput" type="text" placeholder="Comentar…" autocomplete="off" enterkeyhint="send" onkeydown="if(event.key==='Enter')sendArticleComment()">
+    <button class="cfloat-send" id="cSendBtn" type="button" aria-label="Enviar">
+      <i class="ic i-send"></i>
+    </button>
+  </div>
+</div>
+
 <div id="edge"></div>
 <div id="sheet"></div>
 <div id="toast"></div>
@@ -393,12 +441,10 @@ header{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;heigh
 
 /* ================= CONFIG ================= */
 var K='looply_',API='https://connectionssvronline.alfredopjonas.workers.dev';
-/* fontes diretas (com imagem e, em muitas, texto completo). Se alguma falhar, é ignorada. */
 var SRC={
   ao:[['https://opais.co.ao/feed/','O País'],['https://correiokianda.info/feed/','Correio da Kianda'],['https://angola24horas.com/feed/','Angola24Horas']],
   world:[['https://feeds.bbci.co.uk/portuguese/rss.xml','BBC News Brasil'],['https://g1.globo.com/rss/g1/mundo/','g1'],['https://rss.dw.com/xml/rss-br-all','DW'],['https://news.un.org/feed/subscribe/pt/news/all/rss.xml','ONU News']]
 };
-/* q = pesquisa Google News (Angola) · t = tópico Google News (mundo) · a/w = nº de fontes diretas */
 var CATS=[
   {id:'all',l:'Todas',q:'Angola',t:'WORLD',a:2,w:2},
   {id:'ao',l:'Angola',q:'Angola Luanda',a:3},
@@ -461,10 +507,15 @@ function menu(a,items){
   s.id='mscrim';m.className='menu';
   m.innerHTML=items.map(function(o,i){return'<button style="--d:'+(i*35)+'ms" data-k="'+i+'">'+ic(o.i)+'<span>'+esc(o.l)+'</span>'+(o.on?ic('check','ml'):'')+'</button>'}).join('');
   document.body.appendChild(s);document.body.appendChild(m);
-  var r=a.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight,left=Math.min(Math.max(12,r.right-w),innerWidth-w-12),top=r.bottom+8;
-  if(top+h>innerHeight-12)top=Math.max(12,r.top-h-8);
+  var rect=a.getBoundingClientRect();
+  var w=m.offsetWidth,h=m.offsetHeight,vw=innerWidth,vh=innerHeight,gap=12;
+  var alignRight=(vw-rect.right)<=rect.left;
+  var left=alignRight?rect.right-w:rect.left;
+  var top=rect.top;
+  left=Math.max(gap,Math.min(left,vw-w-gap));
+  top=Math.max(gap,Math.min(top,vh-h-gap));
   m.style.left=left+'px';m.style.top=top+'px';
-  m.style.transformOrigin=(r.left+r.width/2-left)+'px '+(top<r.top?h:0)+'px';
+  m.style.transformOrigin=(rect.left+rect.width/2-left)+'px '+(rect.top+rect.height/2-top)+'px';
   cm={m:m,s:s};
   requestAnimationFrame(function(){requestAnimationFrame(function(){m.classList.add('in')})});
   s.onclick=closeMenu;
@@ -494,7 +545,7 @@ window.onNativeBack=function(){if(cm){closeMenu();return true}if(L.length){back(
 document.addEventListener('click',function(e){if(e.target.closest('[data-back]'))back()});
 
 /* ================= PÁGINAS EMPILHADAS ================= */
-var stack=[],PAGES=['pg-search','pg-article','pg-profile','pg-settings'];
+var stack=[],PAGES=['page-search','page-results','pg-article','pg-profile','pg-settings'];
 function sync(){
   var n=stack.length;
   $('#app').classList.toggle('push',n>0);
@@ -503,7 +554,13 @@ function sync(){
   PAGES.forEach(function(id){
     var i=stack.indexOf(id),p=$('#'+id);
     p.classList.toggle('on',i>-1);p.classList.toggle('bk',i>-1&&i<n-1);p.style.zIndex=60+i
-  })
+  });
+  var bar=$('#articleCommentBar');
+  if(bar){
+    var inArticle=stack.indexOf('pg-article')>-1;
+    bar.classList.toggle('show',inArticle);
+    if(!inArticle){var b=$('#cFloat');if(b)b.classList.remove('open');var i=$('#articleCommentInput');if(i)i.blur()}
+  }
 }
 function openPage(id,init){
   if(stack.indexOf(id)>-1)return;
@@ -514,6 +571,7 @@ function openPage(id,init){
     if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()
   })
 }
+function popPage(){back()}
 (function(){
   var e=$('#edge'),app=$('#app'),x0=0,dx=0,on=0,p,u,W=1;
   e.addEventListener('touchstart',function(t){
@@ -598,11 +656,11 @@ function panel(s){
   var r=s==='r';
   return'<div class="ap" data-s="'+s+'" data-t="email">'
   +(r?'<div class="lb">Nome de utilizador</div><label class="fld">'+ic('profile')+'<input name="u" placeholder="teuusername" autocomplete="username" autocapitalize="none" spellcheck="false"></label><div class="gap"></div>':'')
-  +'<div class="idt"><button data-t="email" class="on">Email</button><button data-t="phone">Telemóvel</button></div>'
+  +'<div class="idt"><button type="button" data-t="email" class="on">Email</button><button type="button" data-t="phone">Telemóvel</button></div>'
   +'<label class="fld" data-w="email">'+ic('mail')+'<input name="e" type="email" placeholder="tu@email.com" autocomplete="email" autocapitalize="none" spellcheck="false"></label>'
-  +'<div class="fld" data-w="phone" hidden><select name="c">'+CC.map(function(c){return'<option value="'+c[0]+'">'+c[1]+' +'+c[0]+'</option>'}).join('')+'</select><i class="dv"></i><input name="p" type="tel" inputmode="tel" placeholder="912 345 678" autocomplete="tel-national"></div>'
+  +'<div class="fld" data-w="phone" hidden><select name="c">'+CC.map(function(c){return'<option value="'+c[0]+'"'+(c[0]==='244'?' selected':'')+'>'+c[1]+' +'+c[0]+'</option>'}).join('')+'</select><i class="dv"></i><input name="p" type="tel" inputmode="tel" placeholder="912 345 678" autocomplete="tel-national"></div>'
   +'<div class="gap"></div><div class="lb">Palavra-passe</div><label class="fld">'+ic('lock')+'<input name="w" type="password" placeholder="Mínimo 8 caracteres" autocomplete="'+(r?'new-password':'current-password')+'"></label>'
-  +'<div class="err"></div><button class="cta" data-go>'+(r?'Criar conta':'Entrar')+'</button>'
+  +'<div class="err"></div><button type="button" class="cta" data-go>'+(r?'Criar conta':'Entrar')+'</button>'
   +'<p class="foot">Ao continuar, aceitas os <b>Termos</b> e a <b>Política de Privacidade</b> do app ao.</p></div>'
 }
 function authMode(m){
@@ -615,6 +673,7 @@ function openAuth(mode,why){
   var a=$('#auth');if(a.classList.contains('on'))return;
   $('#aSub').textContent=why?'Precisas de uma conta para '+why+'.':'Entra na tua conta para personalizar o teu app ao';
   $$('input',a).forEach(function(i){i.value=''});
+  $$('select',a).forEach(function(s){s.value='244'});
   $$('.ap').forEach(function(ap){ap.dataset.t='email';$$('.idt button',ap).forEach(function(b){b.classList.toggle('on',b.dataset.t==='email')});$$('[data-w]',ap).forEach(function(f){f.hidden=f.dataset.w!=='email'})});
   authMode(mode);a.classList.add('on');
   layer(function(){a.classList.remove('on');if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()})
@@ -654,7 +713,6 @@ var PX=[
   function(u){return'https://corsproxy.io/?url='+encodeURIComponent(u)},
   function(u){return'https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(u)}
 ];
-/* tenta direto e depois cada proxy; a 1ª resposta válida ganha (ok valida o conteúdo) */
 function get(u,ok,noJson){
   var routes=[u].concat(PX.slice(0,noJson?3:4).map(function(p){return p(u)}));
   return new Promise(function(res,rej){
@@ -742,7 +800,6 @@ function jobs(c){
 }
 function dedupe(a){var s={};return a.filter(function(i){var k=i.title.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,60)||i.id;return s[k]?0:(s[k]=1)}).sort(function(a,b){return ts(b)-ts(a)})}
 function mix(a){var u=dedupe(a),x=u.filter(function(i){return i.region==='ao'}),w=u.filter(function(i){return i.region!=='ao'}),o=[];while(x.length||w.length){if(x.length)o.push(x.shift());if(w.length)o.push(w.shift())}return o}
-/* mostra as notícias assim que chegam (1ª pintura ~0,6 s depois da primeira fonte) */
 function stream(js,alive,paint,done){
   var pool=[],t=0,shown=0,left=js.length;
   if(!left)return done(0);
@@ -770,7 +827,6 @@ function card(it,k){
   if(k==='half')return o+th+'<span class="tag">'+rg+'</span></span>'+mt+tl+'</button>';
   return o+th+'</span><span class="bd">'+mt+tl+'</span></button>'
 }
-/* 1 grande, 2 médias, 3 em linha (repete) */
 function plan(a,n){
   var im=a.filter(function(i){return i.image}),no=a.filter(function(i){return!i.image}),out=[];
   while(im.length||no.length){
@@ -816,54 +872,104 @@ $('#pills').addEventListener('click',function(e){var b=e.target.closest('.pill')
 function onCard(e){var c=e.target.closest('.nc');if(c&&DB[c.dataset.id])openArticle(DB[c.dataset.id])}
 $('#feed').addEventListener('click',function(e){if(e.target.closest('[data-retry]'))load(1);else onCard(e)});
 
-/* ================= PESQUISA ================= */
-var qi=$('#q'),sb=$('#sBody'),sf='all',sres=[],sReq=0;
+/* ================= PESQUISA (página + resultados) ================= */
+function escapeHtml(s){return esc(s)}
 function hist(){return rd('search_history',[])}
-function row(ico,q,x){return'<div class="rc" data-q="'+esc(q)+'">'+ic(ico)+'<span>'+esc(q)+'</span>'+(x?'<button class="x" data-rm="'+esc(q)+'" aria-label="Remover">'+ic('close')+'</button>':'')+'</div>'}
-function idle(){
-  var h=hist();
-  sb.innerHTML=h.length?'<div class="lh"><div class="lbl">Recentes</div><button class="lk" data-clr>Limpar</button></div>'+h.slice(0,10).map(function(q){return row('clock',q,1)}).join(''):'<p class="hint" style="padding:24px 20px">Pesquisa notícias de Angola e do mundo.</p>'
+function addHist(q){wr('search_history',[q].concat(hist().filter(function(x){return x.toLowerCase()!==q.toLowerCase()})).slice(0,30))}
+function removeHist(q){wr('search_history',hist().filter(function(x){return x!==q}))}
+function clearHist(){wr('search_history',[])}
+function getSearchHistory(){return hist()}
+
+var resReq=0;
+var qi=$('#q'),qxBtn=$('#qx'),sBody=$('#sBody');
+
+function icn(n,c){return'<i class="ic i-'+n+(c?' '+c:'')+'"></i>'}
+function rcRow(ico,q,x){
+  return '<div class="rc" data-q="'+esc(q)+'">'+icn(ico)+'<span>'+esc(q)+'</span>'+
+    (x?'<button type="button" class="x" data-rm="'+esc(q)+'" aria-label="Remover">'+icn('close')+'</button>':'')+'</div>';
 }
-function typing(){
+function searchIdle(){
+  var h=getSearchHistory();
+  sBody.innerHTML=h.length
+    ?'<div class="lh"><div class="lbl">Recentes</div><button type="button" class="lk" data-clr>Limpar</button></div>'+h.slice(0,10).map(function(q){return rcRow('clock',q,1)}).join('')
+    :'<p class="hint" style="padding:24px 20px">Pesquisa notícias de Angola e do mundo.</p>';
+}
+function searchTyping(){
   var v=qi.value.trim(),lo=v.toLowerCase();
-  $('#qx').hidden=!v;
-  if(!v)return idle();
-  var h=hist().filter(function(x){return x.toLowerCase().indexOf(lo)>-1}).slice(0,4),
-      t=Object.keys(DB).map(function(k){return DB[k].title}).filter(function(x){return x.toLowerCase().indexOf(lo)>-1}).slice(0,5);
-  sb.innerHTML='<div class="rc" data-q="'+esc(v)+'">'+ic('search')+'<span>Pesquisar “'+esc(v)+'”</span></div>'+h.map(function(q){return row('clock',q)}).join('')+t.map(function(q){return row('search',q)}).join('')
+  qxBtn.hidden=!v;
+  if(!v){searchIdle();return}
+  var h=getSearchHistory().filter(function(x){return x.toLowerCase().indexOf(lo)>-1}).slice(0,6);
+  sBody.innerHTML='<div class="rc" data-q="'+esc(v)+'">'+icn('search')+'<span>Pesquisar “'+esc(v)+'”</span></div>'+
+    h.map(function(q){return rcRow('clock',q)}).join('');
 }
-function drawRes(){
-  var r=sres.filter(function(i){return sf==='all'||i.region===sf}).slice(0,40),b=$('#sRes');
-  b.innerHTML=r.length?r.map(function(i){return card(i,'row')}).join(''):empty('search','Sem resultados','Tenta outra palavra ou outro filtro.')
+function openSearchPage(prefill){
+  if(stack.indexOf('page-search')<0)openPage('page-search');
+  qi.value=prefill||'';
+  searchTyping();
+  setTimeout(function(){qi.focus()},430);
 }
-function search(q){
-  q=(q||'').trim();if(!q)return idle();
-  qi.value=q;$('#qx').hidden=false;qi.blur();sf='all';
-  wr('search_history',[q].concat(hist().filter(function(x){return x.toLowerCase()!==q.toLowerCase()})).slice(0,30));
-  sb.innerHTML='<div class="pills" id="sChips">'+[['all','Tudo'],['ao','Angola'],['world','Internacional']].map(function(c,i){return'<button class="pill'+(i?'':' on')+'" data-s="'+c[0]+'">'+c[1]+'</button>'}).join('')+'</div><div class="feed" id="sRes">'+skel(1)+'</div>';
-  var my=++sReq;
-  stream([worker(q),rss(GN(q,1),'ao'),rss(GN(q,0),'world')],function(){return my===sReq},function(pool){sres=dedupe(pool);drawRes()},function(n){if(!n)$('#sRes').innerHTML=empty('warning','Pesquisa indisponível','Tenta novamente dentro de alguns segundos.',0)})
+function resMsg(t,p){
+  return'<div class="empty">'+icn('warning')+'<b>'+t+'</b><p>'+p+'</p></div>';
 }
-function openSearch(q){
-  if(stack.indexOf('pg-search')<0)openPage('pg-search');
-  if(q)search(q);else{qi.value='';$('#qx').hidden=true;idle();setTimeout(function(){qi.focus()},430)}
+function submitSearch(q){
+  q=(q||'').trim();
+  if(!q){searchIdle();return}
+  qi.value=q;qxBtn.hidden=false;qi.blur();
+  addHist(q);
+  $('#rQuery').textContent=q;
+  var box=$('#rList');
+  var my=++resReq;
+  var sk='<div class="sk" style="grid-column:1/-1;height:78px"></div>';
+  box.innerHTML=sk.repeat(6);
+  $('#rBody').scrollTop=0;
+
+  var top=stack[stack.length-1];
+  if(stack.indexOf('page-results')<0)openPage('page-results');
+  else if(top==='page-search')popPage();
+
+  stream([worker(q),rss(GN(q,1),'ao'),rss(GN(q,0),'world')],function(){return my===resReq},function(pool){
+    if(my!==resReq)return;
+    var items=dedupe(pool);
+    if(!items.length){box.innerHTML=resMsg('Nada encontrado','Tenta outra palavra-chave.');return}
+    box.innerHTML='';
+    items.slice(0,40).forEach(function(item){box.insertAdjacentHTML('beforeend',card(item,'row'))});
+  },function(n){
+    if(my!==resReq)return;
+    if(!n)box.innerHTML=resMsg('Pesquisa indisponível','Tenta novamente dentro de alguns segundos.');
+  });
 }
-qi.addEventListener('input',typing);
-qi.addEventListener('keydown',function(e){if(e.key==='Enter')search(qi.value)});
-$('#qx').onclick=function(){qi.value='';$('#qx').hidden=true;idle();qi.focus()};
-sb.addEventListener('click',function(e){
+function renderSearchEmpty(){var b=$('#rList');if(b)b.innerHTML=''}
+
+qi.addEventListener('input',searchTyping);
+qi.addEventListener('keydown',function(e){if(e.key==='Enter')submitSearch(qi.value)});
+qxBtn.addEventListener('click',function(){qi.value='';qxBtn.hidden=true;searchIdle();qi.focus()});
+sBody.addEventListener('click',function(e){
   var x=e.target.closest('[data-rm]');
-  if(x){var q=x.dataset.rm;wr('search_history',hist().filter(function(v){return v!==q}));idle();return}
-  if(e.target.closest('[data-clr]')){wr('search_history',[]);idle();return}
-  var f=e.target.closest('[data-s]');
-  if(f){sf=f.dataset.s;$$('#sChips .pill').forEach(function(p){p.classList.toggle('on',p===f)});drawRes();return}
-  var r=e.target.closest('[data-q]');if(r){search(r.dataset.q);return}
-  onCard(e)
+  if(x){removeHist(x.dataset.rm);searchTyping();return}
+  if(e.target.closest('[data-clr]')){clearHist();searchIdle();return}
+  var r=e.target.closest('[data-q]');
+  if(r)submitSearch(r.dataset.q);
 });
-$('#sEntry').onclick=function(){openSearch()};
-$('#topics').innerHTML=TOPICS.map(function(t){return'<button class="chip" data-q="'+esc(t[1])+'">'+esc(t[0])+'</button>'}).join('');
-$('#trend').innerHTML=TREND.map(function(q,i){return'<button class="rk" data-q="'+esc(q)+'"><em>'+(i+1)+'</em><span>'+esc(q)+'</span></button>'}).join('');
-$('#p-search').addEventListener('click',function(e){var r=e.target.closest('[data-q]');if(r)openSearch(r.dataset.q)});
+document.getElementById('sEntry').addEventListener('click',function(){openSearchPage('')});
+document.getElementById('topics').innerHTML=TOPICS.map(function(t){
+  return '<button type="button" class="chip" data-q="'+esc(t[1])+'">'+esc(t[0])+'</button>';
+}).join('');
+document.getElementById('trend').innerHTML=TREND.map(function(q,i){
+  return '<button type="button" class="rk" data-q="'+esc(q)+'"><em>'+(i+1)+'</em><span>'+esc(q)+'</span></button>';
+}).join('');
+document.getElementById('p-search').addEventListener('click',function(e){
+  var r=e.target.closest('[data-q]');
+  if(r)openSearchPage(r.dataset.q);
+});
+document.getElementById('rField').addEventListener('click',function(){
+  if(stack.indexOf('page-search')>-1){
+    popPage();
+    setTimeout(function(){qi.focus()},430);
+  }else{
+    openSearchPage(document.getElementById('rQuery').textContent);
+  }
+});
+$('#rList').addEventListener('click',onCard);
 
 /* ================= BIBLIOTECA ================= */
 function lib(){return rd('library',[])}
@@ -889,7 +995,6 @@ $('#libList').addEventListener('click',function(e){
 
 /* ================= ARTIGO + COMENTÁRIOS ================= */
 function fill(b){$('#aC').innerHTML=b.map(function(x){return x[0]==='h'?'<h3>'+esc(x[1])+'</h3>':x[0]==='q'?'<blockquote>'+esc(x[1])+'</blockquote>':'<p>'+esc(x[1])+'</p>'}).join('')}
-/* página original (via proxies); se não der, o leitor r.jina.ai (também resolve links do Google News) */
 function web(it){
   var p=/news\.google\./.test(it.link)?Promise.reject():get(it.link,function(x){return/<p[\s>]/i.test(x)},1).then(function(x){
     var d=new DOMParser().parseFromString(x,'text/html'),o=$('meta[property="og:image"]',d),b=blocks(d);
@@ -918,13 +1023,35 @@ function drawC(){
   $('#cN').textContent=l.length?'('+l.length+')':'';
   $('#cL').innerHTML=l.length?l.map(function(c){return'<div class="cmi"><span class="av">'+ic('profile')+(c.a?'<img src="'+esc(c.a)+'" alt="">':'')+'</span><div class="bd"><div class="nm">'+esc(c.u)+'<span>'+esc(ago(c.d))+'</span></div><div class="ct">'+esc(c.t)+'</div></div></div>'}).join(''):'<p class="hint">Sê o primeiro a comentar esta notícia.</p>'
 }
-function sendC(){
-  var i=$('#cIn'),v=i.value.trim();if(!v||!art)return;
+function collapseCommentBar(){
+  var input=$('#articleCommentInput');
+  var box=$('#cFloat');
+  if(input)input.blur();
+  if(box)box.classList.remove('open');
+}
+function sendArticleComment(){
+  var i=$('#articleCommentInput'),v=(i&&i.value||'').trim();if(!v||!art)return;
   var u=user(),all=rd('comments',{}),l=all[art.id]||[];
   l.push({u:u?(u.display_name||u.username):'Convidado',a:u&&u.avatar_url&&u.avatar_url.indexOf('data:')!==0?u.avatar_url:'',t:v.slice(0,500),d:new Date().toISOString()});
-  all[art.id]=l;wr('comments',all);i.value='';$('#cSend').disabled=true;tick();drawC();
-  var b=$('#aBody');b.scrollTo({top:b.scrollHeight,behavior:'smooth'})
+  all[art.id]=l;wr('comments',all);
+  if(i)i.value='';
+  tick();drawC();
+  var b=$('#aBody');
+  if(b)b.scrollTo({top:b.scrollHeight,behavior:'smooth'});
+  toast('Comentário enviado','check-circle');
+  collapseCommentBar();
 }
+(function bindCommentFloat(){
+  var box=document.getElementById('cFloat');
+  var input=document.getElementById('articleCommentInput');
+  var send=document.getElementById('cSendBtn');
+  if(!box||!input||!send)return;
+  input.addEventListener('focus',function(){box.classList.add('open')});
+  input.addEventListener('blur',function(){if(!input.value.trim())box.classList.remove('open')});
+  input.addEventListener('input',function(){if(input.value.trim())box.classList.add('open')});
+  send.addEventListener('mousedown',function(e){e.preventDefault()});
+  send.addEventListener('click',function(){sendArticleComment()});
+})();
 function openArticle(it){
   art=it;
   var rg=it.region==='ao'?'Angola':'Internacional';
@@ -935,7 +1062,9 @@ function openArticle(it){
       +(it.summary?'<p class="as">'+esc(it.summary)+'</p>':'')
       +'<div class="aa"><button class="cta sm" data-open>'+ic('link')+'Ler original</button><button class="cta o sm" data-share>'+ic('share')+'Partilhar</button></div>'
       +'<div class="ac" id="aC"></div><div class="cmh">'+ic('chat')+'<span>Comentários</span><span id="cN"></span></div><div id="cL"></div>';
-    $('#aBody').scrollTop=0;$('#cIn').value='';$('#cSend').disabled=true;
+    $('#aBody').scrollTop=0;
+    var inp=$('#articleCommentInput');if(inp)inp.value='';
+    var box=$('#cFloat');if(box)box.classList.remove('open');
     paint();syncSave();drawC();content(it)
   })
 }
@@ -951,9 +1080,6 @@ $('#aBody').addEventListener('click',function(e){
 });
 $('#aSave').onclick=toggleSave;
 $('#aShare').onclick=share;
-$('#cIn').addEventListener('input',function(){$('#cSend').disabled=!this.value.trim()});
-$('#cIn').addEventListener('keydown',function(e){if(e.key==='Enter')sendC()});
-$('#cSend').onclick=sendC;
 
 /* ================= DEFINIÇÕES / MENU ================= */
 function langLabel(){var c=S('lang')||'pt';$('#vLang').textContent=(LANGS.filter(function(l){return l[0]===c})[0]||LANGS[0])[1]}
@@ -965,7 +1091,7 @@ $('#sLang').onclick=function(){
   var c=S('lang')||'pt';
   menu(this,LANGS.map(function(l){return{i:'language',l:l[1],on:c===l[0],f:function(){S('lang',l[0]);langLabel();toast(l[1],'language')}}}))
 };
-$('#sClr').onclick=function(){sure('Limpar histórico','Isto apaga as tuas pesquisas recentes.','Limpar',function(){wr('search_history',[]);idle();toast('Histórico limpo','trash')})};
+$('#sClr').onclick=function(){sure('Limpar histórico','Isto apaga as tuas pesquisas recentes.','Limpar',function(){clearHist();searchIdle();toast('Histórico limpo','trash')})};
 $('#sClrLib').onclick=function(){sure('Limpar guardados','Isto remove todas as notícias guardadas.','Limpar',function(){wr('library',[]);drawLib();toast('Guardados limpos','trash')})};
 $('#hMore').onclick=function(){
   menu(this,[{i:'profile',l:'Meu perfil',f:openProfile},{i:'settings',l:'Definições',f:function(){openPage('pg-settings')}},{i:'clock',l:'Atualizar notícias',f:function(){tab('home');load(1)}}])
@@ -988,6 +1114,7 @@ $('#pills').innerHTML=CATS.map(function(c,i){return'<button class="pill'+(i?'':'
 $('#track').innerHTML=panel('l')+panel('r');
 paint();langLabel();
 tab(S('active_tab'));
+searchIdle();
 
 })();
 </script>
